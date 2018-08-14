@@ -1,0 +1,3 @@
+requests
+virustotal-api
+act-api
