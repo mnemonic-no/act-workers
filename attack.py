@@ -6,10 +6,10 @@ Worker for Mitre ATT&CK, using the STIX implementation available here:
 
     https://github.com/mitre/cti
 
-    ATT&CK concept	STIX Object type        ACT object
+    ATT&CK Property     STIX Object type        ACT object
     =========================================================
-    Technique	        attack-pattern          technique
-    Group	        intrusion-set           threatActor
+    Technique           attack-pattern          technique
+    Group               intrusion-set           threatActor
     Software	        malware or tool         tool
     Mitigation	        course-of-action        n/a
 
@@ -24,16 +24,16 @@ import worker
 MITRE_ENTERPRISE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
 MITRE_PRE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json"
 MITRE_MOBILE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json"
-DEFAULT_REVOKED_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-revoked.cache")
+DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
 
 
 def parseargs():
     """ Parse arguments """
     parser = worker.parseargs('Mitre ATT&CK worker')
-    parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked objects")
-    parser.add_argument('--sender', dest='sender', help="Sender address used to send revoked objects")
-    parser.add_argument('--recipient', dest='recipient', help="Recipient address used to send revoked objects")
-    parser.add_argument('--revokedcache', dest='revokedcache', help="Cache for revoked objects", default=DEFAULT_REVOKED_CACHE)
+    parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked/deprecated objects")
+    parser.add_argument('--sender', dest='sender', help="Sender address used to send revoked/deprecated objects")
+    parser.add_argument('--recipient', dest='recipient', help="Recipient address used to send revoked/deprecated objects")
+    parser.add_argument('--notifycache', dest='notifycache', help="Cache for revoked/deprecated objects", default=DEFAULT_NOTIFY_CACHE)
     args = parser.parse_args()
 
     return args
@@ -53,7 +53,26 @@ def get_attack(url, proxy_string, timeout):
     return mem
 
 
-def fact(client, source_type, source_values, fact_type, destination_type, destination_values, link_type="linked"):
+def add_fact(client, source_type, source_values, fact_type, destination_type, destination_values, link_type="linked"):
+    """
+    Add facts for all combinations of source_values and destination_values,
+    using the specified source_type, fact_type, destination_type and
+    link_type.
+
+    Args:
+        client(act.Act):            ACT instance
+        source_type(str):           ACT object source type
+        source_values(str[]):       List of source values
+        destination_type(str):      ACT object destination type
+        destination_values(str[]):  List of destination values
+        link_type(str):             linked|bidirectional
+
+    link_type == linked, means a fact with a specified source and destination.
+    link_type == bidirectional, means a fact where source/destination have a two way direction
+
+    """
+
+    # Ensure source/destination values lists, if not enclose in a list with a single value
     if isinstance(destination_values, str):
         destination_values = [destination_values]
 
@@ -89,23 +108,32 @@ def fact(client, source_type, source_values, fact_type, destination_type, destin
             continue
 
 
-def process_techniques(client, attack):
+def get_techniques(attack):
     """
         extract objects/facts related to ATT&CK techniques
-        Insert to ACT if client.baseurl is set, if not, print to stdout
 
     Args:
-        client(act.Act):      Act instance
         attack (stix2):       Stix attack instance
 
     """
 
-    revoked = []
+    notify = []
+    facts = []
 
-    for technique in attack.query([Filter('type', '=', 'attack-pattern')]):
-        if getattr(technique, "revoked", None) or getattr(technique, "x_mitre_deprecated", None):
-            revoked.append(technique)
+    # ATT&CK concept    STIX Object type        ACT object
+    # =========================================================
+    # Technique         attack-pattern          technique
+    # Filter out ATT&CK techniques (attack-pattern) from bundle
+
+    for technique in attack.query(Filter("type", "=", "attack-pattern")):
+        if getattr(technique, "revoked", None):
+            # Object is revoked, add to notification list but do not add to facts that should be added to the platform
+            notify.append(technique)
             continue
+
+        if getattr(technique, "x_mitre_deprecated", None):
+            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
+            notify.append(technique)
 
         # Mitre ATT&CK Tactics are implemented in STIX as kill chain phases with kill_chain_name "mitre-attack"
         tactics = [
@@ -114,32 +142,51 @@ def process_techniques(client, attack):
             if tactic.kill_chain_name == "mitre-attack"
         ]
 
-        fact(client, "tactic", tactics, "usesTechnique", "technique", technique.name)
+        facts.append(("tactic", tactics, "usesTechnique", "technique", technique.name, "linked"))
 
-    return revoked
+    return (facts, notify)
 
 
-def process_groups(client, attack):
+def get_groups(attack):
     """
         extract objects/facts related to ATT&CK Groups
-        Insert to ACT if client.baseurl is set, if not, print to stdout
 
     Args:
-        client(act.Act):      Act instance
         attack (stix2):       Stix attack instance
 
     """
 
-    revoked = []
+    notify = []
+    facts = []
 
-    for group in attack.query([Filter('type', '=', 'intrusion-set')]):
-        # Is group revoked/deprecated?
-        if getattr(group, "revoked", None) or getattr(group, "x_mitre_deprecated", None):
-            revoked.append(group)
+    # ATT&CK concept    STIX Object type        ACT object
+    # =========================================================
+    # Group	        intrusion-set           threatActor
+    #
+    # Filter out ATT&CK groups (intrusion-set) from bundle
+
+    for group in attack.query(Filter("type", "=", "intrusion-set")):
+        if getattr(group, "revoked", None):
+            # Object is revoked, add to notification list but do not add to facts that should be added to the platform
+            notify.append(group)
             continue
 
+        if getattr(group, "x_mitre_deprecated", None):
+            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
+            notify.append(group)
+
         if getattr(group, "aliases", None):
-            fact(client, "threatActor", group.name, "threatActorAlias", "threatActor", group.aliases, link_type="bidirectional")
+            facts.append(("threatActor",
+                          group.name,
+                          "threatActorAlias",
+                          "threatActor",
+                          group.aliases,
+                          "bidirectional"))
+
+        #   ATT&CK concept   STIX Properties
+        #   ==========================================================================
+        #   Software         relationship where relationship_type == "uses",
+        #                    points to a target object with type== "malware" or "tool"
 
         uses_tools = [
             tool.name.lower()
@@ -147,40 +194,54 @@ def process_groups(client, attack):
             if tool.type in ("malware", "tool")
         ]
 
+        #   ATT&CK concept   STIX Properties
+        #   ==========================================================================
+        #   Technqiues       relationship where relationship_type == "uses", points to
+        #                    a target object with type == "attack-pattern"
+
         uses_techniques = [
             tech.name
             for tech in attack.related_to(group, relationship_type="uses")
             if tech.type in ("attack-pattern")
         ]
 
-        fact(client, "threatActor", group.name, "usesTechnique", "technique", uses_techniques)
-        fact(client, "threatActor", group.name, "usesTool", "tool", uses_tools)
+        facts.append(("threatActor", group.name, "usesTechnique", "technique", uses_techniques, "linked"))
+        facts.append(("threatActor", group.name, "usesTool", "tool", uses_tools, "linked"))
 
-    return revoked
+    return (facts, notify)
 
 
-def process_software(client, attack):
+def get_software(attack):
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
 
     Args:
-        client(act.Act):      Act instance
         attack (stix2):       Stix attack instance
 
     """
 
-    revoked = []
+    notify = []
+    facts = []
 
-    for software in attack.query([Filter('type', 'in', ['tool', "malware"])]):
-        # Is group revoked/deprecated?
-        if getattr(software, "revoked", None) or getattr(software, "x_mitre_deprecated", None):
-            revoked.append(software)
+    for software in attack.query(Filter("type", "in", ["tool", "malware"])):
+        if getattr(software, "revoked", None):
+            # Object is revoked, add to notification list but do not add to facts that should be added to the platform
+            notify.append(group)
             continue
+
+        if getattr(software, "x_mitre_deprecated", None):
+            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
+            notify.append(software)
 
         if hasattr(software, "x_mitre_aliases"):
             aliases = [tool.lower() for tool in software.x_mitre_aliases]
-            fact(client, "tool", software.name.lower(), "toolAlias", "tool", aliases, link_type="bidirectional")
+            facts.append(("tool", software.name.lower(), "toolAlias", "tool", aliases, "bidirectional"))
+
+        #   ATT&CK concept   STIX Properties
+        #   ==========================================================================
+        #   Technqiues       relationship where relationship_type == "uses", points to
+        #                    a target object with type == "attack-pattern"
 
         uses_techniques = [
             tech.name
@@ -188,14 +249,14 @@ def process_software(client, attack):
             if tech.type in ("attack-pattern")
         ]
 
-        fact(client, "tool", software.name, "usesTechnique", "technique", uses_techniques)
+        facts.append(("tool", software.name, "usesTechnique", "technique", uses_techniques, "linked"))
 
-    return revoked
+    return (facts, notify)
 
 
-def revoked_cache(filename):
+def notify_cache(filename):
     """
-    Read revoked cache from filename
+    Read notify cache from filename
     Args:
         filename(str):      Cache filename
 
@@ -228,13 +289,13 @@ def add_to_cache(filename, entry):
         f.write("\n")
 
 
-def process_revoked(revoked, revokedcache, smtphost, sender, recipient):
+def send_notification(notify, notifycache, smtphost, sender, recipient):
     """
     Process revoked objects
 
     Args:
-        revoked(attack[]):  Array of revoked Stix objects
-        revokedcache(str):  Filename of revoked cache
+        notify(attack[]):   Array of revoked/deprecated Stix objects
+        notifycache(str):   Filename of notify cache
         smtphost(str):      SMTP host used to notify of revoked/deprecated objects
         sender(str):        sender address used to notify of revoked/deprecated objects
         recipient(str):     recipient address used to notify of revoked/deprecated objects
@@ -243,16 +304,21 @@ def process_revoked(revoked, revokedcache, smtphost, sender, recipient):
 
     """
 
-    if not revoked:
-        return
-
     body = url + "\n\n"
     warning("[{}]".format(url))
 
-    for obj in revoked:
+    for obj in notify:
         # Add object to cache, so we will not be notified on the same object on the next run
-        add_to_cache(revokedcache, obj.id)
-        text = "revoked/deprecated: {}:{}".format(obj.type, obj.name)
+        add_to_cache(notifycache, obj.id)
+
+        if getattr(obj, "revoked", None):
+            text = "revoked: {}:{}".format(obj.type, obj.name)
+
+        elif getattr(obj, "x_mitre_deprecated", None):
+            text = "deprecated: {}:{}".format(obj.type, obj.name)
+        else:
+            text = "ERROR obj is not deprecated or revoked: {}:{}".format(obj.type, obj.name)
+
         body += text + "\n"
         warning(text)
 
@@ -274,19 +340,33 @@ if __name__ == '__main__':
         "mitre-attack")
 
     for url in (MITRE_ENTERPRISE_ATTACK_URL, MITRE_MOBILE_ATTACK_URL, MITRE_PRE_ATTACK_URL):
-        cache = revoked_cache(args.revokedcache)
-        revoked = []
+        cache = notify_cache(args.notifycache)
+        notify = []
 
+        # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.timeout)
-        technique_revoked = process_techniques(client, attack)
-        groups_revoked = process_groups(client, attack)
-        software_revoked = process_software(client, attack)
+
+        (techniques, techniques_notify) = get_techniques(attack)
+        (groups, groups_notify) = get_groups(attack)
+        (software, software_notify) = get_software(attack)
+
+        # Add facts to platform
+        facts = techniques + groups + software
+        for (source_type, source_values, fact_type, destination_type, destination_values, link_type) in facts:
+            add_fact(client,
+                     source_type,
+                     source_values,
+                     fact_type,
+                     destination_type,
+                     destination_values,
+                     link_type)
 
         # Get revoked objects, excluding those in cache
-        revoked = [
-            revoked
-            for revoked in technique_revoked + groups_revoked + software_revoked
-            if revoked.id not in cache
+        notify = [
+            notify
+            for notify in techniques_notify + groups_notify + software_notify
+            if notify.id not in cache
         ]
 
-        process_revoked(revoked, args.revokedcache, args.smtphost, args.sender, args.recipient)
+        if notify:
+            send_notification(notify, args.notifycache, args.smtphost, args.sender, args.recipient)
