@@ -125,7 +125,7 @@ def get_techniques(attack):
     # Technique         attack-pattern          technique
     # Filter out ATT&CK techniques (attack-pattern) from bundle
 
-    for technique in attack.query(Filter("type", "=", "attack-pattern")):
+    for technique in attack.query([Filter("type", "=", "attack-pattern")]):
         if getattr(technique, "revoked", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(technique)
@@ -165,7 +165,7 @@ def get_groups(attack):
     #
     # Filter out ATT&CK groups (intrusion-set) from bundle
 
-    for group in attack.query(Filter("type", "=", "intrusion-set")):
+    for group in attack.query([Filter("type", "=", "intrusion-set")]):
         if getattr(group, "revoked", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(group)
@@ -224,7 +224,7 @@ def get_software(attack):
     notify = []
     facts = []
 
-    for software in attack.query(Filter("type", "in", ["tool", "malware"])):
+    for software in attack.query([Filter("type", "in", ["tool", "malware"])]):
         if getattr(software, "revoked", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(group)
