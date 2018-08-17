@@ -341,7 +341,6 @@ if __name__ == '__main__':
 
     for url in (MITRE_ENTERPRISE_ATTACK_URL, MITRE_MOBILE_ATTACK_URL, MITRE_PRE_ATTACK_URL):
         cache = notify_cache(args.notifycache)
-        notify = []
 
         # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.timeout)
