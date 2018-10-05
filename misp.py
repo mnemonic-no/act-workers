@@ -222,6 +222,8 @@ def ip_f(x):
 
 
 def uri_f(x):
+    if not x.startswith("http"):
+        x = "http://{0}".format(x)
     return "uri", x
 
 
@@ -237,31 +239,33 @@ def mutex_f(x):
     return "mutex", x
 
 
-map_misp_to_act = {"md5": hash_f,
-                   "sha1": hash_f,
-                   "sha224": hash_f,
-                   "sha256": hash_f,
-                   "sha384": hash_f,
-                   "sha512": hash_f,
-                   "sha512/224": hash_f,
-                   "sha512/256": hash_f,
-                   "ssdeep": hash_f,
-                   "imphash": hash_f,
-                   "impfuzzy": hash_f,
-                   "authentihash": hash_f,
-                   "x509-fingerprint-sha1": certificate_f,
-                   "threat-actor": threat_actor_f,
-                   "campaign-name": campaign_f,
-                   "whois-registrant-email": email_f,
-                   "whois-registrant-name": person_f,
-                   "whois-registrar": organization_f,
-                   "ip-src": ip_f,
-                   "ip-dst": ip_f,
-                   "url": uri_f,
-                   "user-agent": user_agent_f,
-                   "vulnerability": vulnerability_f,
-                   "mutex": mutex_f,
-                   }
+map_misp_to_act = {
+    "authentihash": hash_f,
+    "campaign-name": campaign_f,
+    "impfuzzy": hash_f,
+    "imphash": hash_f,
+    "ip-dst": ip_f,
+    "ip-src": ip_f,
+    "link": uri_f,
+    "md5": hash_f,
+    "mutex": mutex_f,
+    "sha1": hash_f,
+    "sha224": hash_f,
+    "sha256": hash_f,
+    "sha384": hash_f,
+    "sha512/224": hash_f,
+    "sha512/256": hash_f,
+    "sha512": hash_f,
+    "ssdeep": hash_f,
+    "threat-actor": threat_actor_f,
+    "url": uri_f,
+    "user-agent": user_agent_f,
+    "vulnerability": vulnerability_f,
+    "whois-registrant-email": email_f,
+    "whois-registrant-name": person_f,
+    "whois-registrar": organization_f,
+    "x509-fingerprint-sha1": certificate_f,
+}
 
 
 class IncompleteEventException(Exception):

@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 """MISP feed worker pulling down feeds in misp_feeds.txt
 and adding data to the platform"""
 
 import act
+import argparse
 import hashlib
 import json
 import misp
@@ -10,6 +11,8 @@ import os
 import requests
 import sys
 import syslog
+
+from colorama import Fore, Style
 
 try:
     import urlparse
@@ -28,6 +31,22 @@ def log(*msg):
         syslog.syslog(mymsg)
 
 
+def parseargs():
+    """ Parse arguments """
+    parser = argparse.ArgumentParser(description='Get SCIO reports and IOCs from stdin')
+    parser.add_argument('--userid', dest='act_user_id', required=True, help="User ID")
+    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True, help='API URI')
+    parser.add_argument("--logfile", dest="logfile", help="Log to file (default = stdout)")
+    parser.add_argument("--loglevel", dest="loglevel", default="info",
+                        help="Loglevel (default = info)")
+    parser.add_argument('--proxy', metavar='PROXY', type=str,
+                        help='set the system proxy')
+    parser.add_argument('--cert', metavar="CERTFILE", type=str,
+                        help='Read certificate from file (ie. self signed proxy)')
+
+    return parser.parse_args()
+
+
 def verify_dir():
     """Verify that the directory structure exists and that there is
     always a feed file (Even empty)"""
@@ -44,21 +63,46 @@ def verify_dir():
 def handle_event_file(feed_url, uuid):
     """Download, parse and store single event file"""
 
-    log("Handling {0} from {1}".format(uuid, feed_url))
+    if ARGS.loglevel == "info":
+        log("Handling {0} from {1}".format(uuid, feed_url))
+
+    if ARGS.proxy:
+        proxies = {
+            'http': ARGS.proxy,
+            'https': ARGS.proxy,
+        }
+    else:
+        proxies = None
+
+    if ARGS.cert:
+        certfile = ARGS.cert
+    else:
+        certfile = None
 
     url = urlparse.urljoin(feed_url, "{0}.json".format(uuid))
-    req = requests.get(url)
-    event = misp.Event(loads=req.text)
-
-    print(event)
+    req = requests.get(url, proxies=proxies, verify=certfile)
+    return misp.Event(loads=req.text)
 
 
 def handle_feed(feed_url):
     """Get the manifest file, check if an event file is downloaded
     before (cache) and dispatch event handling of separate files"""
 
+    if ARGS.proxy:
+        proxies = {
+            'http': ARGS.proxy,
+            'https': ARGS.proxy,
+        }
+    else:
+        proxies = None
+
+    if ARGS.cert:
+        certfile = ARGS.cert
+    else:
+        certfile = None
+
     manifest_url = urlparse.urljoin(feed_url, "manifest.json")
-    req = requests.get(manifest_url)
+    req = requests.get(manifest_url, proxies=proxies, verify=certfile)
 
     manifest = json.loads(req.text)
 
@@ -72,13 +116,13 @@ def handle_feed(feed_url):
 
     for uuid in manifest:
         if uuid not in old_manifest:
-            handle_event_file(feed_url, uuid)
+            yield handle_event_file(feed_url, uuid)
 
     with open("misp/manifest/{0}".format(feed_sha1), "wb") as f:
         f.write(json.dumps(manifest).encode("utf-8"))
 
 
-def main():
+def main(client):
     """program entry point"""
 
     verify_dir()
@@ -86,63 +130,53 @@ def main():
     with open("misp/misp_feeds.txt") as f:
         for line in f:
             feed_data = handle_feed(line.strip())
-            print(feed_data)
+            for event in feed_data:
+                n = 0
+                e = 0
+                if not ARGS.act_baseurl:
+                    print(Style.BRIGHT, Fore.BLUE, event.info, Style.RESET_ALL)
 
-
-def add_fact(client, source_type, source_values, fact_type, destination_type, destination_values, link_type="linked"):
-    """
-    Add facts for all combinations of source_values and destination_values,
-    using the specified source_type, fact_type, destination_type and
-    link_type.
-
-    Args:
-        client(act.Act):            ACT instance
-        source_type(str):           ACT object source type
-        source_values(str[]):       List of source values
-        destination_type(str):      ACT object destination type
-        destination_values(str[]):  List of destination values
-        link_type(str):             linked|bidirectional
-
-    link_type == linked, means a fact with a specified source and destination.
-    link_type == bidirectional, means a fact where source/destination have a two way direction
-
-    """
-
-    # Ensure source/destination values lists, if not enclose in a list with a single value
-    if isinstance(destination_values, str):
-        destination_values = [destination_values]
-
-    if isinstance(source_values, str):
-        source_values = [source_values]
-
-    for source_value in source_values:
-        try:
-            for destination_value in destination_values:
-                fact = None
-                if source_type == destination_type and source_value == destination_value:
-                    continue  # Do not link to itself
-
-                if link_type == "linked":
-                    fact = client.fact(fact_type)\
-                        .source(source_type, source_value)\
-                        .destination(destination_type, destination_value)
-                elif link_type == "bidirectional":
-                    fact = client.fact(fact_type)\
-                        .bidirectional(source_type, source_value)\
-                        .bidirectional(destination_type, destination_value)
-                else:
-                    log("Illegal link_type: %s" % link_type)
-                    continue
-
-                if client.act_baseurl:  # Add fact toplatform
+                fact = actapi.fact("hasTitle", event.info)\
+                             .source("report", str(event.uuid))
+                if ARGS.act_baseurl:
                     fact.add()
+                    n += 1
                 else:
-                    print(fact.json())  # Print fact to stdout, if baseurl is NOT set
+                    print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
 
-        except act.base.ResponseError as e:
-            log(e)
-            continue
+                fact = actapi.fact("externalLink")\
+                             .source("uri", "{0}/{1}.json".format(line.strip(), event.uuid))\
+                             .destination("report", str(event.uuid))
+                if ARGS.act_baseurl:
+                    try:
+                        fact.add()
+                        n += 1
+                    except act.base.ResponseError as err:
+                        e += 1
+                        log(str(err))
+                else:
+                    print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
+
+                for attribute in event.attributes:
+                    if not attribute.act_type:
+                        continue
+                    fact = actapi.fact("seenIn", "report")\
+                                 .source(attribute.act_type, attribute.value)\
+                                 .destination("report", str(event.uuid))
+                    if ARGS.act_baseurl:
+                        try:
+                            fact.add()
+                            n += 1
+                        except act.base.ResponseError as err:
+                            e += 1
+                            log(str(err))
+                    else:
+                        print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
+                log("Added {0} facts. {1} errors.".format(n, e))
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parseargs()
+
+    actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "misp-import")
+    main(actapi)
