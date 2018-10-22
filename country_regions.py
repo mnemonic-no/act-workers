@@ -3,6 +3,8 @@
 """Worker module fetching ISO 3166 from github to add is{Country,Region,SubRegion} facts,
 output result in a format understandable to ACT add fact"""
 
+from logging import error
+import traceback
 import act
 import worker
 
@@ -50,7 +52,10 @@ def process(actapi, country_list):
 if __name__ == '__main__':
     ARGS = parseargs()
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region")
-    country_list = worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
-
-    process(actapi, country_list)
+    try:
+        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region")
+        country_list = worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
+        process(actapi, country_list)
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

@@ -17,6 +17,7 @@ Worker for Mitre ATT&CK, using the STIX implementation available here:
 
 import os
 from logging import error, warning, info
+import traceback
 import act
 from stix2 import parse, Filter, MemoryStore
 import worker
@@ -329,9 +330,8 @@ def send_notification(notify, notifycache, smtphost, sender, recipient):
         error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
 
 
-if __name__ == '__main__':
+def main():
     args = parseargs()
-
     client = act.Act(
         args.act_baseurl,
         args.user_id,
@@ -369,3 +369,11 @@ if __name__ == '__main__':
 
         if notify:
             send_notification(notify, args.notifycache, args.smtphost, args.sender, args.recipient)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

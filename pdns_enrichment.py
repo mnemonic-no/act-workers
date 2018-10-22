@@ -8,6 +8,7 @@ import argparse
 import socket
 import sys
 from logging import warning, error
+import traceback
 import urllib3
 import requests
 import act
@@ -167,6 +168,9 @@ class UnknownResult(Exception):
 if __name__ == '__main__':
     ARGS = parseargs()
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
-
-    process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
+    try:
+        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
+        process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import argparse
 import sys
+import traceback
 import socket
 from logging import error
 import urllib3
@@ -99,4 +100,8 @@ def main():
 
 if __name__ == '__main__':
 
-    main()
+    try:
+        main()
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        sys.exit(1)

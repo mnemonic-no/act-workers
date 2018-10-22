@@ -3,6 +3,8 @@
 and adding data to the platform"""
 
 import act
+from logging import error
+import traceback
 import argparse
 import hashlib
 import json
@@ -178,5 +180,9 @@ def main(client):
 if __name__ == "__main__":
     ARGS = parseargs()
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "misp-import")
-    main(actapi)
+    try:
+        actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "misp-import")
+        main(actapi)
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

@@ -4,6 +4,7 @@
 from the stdin, uploading accordingly"""
 
 from logging import error
+import traceback
 import argparse
 import json
 import sys
@@ -43,6 +44,9 @@ def process(actapi):
 if __name__ == '__main__':
     ARGS = parseargs()
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
-
-    process(actapi)
+    try:
+        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
+        process(actapi)
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise
