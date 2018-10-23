@@ -132,6 +132,7 @@ def main(client):
     """program entry point"""
 
     verify_dir()
+    status = {}  # in case of empty feed/no enrichment uploads.
 
     with open("misp/misp_feeds.txt") as f:
         for line in f:
