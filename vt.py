@@ -32,6 +32,8 @@ import ipaddress
 import re
 import sys
 import warnings
+from logging import error
+import traceback
 import act
 from functools import partialmethod
 
@@ -290,4 +292,8 @@ def no_ssl_verification():
 
 if __name__ == '__main__':
 
-    main()
+    try:
+        main()
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

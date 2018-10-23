@@ -6,6 +6,7 @@ import sys
 import argparse
 import json
 from logging import error
+import traceback
 
 import act
 
@@ -69,7 +70,6 @@ def add_to_act(actapi, doc):
     except act.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
 
-
     indicators = doc.get("indicators", {})
 
     # Loop over all items under indicators in report
@@ -118,7 +118,10 @@ def add_to_act(actapi, doc):
 if __name__ == '__main__':
     ARGS = parseargs()
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "scio")
-
-    # Add IOCs from reports to the ACT platform
-    add_to_act(actapi, get_scio_report())
+    try:
+        actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "scio")
+        # Add IOCs from reports to the ACT platform
+        add_to_act(actapi, get_scio_report())
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise

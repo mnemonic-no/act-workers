@@ -3,6 +3,8 @@
 and adding data to the platform"""
 
 import act
+from logging import error
+import traceback
 import argparse
 import configparser
 import collections
@@ -190,9 +192,13 @@ if __name__ == "__main__":
         print("Could not read config file")
         sys.exit(1)
 
-    actapi = act.Act(CONF['platform']['base_url'],
-                     ARGS.act_user_id,
-                     CONF['misp']['loglevel'],
-                     CONF['misp']['logfile'],
-                     "misp-import")
-    main(actapi)
+    try:
+        actapi = act.Act(CONF['platform']['base_url'],
+                         ARGS.act_user_id,
+                         CONF['misp']['loglevel'],
+                         CONF['misp']['logfile'],
+                         "misp-import")
+        main(actapi)
+    except Exception as e:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise
