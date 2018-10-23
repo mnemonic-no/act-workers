@@ -207,6 +207,10 @@ def organization_f(x):
     return "organization", x.lower()
 
 
+def fqdn_f(x):
+    return "fqdn", x.lower()
+
+
 def ip_f(x):
     try:
         addr = ipaddress.IPv6Address(x)
@@ -242,6 +246,8 @@ def mutex_f(x):
 map_misp_to_act = {
     "authentihash": hash_f,
     "campaign-name": campaign_f,
+    "hostname": fqdn_f,
+    "domain": fqdn_f,
     "impfuzzy": hash_f,
     "imphash": hash_f,
     "ip-dst": ip_f,

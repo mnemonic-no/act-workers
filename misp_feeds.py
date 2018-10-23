@@ -4,6 +4,8 @@ and adding data to the platform"""
 
 import act
 import argparse
+import configparser
+import collections
 import hashlib
 import json
 import misp
@@ -35,14 +37,8 @@ def parseargs():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description='Get SCIO reports and IOCs from stdin')
     parser.add_argument('--userid', dest='act_user_id', required=True, help="User ID")
-    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True, help='API URI')
-    parser.add_argument("--logfile", dest="logfile", help="Log to file (default = stdout)")
-    parser.add_argument("--loglevel", dest="loglevel", default="info",
-                        help="Loglevel (default = info)")
-    parser.add_argument('--proxy', metavar='PROXY', type=str,
-                        help='set the system proxy')
-    parser.add_argument('--cert', metavar="CERTFILE", type=str,
-                        help='Read certificate from file (ie. self signed proxy)')
+    parser.add_argument('--config', metavar="CONFIGFILE", default="/etc/actworkers.ini", type=str,
+                        help='Use this file for config.')
 
     return parser.parse_args()
 
@@ -51,31 +47,30 @@ def verify_dir():
     """Verify that the directory structure exists and that there is
     always a feed file (Even empty)"""
 
-    if not os.path.isdir("misp"):
-        os.mkdir("misp")
-    if not os.path.isdir("misp/manifest"):
-        os.mkdir("misp/manifest")
-    if not os.path.isfile("misp/misp_feeds.txt"):
-        with open("misp/misp_feeds.txt", "wb"):
+    if not os.path.isdir(CONF['misp']['manifest_dir']):
+        print("Could not open manifest directory:", CONF['misp']['manifest_dir'])
+    feed_file = os.path.join(CONF['misp']['manifest_dir'], 'misp_feeds.txt')
+    if not os.path.isfile(feed_file):
+        with open(feed_file, "wb"):
             pass
 
 
 def handle_event_file(feed_url, uuid):
     """Download, parse and store single event file"""
 
-    if ARGS.loglevel == "info":
+    if CONF['misp']['loglevel'] == "info":
         log("Handling {0} from {1}".format(uuid, feed_url))
 
-    if ARGS.proxy:
+    if CONF['proxy']['host']:
         proxies = {
-            'http': ARGS.proxy,
-            'https': ARGS.proxy,
+            'http': "{}:{}".format(CONF['proxy']['host'], CONF['proxy']['port']),
+            'https': "{}:{}".format(CONF['proxy']['host'], CONF['proxy']['port']),
         }
     else:
         proxies = None
 
-    if ARGS.cert:
-        certfile = ARGS.cert
+    if CONF['cert']['file']:
+        certfile = CONF['cert']['file']
     else:
         certfile = None
 
@@ -88,16 +83,16 @@ def handle_feed(feed_url):
     """Get the manifest file, check if an event file is downloaded
     before (cache) and dispatch event handling of separate files"""
 
-    if ARGS.proxy:
+    if CONF['proxy']['host']:
         proxies = {
-            'http': ARGS.proxy,
-            'https': ARGS.proxy,
+            'http': "{}:{}".format(CONF['proxy']['host'], CONF['proxy']['port']),
+            'https': "{}:{}".format(CONF['proxy']['host'], CONF['proxy']['port']),
         }
     else:
         proxies = None
 
-    if ARGS.cert:
-        certfile = ARGS.cert
+    if CONF['cert']['file']:
+        certfile = CONF['cert']['file']
     else:
         certfile = None
 
@@ -122,6 +117,15 @@ def handle_feed(feed_url):
         f.write(json.dumps(manifest).encode("utf-8"))
 
 
+def enrich(act_type, value, status=collections.defaultdict(int)):
+    url = CONF['misp_enrich'].get(act_type, None)
+
+    if url:
+        status[act_type] += 1
+        requests.post(url, data=value)
+    return status.copy()
+
+
 def main(client):
     """program entry point"""
 
@@ -133,12 +137,12 @@ def main(client):
             for event in feed_data:
                 n = 0
                 e = 0
-                if not ARGS.act_baseurl:
+                if not CONF['platform']['base_url']:
                     print(Style.BRIGHT, Fore.BLUE, event.info, Style.RESET_ALL)
 
                 fact = actapi.fact("hasTitle", event.info)\
                              .source("report", str(event.uuid))
-                if ARGS.act_baseurl:
+                if CONF['platform']['base_url']:
                     fact.add()
                     n += 1
                 else:
@@ -147,7 +151,7 @@ def main(client):
                 fact = actapi.fact("externalLink")\
                              .source("uri", "{0}/{1}.json".format(line.strip(), event.uuid))\
                              .destination("report", str(event.uuid))
-                if ARGS.act_baseurl:
+                if CONF['platform']['base_url']:
                     try:
                         fact.add()
                         n += 1
@@ -163,7 +167,8 @@ def main(client):
                     fact = actapi.fact("seenIn", "report")\
                                  .source(attribute.act_type, attribute.value)\
                                  .destination("report", str(event.uuid))
-                    if ARGS.act_baseurl:
+                    status = enrich(attribute.act_type, attribute.value)
+                    if CONF['platform']['base_url']:
                         try:
                             fact.add()
                             n += 1
@@ -173,10 +178,21 @@ def main(client):
                     else:
                         print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
                 log("Added {0} facts. {1} errors.".format(n, e))
+        for k, v in status.items():
+            log("{} {} sent to enrichment".format(v, k))
 
 
 if __name__ == "__main__":
     ARGS = parseargs()
+    CONF = configparser.ConfigParser()
+    read = CONF.read(ARGS.config)
+    if len(read) == 0:
+        print("Could not read config file")
+        sys.exit(1)
 
-    actapi = act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "misp-import")
+    actapi = act.Act(CONF['platform']['base_url'],
+                     ARGS.act_user_id,
+                     CONF['misp']['loglevel'],
+                     CONF['misp']['logfile'],
+                     "misp-import")
     main(actapi)
