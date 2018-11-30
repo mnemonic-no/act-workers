@@ -1,0 +1,32 @@
+from collections import defaultdict
+from siri import *
+
+
+def main():
+
+    # sets the url for the act platform and the userid.
+    baseurl = "http://osl-act-dev-trunk1.mnemonic.no"
+    userid = 3
+
+    # gets all ta names from objects(as a set of strings) and facts(as a set with tuples of two strings) in ACT
+    ta = get_all_ta_from_act(baseurl, userid)
+
+    ta_aliases = get_all_alias_facts_from_act(baseurl, userid)
+
+    # creates the defaultdic containing set. Empty so far.
+    ta_map = defaultdict(set)
+
+    # adds all ta names from objects into ta_map
+    add_ta_to_map(ta, ta_map)
+
+    # adds all ta names from alias-facts in ACT to the ta_map
+    add_ta_alias_to_map(ta_aliases, ta_map)
+
+    # creates a file "aliases.cfg" including all the content from ta_map.
+    create_config(ta_map)
+
+
+# https://stackoverflow.com/questions/419163/what-does-if-name-main-do
+if __name__ == "__main__":
+
+    main()

@@ -1,0 +1,114 @@
+# -*- coding: utf-8 -*-
+from act import api
+from collections import defaultdict
+
+# gets set of all threat actor names in the ACT platform.
+
+
+def get_all_ta_from_act(baseurl, userid):
+
+    objects = api.object_search(baseurl, userid, objectType=["threatActor"], limit=0)
+
+    ta_set = set()
+
+    for x in objects["data"]:
+        ta_set.add(x["value"])
+
+    return ta_set
+
+# gets set of all bindings between threat actor and threat actor aliases from ACT.
+
+
+def get_all_alias_facts_from_act(baseurl, userid):
+
+    facts = api.fact_search(baseurl, userid, objectType=["threatActor"], factType=["threatActorAlias"], limit=0)
+
+    ta_set_facts = set()
+    for fa in facts["data"]:
+        ta1, ta2 = [x["object"]["value"] for x in fa["objects"] if x["object"]["type"]["name"] == "threatActor"]
+        ta_set_facts.add((ta1, ta2))
+
+    return ta_set_facts
+
+# adds all threat actor names given in a set to a map. The map is a defaultdict with sets, each set containing a key and all relevant aliases for that key as values.
+
+
+def add_ta_to_map(ta_set, ta_map):
+
+    for ta in ta_set:
+        ta_map[ta].add(ta)
+
+
+# adds alias to the ta_map. Needs arguments ta_map defaultdict with sets, and tuples with two strings in each. Assumes that all threat actors are already in the ta_map.
+
+def add_ta_alias_to_map(ta_aliases, ta_map):
+
+    for tup in ta_aliases:
+        ta1, ta2 = tup
+
+        s = ta_map[ta1]
+
+        s.update(ta_map[ta2])
+
+        # point key of all elements of the set to the same set.
+        for x in s:
+            ta_map[x] = s
+
+
+# checks with old config file to decide on key in new config file.
+
+
+def decide_on_key(k_decide, v_decide, config_dict, ta_map):
+    # if key is within the keys in the current configfile, then return that value from v as key and the rest as aliases.
+    if k_decide in config_dict[0]:
+        v_decide.remove(k_decide)
+        return k_decide, v_decide
+
+    # if the key is within the aliases of another key, then return the key of the set where the value was found and remove that value from the set
+    for kk, vv in config_dict.items():
+        if k_decide in vv and kk in v_decide:
+            v_decide.remove(kk)
+
+            return kk, v_decide
+
+    # if the key is not a key already, then just choose one from the set v, and set the rest as aliases.
+    v_decide.remove(k_decide)
+
+    return k_decide, v_decide
+
+
+# creates config file from ta_map, defaultdict with set.
+
+
+def create_config(ta_map):
+
+    def config_split(l):
+        k, v = l.split(":")
+        return k, [x.strip() for x in v.split(",")]
+
+    config_dict = defaultdict(set)
+
+    with open("aliases.cfg", "r") as config:
+        for l in config:
+            k, v = config_split(l)
+            config_dict[k] = v
+
+    with open("aliases_new.cfg", "w") as config:
+
+        config.truncate()
+
+        while ta_map:
+            k, v = ta_map.popitem()
+
+            if len(v) == 1:
+                config.write(k.encode("utf-8") + ":\n")
+            else:
+                k_decide_key = k[:]
+                v_decide_key = set(v)
+                ta_name, ta_aliases = decide_on_key(k_decide_key, v_decide_key, config_dict, ta_map)
+                config.write("{}: {}\n".format(ta_name.encode("utf-8"), ",".join(ta_aliases).encode("utf-8")))
+                v.remove(k)
+                for x in v:
+                    ta_map.pop(x)
+
+    return config
