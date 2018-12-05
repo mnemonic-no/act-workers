@@ -1,31 +1,30 @@
 # -*- coding: utf-8 -*-
-from act import api
 from collections import defaultdict
 
 # gets set of all threat actor names in the ACT platform.
 
 
-def get_all_ta_from_act(baseurl, userid):
+def get_all_ta_from_act(c):
 
-    objects = api.object_search(baseurl, userid, objectType=["threatActor"], limit=0)
+    objects = c.object_search(object_type=["threatActor"], limit=1000)
 
     ta_set = set()
 
-    for x in objects["data"]:
-        ta_set.add(x["value"])
+    for x in objects:
+        ta_set.add(x.value)
 
     return ta_set
 
 # gets set of all bindings between threat actor and threat actor aliases from ACT.
 
 
-def get_all_alias_facts_from_act(baseurl, userid):
+def get_all_alias_facts_from_act(c):
 
-    facts = api.fact_search(baseurl, userid, objectType=["threatActor"], factType=["threatActorAlias"], limit=0)
+    facts = c.fact_search(object_type=["threatActor"], fact_type=["threatActorAlias"], limit=1000)
 
     ta_set_facts = set()
-    for fa in facts["data"]:
-        ta1, ta2 = [x["object"]["value"] for x in fa["objects"] if x["object"]["type"]["name"] == "threatActor"]
+    for fa in facts:
+        ta1, ta2 = fa.source_object.value, fa.destination_object.value
         ta_set_facts.add((ta1, ta2))
 
     return ta_set_facts
@@ -33,28 +32,30 @@ def get_all_alias_facts_from_act(baseurl, userid):
 # adds all threat actor names given in a set to a map. The map is a defaultdict with sets, each set containing a key and all relevant aliases for that key as values.
 
 
-def add_ta_to_map(ta_set, ta_map):
-
+def add_ta_to_map(ta_set):
+    ta_map = defaultdict(set)
     for ta in ta_set:
         ta_map[ta].add(ta)
-
+    return ta_map
 
 # adds alias to the ta_map. Needs arguments ta_map defaultdict with sets, and tuples with two strings in each. Assumes that all threat actors are already in the ta_map.
+
 
 def add_ta_alias_to_map(ta_aliases, ta_map):
 
     for tup in ta_aliases:
         ta1, ta2 = tup
-
+        print(ta1, ta2)
         s = ta_map[ta1]
-
+        print("før" + str(s))
+        print(ta_map[ta2])
         s.update(ta_map[ta2])
-
+        print("etter" + str(s))
         # point key of all elements of the set to the same set.
         for x in s:
             ta_map[x] = s
 
-
+    return ta_map
 # checks with old config file to decide on key in new config file.
 
 
@@ -101,12 +102,12 @@ def create_config(ta_map):
             k, v = ta_map.popitem()
 
             if len(v) == 1:
-                config.write(k.encode("utf-8") + ":\n")
+                config.write(k + ":\n")
             else:
                 k_decide_key = k[:]
                 v_decide_key = set(v)
                 ta_name, ta_aliases = decide_on_key(k_decide_key, v_decide_key, config_dict, ta_map)
-                config.write("{}: {}\n".format(ta_name.encode("utf-8"), ",".join(ta_aliases).encode("utf-8")))
+                config.write("{}: {}\n".format(ta_name, ",".join(ta_aliases)))
                 v.remove(k)
                 for x in v:
                     ta_map.pop(x)
