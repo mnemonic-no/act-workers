@@ -1,26 +1,40 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
+import act
+
+
+# creates an api agent for use in searches
+
+def create_api_agent():
+        # sets the url for the act platform and the userid.
+    baseurl = "http://osl-act-dev-trunk1.mnemonic.no:8080"
+    userid = 3
+
+    # creates an API agent
+    c = act.Act(baseurl, userid, log_level="info")
+    return c
+
 
 # gets set of all threat actor names in the ACT platform.
 
 
-def get_all_ta_from_act(c):
+def get_all_ta_from_act():
 
-    objects = c.object_search(object_type=["threatActor"], limit=1000)
+    objects = create_api_agent().object_search(object_type=["threatActor"], limit=1000)
 
     ta_set = set()
 
     for x in objects:
         ta_set.add(x.value)
 
-    return ta_set
+    return list(ta_set)
+
 
 # gets set of all bindings between threat actor and threat actor aliases from ACT.
 
+def get_all_alias_facts_from_act():
 
-def get_all_alias_facts_from_act(c):
-
-    facts = c.fact_search(object_type=["threatActor"], fact_type=["threatActorAlias"], limit=1000)
+    facts = create_api_agent().fact_search(object_type=["threatActor"], fact_type=["threatActorAlias"], limit=1000)
 
     ta_set_facts = set()
     for fa in facts:
@@ -45,12 +59,8 @@ def add_ta_alias_to_map(ta_aliases, ta_map):
 
     for tup in ta_aliases:
         ta1, ta2 = tup
-        print(ta1, ta2)
         s = ta_map[ta1]
-        print("før" + str(s))
-        print(ta_map[ta2])
         s.update(ta_map[ta2])
-        print("etter" + str(s))
         # point key of all elements of the set to the same set.
         for x in s:
             ta_map[x] = s

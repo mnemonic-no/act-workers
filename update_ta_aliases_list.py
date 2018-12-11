@@ -1,20 +1,22 @@
-import act
-from ta_list_methods import *
+# import json  # for testing purposes
+from ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, add_ta_to_map, add_ta_alias_to_map, create_config
 
 
 def main():
 
-    # sets the url for the act platform and the userid.
-    baseurl = "http://osl-act-dev-trunk1.mnemonic.no:8080"
-    userid = 3
-
-    # creates an API agent
-    c = act.Act(baseurl, userid, log_level="info")
-
     # gets all ta names from objects(as a set of strings) and facts(as a set with tuples of two strings) in ACT
-    ta = get_all_ta_from_act(c)
+    ta = get_all_ta_from_act()
 
-    ta_aliases = get_all_alias_facts_from_act(c)
+    # gets all threat actor aliases from act platform
+
+    ta_aliases = get_all_alias_facts_from_act()
+
+    # save ta and ta_aliases to json test file
+    # with open('objects.json', 'w') as outfile:
+#        outfile.write(json.dumps(list(ta)))
+
+#    with open('facts.json', 'w') as outfile:
+#        outfile.write(json.dumps(list(ta_aliases)))
 
     # adds all ta names from threatActor objects from ACT into ta_map
     ta_map = add_ta_to_map(ta)
