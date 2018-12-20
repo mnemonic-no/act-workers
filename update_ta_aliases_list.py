@@ -38,10 +38,10 @@ def main():
 
     # save ta and ta_aliases to json test file
     if args.output_jason:
-        with open('objects.json', 'w') as outfile:
+        with open('test/objects.json', 'w') as outfile:
             outfile.write(json.dumps(list(threatactors)))
 
-        with open('facts.json', 'w') as outfile:
+        with open('test/facts.json', 'w') as outfile:
             outfile.write(json.dumps(list(ta_aliases)))
 
     # adds all ta names from threatActor objects from ACT into ta_map
