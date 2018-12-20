@@ -1,4 +1,4 @@
-# import json  # for testing purposes
+import json
 import argparse
 from ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
     add_ta_to_map, add_ta_alias_to_map, create_config
@@ -12,11 +12,18 @@ def parseargs():
         installation')
     parser.add_argument('--userid', required=True, help="User ID for ACT \
         platform")
+    parser.add_argument('--aliasfile', required=True, help=".cfg-file with \
+        existing threat actor aliases")
+    parser.add_argument('--newaliasfile', required=True, help="name of \
+        .cfg-file with updated list of threat actor aliases")
+    parser.add_argument('--output-jason', action='store_true', help="Enable \
+        this flag if json testfiles should be created.")
 
     return parser.parse_args()
 
 
 def main():
+    """main function"""
 
     args = parseargs()
 
@@ -30,11 +37,12 @@ def main():
     ta_aliases = get_all_alias_facts_from_act(args.baseurl, args.userid)
 
     # save ta and ta_aliases to json test file
-    # with open('objects.json', 'w') as outfile:
-#        outfile.write(json.dumps(list(ta)))
+    if args.output_jason:
+        with open('objects.json', 'w') as outfile:
+            outfile.write(json.dumps(list(threatactors)))
 
-#    with open('facts.json', 'w') as outfile:
-#        outfile.write(json.dumps(list(ta_aliases)))
+        with open('facts.json', 'w') as outfile:
+            outfile.write(json.dumps(list(ta_aliases)))
 
     # adds all ta names from threatActor objects from ACT into ta_map
     ta_map = add_ta_to_map(threatactors)
@@ -42,12 +50,11 @@ def main():
     # adds all ta names from alias-facts in ACT to the ta_map
     ta_map_with_aliases = add_ta_alias_to_map(ta_aliases, ta_map)
 
-    # creates a file "aliases_new.cfg" including all the content from ta_map
-    # and the existing file "aliases.cfg".
-    create_config(ta_map_with_aliases)
+    # creates a new .cfg-file including all the content from ta_map
+    # and the existing cfg.-file from arguments.
+    create_config(ta_map_with_aliases, args.aliasfile, args.newaliasfile)
 
 
-# https://stackoverflow.com/questions/419163/what-does-if-name-main-do
 if __name__ == "__main__":
 
     main()
