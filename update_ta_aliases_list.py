@@ -16,7 +16,7 @@ def parseargs():
         existing threat actor aliases")
     parser.add_argument('--newaliasfile', required=True, help="name of \
         .cfg-file with updated list of threat actor aliases")
-    parser.add_argument('--output-jason', action='store_true', help="Enable \
+    parser.add_argument('--output-json', action='store_true', help="Enable \
         this flag if json testfiles should be created.")
 
     return parser.parse_args()
@@ -37,7 +37,7 @@ def main():
     ta_aliases = get_all_alias_facts_from_act(args.baseurl, args.userid)
 
     # save ta and ta_aliases to json test file
-    if args.output_jason:
+    if args.output_json:
         with open('test/objects.json', 'w') as outfile:
             outfile.write(json.dumps(list(threatactors)))
 
