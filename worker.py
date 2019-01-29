@@ -1,10 +1,11 @@
 """Common worker library"""
 
+import argparse
+import smtplib
 import socket
 from email.mime.text import MIMEText
-import smtplib
 from logging import error
-import argparse
+
 import requests
 import urllib3
 
@@ -67,6 +68,15 @@ def fetch_json(url, proxy_string, timeout=60, verify_https=False):
         raise UnknownResult(errmsg.format(req))
 
     return req.json()
+
+
+def handle_fact(fact):
+    """ add fact if we configured act_baseurl - if not print fact """
+    if fact.config.act_baseurl:
+        print(fact.json())
+        fact.add()
+    else:
+        print(fact)
 
 
 def sendmail(smtphost, sender, recipient, subject, body):
