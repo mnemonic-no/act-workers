@@ -1,0 +1,6 @@
+[TYPECHECK]
+disable=wrong-import-order,ungrouped-imports,line-too-long,invalid-name
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=100
