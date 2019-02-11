@@ -5,19 +5,23 @@ import smtplib
 import socket
 from email.mime.text import MIMEText
 from logging import error
+from typing import Optional, Any
 
 import requests
 import urllib3
+
+import act
 
 
 class UnknownResult(Exception):
     """UnknownResult is used in API request (not 200 result)"""
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
 
 
-def parseargs(description):
+
+def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--http-timeout', dest='timeout', type=int,
@@ -34,7 +38,7 @@ def parseargs(description):
     return parser
 
 
-def fetch_json(url, proxy_string, timeout=60, verify_https=False):
+def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
     """Fetch remote URL as JSON
     url (string):                    URL to fetch
     proxy_string (string, optional): Optional proxy string on format host:port
@@ -70,16 +74,15 @@ def fetch_json(url, proxy_string, timeout=60, verify_https=False):
     return req.json()
 
 
-def handle_fact(fact):
+def handle_fact(fact: act.fact.Fact) -> None:
     """ add fact if we configured act_baseurl - if not print fact """
     if fact.config.act_baseurl:
-        print(fact.json())
         fact.add()
     else:
         print(fact)
 
 
-def sendmail(smtphost, sender, recipient, subject, body):
+def sendmail(smtphost: str, sender: str, recipient: str, subject: str, body: str) -> None:
     """Send email"""
 
     msg = MIMEText(body, "plain", "utf-8")

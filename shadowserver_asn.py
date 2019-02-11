@@ -17,14 +17,16 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 '''
 
+import argparse
 import json
 import re
 import sys
 import time
 import traceback
 from logging import debug, error, info, warning
+from typing import Dict, Union
 
-from RashlyOutlaid.libwhois import ASNWhois, QueryError
+from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act
 import worker
@@ -55,7 +57,7 @@ BLACKLIST = {
 }
 
 
-def get_cn_map(filename):
+def get_cn_map(filename: str) -> Dict:
     """
     Read file with county information (ISO 3166 from filename)
     return map with country code (e.g. "NO") as key, and Country
@@ -69,7 +71,7 @@ def get_cn_map(filename):
     return cn_map
 
 
-def parseargs():
+def parseargs() -> argparse.Namespace:
     """ Parse arguments """
     parser = worker.parseargs('Shadowserver ASN enrichment')
     parser.add_argument(
@@ -83,12 +85,12 @@ def parseargs():
     return parser.parse_args()
 
 
-def blacklisted(value, blacklist_type):
+def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
     """ Return true if value is blacklisted for the specified type """
     return any([b(value) for b in BLACKLIST[blacklist_type]])
 
 
-def handle_ip(actapi, cn_map, ip_list):
+def handle_ip(actapi, cn_map, ip_list) -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
@@ -117,27 +119,15 @@ def handle_ip(actapi, cn_map, ip_list):
 
         # Remove everything after first occurence of "," in isp name
         handle_fact(
-            actapi.fact("partOf", "ipv4Network")
+            actapi.fact("memberOf", "ipv4Network")
             .source("ipv4", ip)
             .destination("ipv4Network", res.prefix)
         )
         handle_fact(
-            actapi.fact("partOf", "asn")
+            actapi.fact("memberOf", "asn")
             .source("ipv4Network", res.prefix)
             .destination("asn", res.asn)
         )
-
-        if blacklisted(res, "cn"):
-            debug('cn "{}" for ip {} is blacklisted, skipping'.format(res.cn, ip))
-
-        elif res.cn not in cn_map:
-            warning('Unknown cn "{}" for ip {}'.format(res.cn, ip))
-        else:
-            handle_fact(
-                actapi.fact("locatedIn")
-                .source("asn", res.asn)
-                .destination("location", cn_map[res.cn])
-            )
 
         if blacklisted(res, "asname"):
             debug('asname "{}" for ip {} is blacklisted, skipping'.format(res.asn, ip))
@@ -154,8 +144,19 @@ def handle_ip(actapi, cn_map, ip_list):
                 .destination("asn", res.asn)
             )
 
+            if blacklisted(res, "cn"):
+                debug('cn "{}" for ip {} is blacklisted, skipping'.format(res.cn, ip))
+            elif res.cn not in cn_map:
+                warning('Unknown cn "{}" for ip {}'.format(res.cn, ip))
+            else:
+                handle_fact(
+                    actapi.fact("locatedIn")
+                    .source("organization", organization)
+                    .destination("location", cn_map[res.cn])
+                )
 
-def main():
+
+def main() -> None:
     """main function"""
 
     ARGS = parseargs()
