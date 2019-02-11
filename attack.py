@@ -16,11 +16,20 @@ Worker for Mitre ATT&CK, using the STIX implementation available here:
 """
 
 import os
-from logging import error, warning, info
 import traceback
+from logging import error, info, warning
+
+from stix2 import Filter, MemoryStore, parse
+
 import act
-from stix2 import parse, Filter, MemoryStore
 import worker
+
+MITRE_URLS = {
+    "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
+    "pre": "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json",
+    "mobile": "https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json"
+
+}
 
 MITRE_ENTERPRISE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
 MITRE_PRE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json"
@@ -34,8 +43,11 @@ def parseargs():
     parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked/deprecated objects")
     parser.add_argument('--sender', dest='sender', help="Sender address used to send revoked/deprecated objects")
     parser.add_argument('--recipient', dest='recipient', help="Recipient address used to send revoked/deprecated objects")
+    parser.add_argument('--types', default="enterprise,mobile,pre", help='Mitre attack types, comma separated. Default is "enterprise,mobile,pre"')
     parser.add_argument('--notifycache', dest='notifycache', help="Cache for revoked/deprecated objects", default=DEFAULT_NOTIFY_CACHE)
     args = parser.parse_args()
+
+    args.types = [t.strip() for t in args.types.split(",")]
 
     return args
 
@@ -93,13 +105,12 @@ def add_fact(client, source_type, source_values, fact_type, destination_type, de
                         .destination(destination_type, destination_value)
                 elif link_type == "bidirectional":
                     fact = client.fact(fact_type)\
-                        .bidirectional(source_type, source_value)\
-                        .bidirectional(destination_type, destination_value)
+                        .bidirectional(source_type, source_value, destination_type, destination_value)
                 else:
                     error("Illegal link_type: %s" % link_type)
                     continue
 
-                if client.act_baseurl:  # Add fact toplatform
+                if fact.config.act_baseurl:  # Add fact toplatform
                     fact.add()
                 else:
                     print(fact.json())  # Print fact to stdout, if baseurl is NOT set
@@ -179,7 +190,7 @@ def get_groups(attack):
         if getattr(group, "aliases", None):
             facts.append(("threatActor",
                           group.name,
-                          "threatActorAlias",
+                          "alias",
                           "threatActor",
                           group.aliases,
                           "bidirectional"))
@@ -228,7 +239,7 @@ def get_software(attack):
     for software in attack.query([Filter("type", "in", ["tool", "malware"])]):
         if getattr(software, "revoked", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
-            notify.append(group)
+            notify.append(software)
             continue
 
         if getattr(software, "x_mitre_deprecated", None):
@@ -237,7 +248,7 @@ def get_software(attack):
 
         if hasattr(software, "x_mitre_aliases"):
             aliases = [tool.lower() for tool in software.x_mitre_aliases]
-            facts.append(("tool", software.name.lower(), "toolAlias", "tool", aliases, "bidirectional"))
+            facts.append(("tool", software.name.lower(), "alias", "tool", aliases, "bidirectional"))
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -250,7 +261,7 @@ def get_software(attack):
             if tech.type in ("attack-pattern")
         ]
 
-        facts.append(("tool", software.name, "usesTechnique", "technique", uses_techniques, "linked"))
+        facts.append(("tool", software.name.lower(), "usesTechnique", "technique", uses_techniques, "linked"))
 
     return (facts, notify)
 
@@ -290,7 +301,7 @@ def add_to_cache(filename, entry):
         f.write("\n")
 
 
-def send_notification(notify, notifycache, smtphost, sender, recipient):
+def send_notification(notify, notifycache, smtphost, sender, recipient, url):
     """
     Process revoked objects
 
@@ -304,6 +315,9 @@ def send_notification(notify, notifycache, smtphost, sender, recipient):
     smtphost, sender AND recipient must be set to notify of revoked/deprecated objects
 
     """
+    if not (smtphost and recipient and sender):
+        error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
+        return
 
     body = url + "\n\n"
     warning("[{}]".format(url))
@@ -323,14 +337,11 @@ def send_notification(notify, notifycache, smtphost, sender, recipient):
         body += text + "\n"
         warning(text)
 
-    if smtphost and recipient and sender:
-        worker.sendmail(smtphost, sender, recipient, "Revoked/deprecated objects from MITRE/ATT&CK", body)
-        info("Email sent to {}".format(recipient))
-    else:
-        error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
+    worker.sendmail(smtphost, sender, recipient, "Revoked/deprecated objects from MITRE/ATT&CK", body)
+    info("Email sent to {}".format(recipient))
 
 
-def main():
+def main() -> None:
     args = parseargs()
     client = act.Act(
         args.act_baseurl,
@@ -339,7 +350,13 @@ def main():
         args.logfile,
         "mitre-attack")
 
-    for url in (MITRE_ENTERPRISE_ATTACK_URL, MITRE_MOBILE_ATTACK_URL, MITRE_PRE_ATTACK_URL):
+    for mitre_type in args.types:
+        url = MITRE_URLS.get(mitre_type.lower())
+
+        if not url:
+            error("Unknown mitre type: {}. Valid types: {}".format(mitre_type, ",".join(MITRE_URLS.keys())))
+            continue
+
         cache = notify_cache(args.notifycache)
 
         # Get attack dataset as Stix Memory Store
@@ -368,7 +385,7 @@ def main():
         ]
 
         if notify:
-            send_notification(notify, args.notifycache, args.smtphost, args.sender, args.recipient)
+            send_notification(notify, args.notifycache, args.smtphost, args.sender, args.recipient, url)
 
 
 if __name__ == '__main__':
