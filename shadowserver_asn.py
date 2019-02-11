@@ -24,7 +24,7 @@ import sys
 import time
 import traceback
 from logging import debug, error, info, warning
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
@@ -87,7 +87,7 @@ def parseargs() -> argparse.Namespace:
 
 def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
     """ Return true if value is blacklisted for the specified type """
-    return any([b(value) for b in BLACKLIST[blacklist_type]])
+    return any([b(value) for b in BLACKLIST[blacklist_type]])  # type: ignore
 
 
 def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str]) -> None:
