@@ -20,12 +20,11 @@ PERFORMANCE OF THIS SOFTWARE.
 import argparse
 import json
 import re
-import string
 import sys
 import time
 import traceback
 from logging import debug, error, info, warning
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
@@ -91,7 +90,7 @@ def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
     return any([b(value) for b in BLACKLIST[blacklist_type]])
 
 
-def handle_ip(actapi, cn_map, ip_list) -> None:
+def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str]) -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
