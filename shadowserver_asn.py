@@ -20,6 +20,7 @@ PERFORMANCE OF THIS SOFTWARE.
 import argparse
 import json
 import re
+import string
 import sys
 import time
 import traceback
@@ -40,8 +41,8 @@ ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
 # If value matches blacklist it should not be used
 BLACKLIST = {
     "ip": [  # Blacklist IP addresses. Values is IP
-        lambda ip: not ip.strip(),             # Empty values
-        lambda ip: ip.strip().startswith("0.")  # IP addreses starting with "0."
+        lambda ip: not ip.strip(),                             # Empty values
+        lambda ip: ip.strip().lstrip("0").startswith(".")      # IP addreses starting with "0."
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
