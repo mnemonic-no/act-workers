@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-"""Worker module fetching ISO 3166 from github to add is{Country,Region,SubRegion} facts,
-output result in a format understandable to ACT add fact"""
+"""
+Worker module fetching ISO 3166 from github to add facts for:
+   country -memberOf-> subRegion
+   subRegion -memberOf -> region
+"""
+
 
 import argparse
 import traceback
