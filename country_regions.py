@@ -3,7 +3,10 @@
 """
 Worker module fetching ISO 3166 from github to add facts for:
    country -memberOf-> subRegion
-   subRegion -memberOf -> region
+   subRegion -memberOf-> region
+
+If --act-baseurl and --userid is specified, add the facts to the platform.
+If not, print facts to stdout.
 """
 
 
@@ -28,7 +31,10 @@ def parseargs() -> argparse.Namespace:
 
 
 def process(actapi: act.Act, country_list: List[Dict[str, str]]) -> None:
-    """Fetch ISO-3166 list, process and print generic_uploader data to stdout"""
+    """
+    Loop over all ISO-3166 countries and construct facts for
+    county -memberOf-> subRegion and subRegion -memberOf-> region.
+    """
 
     for c_map in country_list:
         country_name = c_map["name"]
