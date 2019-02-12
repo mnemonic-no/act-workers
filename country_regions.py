@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 
-"""Worker module fetching ISO 3166 from github to add is{Country,Region,SubRegion} facts,
-output result in a format understandable to ACT add fact"""
+"""
+Worker module fetching ISO 3166 from github to add facts for:
+   country -memberOf-> subRegion
+   subRegion -memberOf-> region
 
-from logging import error
+If --act-baseurl and --userid is specified, add the facts to the platform.
+If not, print facts to stdout.
+"""
+
+
+import argparse
 import traceback
+from logging import error, warning
+from typing import Dict, List
+
 import act
 import worker
-
-LOCATION_TYPE_M = {
-    "name": "isCountry",
-    "region": "isRegion",
-    "sub-region": "isSubRegion"
-}
+from worker import handle_fact
 
 
-def parseargs():
+def parseargs() -> argparse.Namespace:
     """ Parse arguments """
     parser = worker.parseargs('Country/region enrichment')
     parser.add_argument('--country-region-url', dest='country_region_url',
@@ -25,37 +30,44 @@ def parseargs():
     return parser.parse_args()
 
 
-def process(actapi, country_list):
-    """Fetch ISO-3166 list, process and print generic_uploader
-    data to stdout"""
-
-    facts_added = {}
+def process(actapi: act.Act, country_list: List[Dict[str, str]]) -> None:
+    """
+    Loop over all ISO-3166 countries and construct facts for
+    county -memberOf-> subRegion and subRegion -memberOf-> region.
+    """
 
     for c_map in country_list:
-        for location_type, location in c_map.items():
-            if not location:
-                continue  # Skip locations with empty values
+        country_name = c_map["name"]
+        sub_region = c_map["sub-region"]
+        region = c_map["region"]
 
-            # Skip facts that are already added
-            if location_type in LOCATION_TYPE_M and location not in facts_added:
-                fact_type = LOCATION_TYPE_M[location_type]
-                facts_added[location] = fact_type
+        if country_name and sub_region:
+            handle_fact(
+                actapi.fact("memberOf")
+                .source("country", country_name)
+                .destination("subRegion", sub_region)
+            )
+        else:
+            warning("Missing name or sub-region: {}".format(c_map))
 
-                fact = actapi.fact(fact_type).source("location", location)
-
-                if actapi.act_baseurl:
-                    fact.add()  # Add fact to platform, if baseurl is specified
-                else:
-                    print(fact.json())  # Print fact to stdout, if baseurl is NOT specified
+        if sub_region and region:
+            handle_fact(
+                actapi.fact("memberOf")
+                .source("subRegion", sub_region)
+                .destination("region", region)
+            )
+        else:
+            warning("Missing sub-region or region: {}".format(c_map))
 
 
 if __name__ == '__main__':
     ARGS = parseargs()
 
     try:
-        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region")
-        country_list = worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
-        process(actapi, country_list)
-    except Exception as e:
+        process(
+            act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region"),
+            worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
+        )
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
