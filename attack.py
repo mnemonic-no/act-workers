@@ -205,15 +205,15 @@ def get_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
         #   Technqiues       relationship where relationship_type == "uses", points to
         #                    a target object with type == "attack-pattern"
 
-        uses_techniques = [
-            tech.name
-            for tech in attack.related_to(software, relationship_type="uses")
-            if tech.type in ("attack-pattern")
-        ]
+        for technique in attack.related_to(software, relationship_type="uses"):
+            if technique.type != "attack-pattern":
+                continue
 
-        # TODO
-        # Link from tool to technique
-        # facts.append(("tool", software.name.lower(), "usesTechnique", "technique", uses_techniques, "linked"))
+            handle_fact(
+                client.fact("implements")
+                .source("tool", software.name.lower())
+                .destination("technique", technique.name)
+            )
 
     return notify
 
@@ -255,7 +255,7 @@ def add_to_cache(filename: str, entry: str) -> None:
 
 def send_notification(
         notify: List[stix2.AttackPattern],
-        notifycache: Dict,
+        notifycache: str,
         smtphost: str,
         sender: str,
         recipient: str,
@@ -300,6 +300,7 @@ def send_notification(
 
 
 def main() -> None:
+    """ Main function """
     args = parseargs()
     client = act.Act(
         args.act_baseurl,
