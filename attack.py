@@ -15,29 +15,29 @@ Worker for Mitre ATT&CK, using the STIX implementation available here:
 
 """
 
+import argparse
 import os
 import traceback
 from logging import error, info, warning
+from typing import Dict, List, Union
 
+import stix2
 from stix2 import Filter, MemoryStore, parse
 
 import act
 import worker
+from worker import handle_fact
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
     "pre": "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json",
     "mobile": "https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json"
-
 }
 
-MITRE_ENTERPRISE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
-MITRE_PRE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json"
-MITRE_MOBILE_ATTACK_URL = "https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json"
 DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
 
 
-def parseargs():
+def parseargs() -> argparse.Namespace:
     """ Parse arguments """
     parser = worker.parseargs('Mitre ATT&CK worker')
     parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked/deprecated objects")
@@ -52,7 +52,7 @@ def parseargs():
     return args
 
 
-def get_attack(url, proxy_string, timeout):
+def get_attack(url: str, proxy_string: str, timeout: int) -> MemoryStore:
     """Fetch Mitre ATT&CK JSON data in Stix2 format and return a Stix2 memory store"""
     attack = worker.fetch_json(url, proxy_string, timeout)
 
@@ -66,61 +66,7 @@ def get_attack(url, proxy_string, timeout):
     return mem
 
 
-def add_fact(client, source_type, source_values, fact_type, destination_type, destination_values, link_type="linked"):
-    """
-    Add facts for all combinations of source_values and destination_values,
-    using the specified source_type, fact_type, destination_type and
-    link_type.
-
-    Args:
-        client(act.Act):            ACT instance
-        source_type(str):           ACT object source type
-        source_values(str[]):       List of source values
-        destination_type(str):      ACT object destination type
-        destination_values(str[]):  List of destination values
-        link_type(str):             linked|bidirectional
-
-    link_type == linked, means a fact with a specified source and destination.
-    link_type == bidirectional, means a fact where source/destination have a two way direction
-
-    """
-
-    # Ensure source/destination values lists, if not enclose in a list with a single value
-    if isinstance(destination_values, str):
-        destination_values = [destination_values]
-
-    if isinstance(source_values, str):
-        source_values = [source_values]
-
-    for source_value in source_values:
-        try:
-            for destination_value in destination_values:
-                fact = None
-                if source_type == destination_type and source_value == destination_value:
-                    continue  # Do not link to itself
-
-                if link_type == "linked":
-                    fact = client.fact(fact_type)\
-                        .source(source_type, source_value)\
-                        .destination(destination_type, destination_value)
-                elif link_type == "bidirectional":
-                    fact = client.fact(fact_type)\
-                        .bidirectional(source_type, source_value, destination_type, destination_value)
-                else:
-                    error("Illegal link_type: %s" % link_type)
-                    continue
-
-                if fact.config.act_baseurl:  # Add fact toplatform
-                    fact.add()
-                else:
-                    print(fact.json())  # Print fact to stdout, if baseurl is NOT set
-
-        except act.base.ResponseError as e:
-            error(e)
-            continue
-
-
-def get_techniques(attack):
+def get_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK techniques
 
@@ -130,7 +76,6 @@ def get_techniques(attack):
     """
 
     notify = []
-    facts = []
 
     # ATT&CK concept    STIX Object type        ACT object
     # =========================================================
@@ -148,18 +93,20 @@ def get_techniques(attack):
             notify.append(technique)
 
         # Mitre ATT&CK Tactics are implemented in STIX as kill chain phases with kill_chain_name "mitre-attack"
-        tactics = [
-            tactic.phase_name
-            for tactic in technique.kill_chain_phases
-            if tactic.kill_chain_name == "mitre-attack"
-        ]
+        for tactic in technique.kill_chain_phases:
+            if tactic.kill_chain_name != "mitre-attack":
+                continue
 
-        facts.append(("tactic", tactics, "usesTechnique", "technique", technique.name, "linked"))
+            handle_fact(
+                client.fact("implements")
+                .source("technique", technique.name)
+                .destination("tactic", tactic.phase_name)
+            )
 
-    return (facts, notify)
+    return notify
 
 
-def get_groups(attack):
+def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Groups
 
@@ -169,7 +116,6 @@ def get_groups(attack):
     """
 
     notify = []
-    facts = []
 
     # ATT&CK concept    STIX Object type        ACT object
     # =========================================================
@@ -187,13 +133,12 @@ def get_groups(attack):
             # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
             notify.append(group)
 
-        if getattr(group, "aliases", None):
-            facts.append(("threatActor",
-                          group.name,
-                          "alias",
-                          "threatActor",
-                          group.aliases,
-                          "bidirectional"))
+        for alias in getattr(group, "aliases", []):
+            if group.name != alias:
+                handle_fact(
+                    client.fact("alias")
+                    .bidirectional("threatActor", group.name, "threatActor", alias)
+                )
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -217,13 +162,16 @@ def get_groups(attack):
             if tech.type in ("attack-pattern")
         ]
 
-        facts.append(("threatActor", group.name, "usesTechnique", "technique", uses_techniques, "linked"))
-        facts.append(("threatActor", group.name, "usesTool", "tool", uses_tools, "linked"))
+        # TODO
+        # Link from threatActor to technique
+        # link from threatActor to tool
+        # facts.append(("threatActor", group.name, "usesTechnique", "technique", uses_techniques, "linked"))
+        # facts.append(("threatActor", group.name, "usesTool", "tool", uses_tools, "linked"))
 
-    return (facts, notify)
+    return notify
 
 
-def get_software(attack):
+def get_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
@@ -234,7 +182,6 @@ def get_software(attack):
     """
 
     notify = []
-    facts = []
 
     for software in attack.query([Filter("type", "in", ["tool", "malware"])]):
         if getattr(software, "revoked", None):
@@ -246,9 +193,12 @@ def get_software(attack):
             # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
             notify.append(software)
 
-        if hasattr(software, "x_mitre_aliases"):
-            aliases = [tool.lower() for tool in software.x_mitre_aliases]
-            facts.append(("tool", software.name.lower(), "alias", "tool", aliases, "bidirectional"))
+        for alias in getattr(software, "x_mitre_aliases", []):
+            if software.name.lower() != alias.lower():
+                handle_fact(
+                    client.fact("alias")
+                    .bidirectional("tool", software.name.lower(), "tool", alias.lower())
+                )
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -261,12 +211,14 @@ def get_software(attack):
             if tech.type in ("attack-pattern")
         ]
 
-        facts.append(("tool", software.name.lower(), "usesTechnique", "technique", uses_techniques, "linked"))
+        # TODO
+        # Link from tool to technique
+        # facts.append(("tool", software.name.lower(), "usesTechnique", "technique", uses_techniques, "linked"))
 
-    return (facts, notify)
+    return notify
 
 
-def notify_cache(filename):
+def notify_cache(filename: str) -> Dict:
     """
     Read notify cache from filename
     Args:
@@ -287,7 +239,7 @@ def notify_cache(filename):
     return cache
 
 
-def add_to_cache(filename, entry):
+def add_to_cache(filename: str, entry: str) -> None:
     """
     Add entry to cache
 
@@ -301,7 +253,13 @@ def add_to_cache(filename, entry):
         f.write("\n")
 
 
-def send_notification(notify, notifycache, smtphost, sender, recipient, url):
+def send_notification(
+        notify: List[stix2.AttackPattern],
+        notifycache: Dict,
+        smtphost: str,
+        sender: str,
+        recipient: str,
+        url: str) -> None:
     """
     Process revoked objects
 
@@ -362,20 +320,9 @@ def main() -> None:
         # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.timeout)
 
-        (techniques, techniques_notify) = get_techniques(attack)
-        (groups, groups_notify) = get_groups(attack)
-        (software, software_notify) = get_software(attack)
-
-        # Add facts to platform
-        facts = techniques + groups + software
-        for (source_type, source_values, fact_type, destination_type, destination_values, link_type) in facts:
-            add_fact(client,
-                     source_type,
-                     source_values,
-                     fact_type,
-                     destination_type,
-                     destination_values,
-                     link_type)
+        techniques_notify = get_techniques(client, attack)
+        groups_notify = get_groups(client, attack)
+        software_notify = get_software(client, attack)
 
         # Get revoked objects, excluding those in cache
         notify = [
@@ -391,6 +338,6 @@ def main() -> None:
 if __name__ == '__main__':
     try:
         main()
-    except Exception as e:
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
