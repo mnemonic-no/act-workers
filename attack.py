@@ -98,7 +98,7 @@ def get_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
                 continue
 
             handle_fact(
-                client.fact("implements")
+                client.fact("accomplishes")
                 .source("technique", technique.name)
                 .destination("tactic", tactic.phase_name)
             )
@@ -156,16 +156,23 @@ def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
         #   Technqiues       relationship where relationship_type == "uses", points to
         #                    a target object with type == "attack-pattern"
 
-        uses_techniques = [
-            tech.name
-            for tech in attack.related_to(group, relationship_type="uses")
-            if tech.type in ("attack-pattern")
-        ]
+        for technique in attack.related_to(group, relationship_type="uses"):
+            if technique.type != "attack-pattern":
+                continue
+
+            chain = act.fact.fact_chain(
+                client.fact("observedIn")
+                .source("technique", technique.name)
+                .destination("incident", "<>"),
+                client.fact("attributedTo")
+                .source("incident", "<>")
+                .destination("threatActor", group.name)
+            )
+
+            for fact in chain:
+                fact.add()
 
         # TODO
-        # Link from threatActor to technique
-        # link from threatActor to tool
-        # facts.append(("threatActor", group.name, "usesTechnique", "technique", uses_techniques, "linked"))
         # facts.append(("threatActor", group.name, "usesTool", "tool", uses_tools, "linked"))
 
     return notify
