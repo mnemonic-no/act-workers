@@ -145,11 +145,24 @@ def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
         #   Software         relationship where relationship_type == "uses",
         #                    points to a target object with type== "malware" or "tool"
 
-        uses_tools = [
-            tool.name.lower()
-            for tool in attack.related_to(group, relationship_type="uses")
-            if tool.type in ("malware", "tool")
-        ]
+        for tool in attack.related_to(group, relationship_type="uses"):
+            if tool.type not in ("malware", "tool"):
+                continue
+
+            chain = act.fact.fact_chain(
+                client.fact("classifiedAs")
+                .source("content", "*")
+                .destination("tool", tool.name.lower()),
+                client.fact("observedIn", "incident")
+                .source("content", "*")
+                .destination("incident", "*"),
+                client.fact("attributedTo")
+                .source("incident", "*")
+                .destination("threatActor", group.name)
+            )
+
+            for fact in chain:
+                fact.add()
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -161,19 +174,16 @@ def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
                 continue
 
             chain = act.fact.fact_chain(
-                client.fact("observedIn")
+                client.fact("observedIn", "incident")
                 .source("technique", technique.name)
-                .destination("incident", "<>"),
+                .destination("incident", "*"),
                 client.fact("attributedTo")
-                .source("incident", "<>")
+                .source("incident", "*")
                 .destination("threatActor", group.name)
             )
 
             for fact in chain:
                 fact.add()
-
-        # TODO
-        # facts.append(("threatActor", group.name, "usesTool", "tool", uses_tools, "linked"))
 
     return notify
 
