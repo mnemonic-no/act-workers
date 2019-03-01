@@ -49,7 +49,7 @@ BLACKLIST = {
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
         lambda asn_record: asn_record.isp == asn_record.cn,    # Exclude values where ISP name == Country Name
         lambda asn_record: asn_record.isp == "AS, {}".format(asn_record.cn),  # Exclude values where ISP name == AS, <CN>
-        lambda asn_record: asn_record.isp == ", {}".format(asn_record.cn)  # Exclude values where ISP name == AS, <CN>
+        lambda asn_record: asn_record.isp == ", {}".format(asn_record.cn)     # Exclude values where ISP name == , <CN>
     ],
     "asname": [  # Blacklist ASNAMES. Values is asn_record
         lambda asn_record: not asn_record.asname.strip(),         # Exclude Empty values
