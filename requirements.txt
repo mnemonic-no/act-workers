@@ -2,3 +2,4 @@ requests
 virustotal-api
 act-api
 RashlyOutlaid
+stix2
