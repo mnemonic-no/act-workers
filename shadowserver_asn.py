@@ -168,6 +168,9 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         except QueryError:
             error("Query error: {}".format(traceback.format_exc()))
             continue
+        except KeyError:
+            error("Key error: {}: {}".format(ip, traceback.format_exc()))
+            continue
 
         if not asn_record.asn:
             warning("No ASN found for ip {}".format(ip))
