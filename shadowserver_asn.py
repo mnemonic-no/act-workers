@@ -26,11 +26,12 @@ import sys
 import time
 import traceback
 from logging import debug, error, info, warning
-from typing import Dict, List, Union, Tuple, Generator
+from typing import Dict, Generator, List, Tuple, Union
+
+from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act
 import worker
-from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 from worker import handle_fact
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
@@ -232,24 +233,24 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache
 def main() -> None:
     """main function"""
 
-    ARGS=parseargs()
-    actapi=act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
+    ARGS = parseargs()
+    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
 
     # Get map of CC -> Country Name
-    cn_map=get_cn_map(ARGS.country_codes)
+    cn_map = get_cn_map(ARGS.country_codes)
 
     db_cache = get_db_cache(CACHE_DIR)
 
     # Read IPs from stdin
     if ARGS.stdin:
-        in_data=[ip for ip in sys.stdin.read().split("\n")]
+        in_data = [ip for ip in sys.stdin.read().split("\n")]
         handle_ip(actapi, cn_map, in_data, db_cache)
 
     # Bulk lookup
     elif ARGS.bulk:
-        all_ips=[ip for ip in open(ARGS.bulk, "r")]
-        batch_size=50
-        i=0
+        all_ips = [ip for ip in open(ARGS.bulk, "r")]
+        batch_size = 50
+        i = 0
         while i < len(all_ips):
             handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]), db_cache)
             i += batch_size
