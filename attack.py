@@ -343,7 +343,7 @@ def main() -> None:
         groups_notify = add_groups(client, attack)
         software_notify = add_software(client, attack)
 
-        # Get revoked objects, excluding those in cache
+        # filter revoked objects from those allready notified
         notify = [
             notify
             for notify in techniques_notify + groups_notify + software_notify
