@@ -20,7 +20,7 @@ import os
 import sys
 import traceback
 from logging import error, info, warning
-from typing import Dict, List, Union
+from typing import Any, Dict, List
 
 import stix2
 from stix2 import Filter, MemoryStore, parse
@@ -36,6 +36,13 @@ MITRE_URLS = {
 }
 
 DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
+
+
+class NotificationError(Exception):
+    """NotificationError"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
 
 
 def parseargs() -> argparse.Namespace:
@@ -276,7 +283,7 @@ def send_notification(
         smtphost: str,
         sender: str,
         recipient: str,
-        url: str) -> bool:
+        url: str) -> List[str]:
     """
     Process revoked objects
 
@@ -289,12 +296,15 @@ def send_notification(
 
     smtphost, sender AND recipient must be set to notify of revoked/deprecated objects
 
-    Return True: if success, otherwise False
+    Return list of IDs that was successfully notified
 
     """
+
+    notified = []
+
     if not (smtphost and recipient and sender):
         error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
-        return False
+        return []
 
     body = url + "\n\n"
     warning("[{}]".format(url))
@@ -305,8 +315,11 @@ def send_notification(
 
         elif getattr(obj, "x_mitre_deprecated", None):
             text = "deprecated: {}:{}".format(obj.type, obj.name)
+
         else:
-            text = "ERROR obj is not deprecated or revoked: {}:{}".format(obj.type, obj.name)
+            raise NotificationError("object tis not deprecated or revoked: {}:{}".format(obj.type, obj.name))
+
+        notified.append(obj.id)
 
         body += text + "\n"
         warning(text)
@@ -314,7 +327,7 @@ def send_notification(
     worker.sendmail(smtphost, sender, recipient, "Revoked/deprecated objects from MITRE/ATT&CK", body)
     info("Email sent to {}".format(recipient))
 
-    return True
+    return notified
 
 
 def main() -> None:
@@ -351,11 +364,11 @@ def main() -> None:
         ]
 
         if notify:
-            if send_notification(notify, args.smtphost, args.sender, args.recipient, url):
-                # If notificatcions are sent successfully, add notified elements to cache
-                for obj in notify:
-                    # Add object to cache, so we will not be notified on the same object on the next run
-                    add_to_cache(args.notifycache, obj.id)
+            notified = send_notification(notify, args.smtphost, args.sender, args.recipient, url)
+
+            for object_id in notified:
+                # Add object to cache, so we will not be notified on the same object on the next run
+                add_to_cache(args.notifycache, object_id)
 
 
 if __name__ == '__main__':
