@@ -67,7 +67,7 @@ def get_attack(url: str, proxy_string: str, timeout: int) -> MemoryStore:
     return mem
 
 
-def get_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK techniques
 
@@ -107,7 +107,7 @@ def get_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     return notify
 
 
-def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Groups
 
@@ -189,7 +189,7 @@ def get_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     return notify
 
 
-def get_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
@@ -273,11 +273,10 @@ def add_to_cache(filename: str, entry: str) -> None:
 
 def send_notification(
         notify: List[stix2.AttackPattern],
-        notifycache: str,
         smtphost: str,
         sender: str,
         recipient: str,
-        url: str) -> None:
+        url: str) -> bool:
     """
     Process revoked objects
 
@@ -290,18 +289,17 @@ def send_notification(
 
     smtphost, sender AND recipient must be set to notify of revoked/deprecated objects
 
+    Return True: if success, otherwise False
+
     """
     if not (smtphost and recipient and sender):
         error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
-        return
+        return False
 
     body = url + "\n\n"
     warning("[{}]".format(url))
 
     for obj in notify:
-        # Add object to cache, so we will not be notified on the same object on the next run
-        add_to_cache(notifycache, obj.id)
-
         if getattr(obj, "revoked", None):
             text = "revoked: {}:{}".format(obj.type, obj.name)
 
@@ -315,6 +313,8 @@ def send_notification(
 
     worker.sendmail(smtphost, sender, recipient, "Revoked/deprecated objects from MITRE/ATT&CK", body)
     info("Email sent to {}".format(recipient))
+
+    return True
 
 
 def main() -> None:
@@ -339,9 +339,9 @@ def main() -> None:
         # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.timeout)
 
-        techniques_notify = get_techniques(client, attack)
-        groups_notify = get_groups(client, attack)
-        software_notify = get_software(client, attack)
+        techniques_notify = add_techniques(client, attack)
+        groups_notify = add_groups(client, attack)
+        software_notify = add_software(client, attack)
 
         # Get revoked objects, excluding those in cache
         notify = [
@@ -351,7 +351,11 @@ def main() -> None:
         ]
 
         if notify:
-            send_notification(notify, args.notifycache, args.smtphost, args.sender, args.recipient, url)
+            if send_notification(notify, args.smtphost, args.sender, args.recipient, url):
+                # If notificatcions are sent successfully, add notified elements to cache
+                for obj in notify:
+                    # Add object to cache, so we will not be notified on the same object on the next run
+                    add_to_cache(args.notifycache, obj.id)
 
 
 if __name__ == '__main__':
