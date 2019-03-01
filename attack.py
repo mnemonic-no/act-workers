@@ -163,7 +163,7 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             )
 
             for fact in chain:
-                fact.add()
+                handle_fact(fact)
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -184,7 +184,7 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             )
 
             for fact in chain:
-                fact.add()
+                handle_fact(fact)
 
     return notify
 
