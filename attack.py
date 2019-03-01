@@ -17,6 +17,7 @@ Worker for Mitre ATT&CK, using the STIX implementation available here:
 
 import argparse
 import os
+import sys
 import traceback
 from logging import error, info, warning
 from typing import Dict, List, Union
@@ -331,7 +332,7 @@ def main() -> None:
 
         if not url:
             error("Unknown mitre type: {}. Valid types: {}".format(mitre_type, ",".join(MITRE_URLS.keys())))
-            continue
+            sys.exit(2)
 
         cache = notify_cache(args.notifycache)
 
