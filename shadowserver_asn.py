@@ -133,12 +133,12 @@ def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> N
     """ ADD IP/ASNRecord to cache """
     cursor = cache.cursor()
 
-    # Serialize peer list to comma separated list
-    asn_serialized = list(asn_record)
-    asn_serialized[5] = ",".join(asn_record.peers)
+    # flatten peer list to comma separated list
+    asn_flattened = list(asn_record)
+    asn_flattened[5] = ",".join(asn_record.peers)
 
     cursor.execute("INSERT INTO asn VALUES (?,?,?,?,?,?,?,?)",
-                   ([ip] + list(asn_serialized) + [int(time.time())]))
+                   ([ip] + list(asn_flattened) + [int(time.time())]))
     cache.commit()
 
 
