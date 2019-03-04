@@ -1,11 +1,12 @@
 """Common worker library"""
 
 import argparse
+import os
 import smtplib
 import socket
 from email.mime.text import MIMEText
 from logging import error
-from typing import Optional, Any
+from typing import Any, Optional
 
 import requests
 import urllib3
@@ -18,7 +19,6 @@ class UnknownResult(Exception):
 
     def __init__(self, *args: Any) -> None:
         Exception.__init__(self, *args)
-
 
 
 def parseargs(description: str) -> argparse.ArgumentParser:
@@ -36,6 +36,30 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
     return parser
+
+
+def get_cache_dir(cache_id: str, create: bool = False) -> str:
+    """
+    Getch cache dir.
+
+    Honors $XDG_CACHE_HOME, but fallbacks to $HOME/.cache
+
+Args:
+    cache_id [str]: directory under CACHE that will be used
+    create [bool]: create directory if not exists
+
+Return path to cache_directory
+    """
+
+    home = os.environ["HOME"]
+
+    cache_home = os.environ.get("XDG_CACHE_HOME", os.path.join(home, ".cache"))
+    cache_dir = os.path.join(cache_home, cache_id)
+
+    if create and not os.path.isdir(cache_dir):
+        os.makedirs(cache_dir)
+
+    return cache_dir
 
 
 def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:

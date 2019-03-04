@@ -19,12 +19,14 @@ PERFORMANCE OF THIS SOFTWARE.
 
 import argparse
 import json
+import os
 import re
+import sqlite3
 import sys
 import time
 import traceback
 from logging import debug, error, info, warning
-from typing import Dict, List, Union
+from typing import Dict, Generator, List, Tuple, Union
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
@@ -32,6 +34,7 @@ import act
 import worker
 from worker import handle_fact
 
+CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"
 ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
     "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
@@ -46,10 +49,11 @@ BLACKLIST = {
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
         lambda asn_record: asn_record.isp == asn_record.cn,    # Exclude values where ISP name == Country Name
-        lambda asn_record: asn_record.isp == "AS, {}".format(asn_record.cn)  # Exclude values where ISP name == AS, <CN>
+        lambda asn_record: asn_record.isp == "AS, {}".format(asn_record.cn),  # Exclude values where ISP name == AS, <CN>
+        lambda asn_record: asn_record.isp == ", {}".format(asn_record.cn)     # Exclude values where ISP name == , <CN>
     ],
     "asname": [  # Blacklist ASNAMES. Values is asn_record
-        lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
+        lambda asn_record: not asn_record.asname.strip(),         # Exclude Empty values
     ],
     "cn": [  # Blacklist ASNAMES. Values is asn_record
         lambda asn_record: not asn_record.cn.strip(),         # Exclude Empty values
@@ -90,7 +94,96 @@ def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
     return any([b(value) for b in BLACKLIST[blacklist_type]])  # type: ignore
 
 
-def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str]) -> None:
+def get_db_cache(cache_dir: str) -> sqlite3.Connection:
+    """
+    Open cache and return sqlite3 connection
+    Table is created if it does not exists
+    """
+    cache_file = os.path.join(cache_dir, "cache.sqlite3")
+    conn = sqlite3.connect(cache_file)
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS asn (
+        ip string unique,
+        asn int,
+        prefix string,
+        asname string,
+        cn string,
+        isp string,
+        peers string,
+        added int)
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS asn_ip on ASN(ip)")
+
+    return conn
+
+
+def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tuple[str, ASNRecord], None, None]:
+    """ Query cache for all IPs in list """
+    cursor = cache.cursor()
+
+    in_list = ",".join(['"{}"'.format(ip) for ip in ip_list])
+
+    for res in cursor.execute("SELECT * FROM asn WHERE ip in ({})".format(in_list)).fetchall():
+        asn_tuple = list(res[1:7])
+        asn_tuple[5] = str(asn_tuple[5]).split(",")  # Split peers into list
+        yield (res[0], ASNRecord(*asn_tuple))
+
+
+def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> None:
+    """ ADD IP/ASNRecord to cache """
+    cursor = cache.cursor()
+
+    # flatten peer list to comma separated list
+    asn_flattened = list(asn_record)
+    asn_flattened[5] = ",".join(asn_record.peers)
+
+    cursor.execute("INSERT INTO asn VALUES (?,?,?,?,?,?,?,?)",
+                   ([ip] + list(asn_flattened) + [int(time.time())]))
+    cache.commit()
+
+
+def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[str, ASNRecord], None, None]:
+    """
+    Query shadowserver ASN usingi IP
+    Return cached result if the IP is in the cace
+
+    Returns tupe og IP and ASNRecord
+    """
+
+    query_ip = set(ip_list)
+
+    for (ip, asn_record) in query_cache(cache, ip_list):
+        info("Result from cache: {}".format(asn_record))
+        yield (ip, asn_record)
+        # Do not query IP, since we found it in cache
+        query_ip.remove(ip)
+
+    asnwhois = ASNWhois()
+    asnwhois.query = list(query_ip)
+    asnwhois.peers = True
+
+    for ip in query_ip:
+        try:
+            asn_record = asnwhois.result[ip]
+        except QueryError:
+            error("Query error: {}".format(traceback.format_exc()))
+            continue
+        except KeyError:
+            error("Key error: {}: {}".format(ip, traceback.format_exc()))
+            continue
+
+        if not asn_record.asn:
+            warning("No ASN found for ip {}".format(ip))
+            continue
+
+        info("Result from query: {}".format(asn_record))
+
+        add_to_cache(cache, ip, asn_record)
+
+        yield (ip, asn_record)
+
+
+def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache: sqlite3.Connection) -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
@@ -100,23 +193,7 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str]) -> No
     # Filter blacklisted IPs and remove whitespace at beginning and end
     ip_list = [ip.strip() for ip in ip_list if not blacklisted(ip, "ip")]
 
-    asnwhois = ASNWhois()
-    asnwhois.query = ip_list
-    asnwhois.peers = True
-
-    for ip in ip_list:
-        try:
-            res = asnwhois.result[ip]
-        except QueryError:
-            error("Query error: {}".format(traceback.format_exc()))
-            continue
-
-        if not res.asn:
-            warning("No ASN found for ip {}".format(ip))
-            continue
-
-        info(res)
-
+    for (ip, res) in asn_query(ip_list, cache):
         # Remove everything after first occurence of "," in isp name
         handle_fact(
             actapi.fact("memberOf", "ipv4Network")
@@ -152,7 +229,7 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str]) -> No
                 handle_fact(
                     actapi.fact("locatedIn")
                     .source("organization", organization)
-                    .destination("location", cn_map[res.cn])
+                    .destination("country", cn_map[res.cn])
                 )
 
 
@@ -165,10 +242,12 @@ def main() -> None:
     # Get map of CC -> Country Name
     cn_map = get_cn_map(ARGS.country_codes)
 
+    db_cache = get_db_cache(CACHE_DIR)
+
     # Read IPs from stdin
     if ARGS.stdin:
         in_data = [ip for ip in sys.stdin.read().split("\n")]
-        handle_ip(actapi, cn_map, in_data)
+        handle_ip(actapi, cn_map, in_data, db_cache)
 
     # Bulk lookup
     elif ARGS.bulk:
@@ -176,9 +255,11 @@ def main() -> None:
         batch_size = 50
         i = 0
         while i < len(all_ips):
-            handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]))
+            handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]), db_cache)
             i += batch_size
             time.sleep(1)
+
+    db_cache.close()
 
 
 if __name__ == '__main__':
