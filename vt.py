@@ -23,22 +23,26 @@ requirements:
     pip install virustotal-api
 '''
 
-from __future__ import print_function
-
 import argparse
 import collections
 import contextlib
 import ipaddress
 import re
 import sys
+import logging
 import warnings
 from logging import error
 import traceback
+import urllib.parse
+from typing import List
+import os
 import act
 from functools import partialmethod
 
 import requests
 from virus_total_apis import PublicApi as VirusTotalApi
+
+EXCLUDED_MALWARE_NAMES = ['trojan', 'malware', 'generic']
 
 AV_HEURISTICS = ['trojan', 'adware', 'dropper', 'miner',
                  'backdoor', 'malware', 'downloader', 'rat',
@@ -76,6 +80,8 @@ def parse_args():
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
+    parser.add_argument('--http_user', dest='http_user',  help="HTTP Basic Auth user")
+    parser.add_argument('--http_password', dest='http_password', help="HTTP Basic Auth password")
 
     return parser.parse_args()
 
@@ -106,9 +112,14 @@ def is_adware(text):
     return False
 
 
-def handle_hexdigest(actapi, vtapi, hexdigest):
+def handle_hexdigest(actapi, vtapi, hexdigest, cache={}):
     """Read hexdigest from stdin, query VirusTotal and
     output a JSON text readable by generic_uploader.py"""
+
+    if hexdigest in cache:
+        return
+
+    cache['hexdigest'] = True
 
     names = set()
     kind = collections.Counter()
@@ -124,7 +135,7 @@ def handle_hexdigest(actapi, vtapi, hexdigest):
             continue
 
         name = name_extraction(engine, body)
-        if name:
+        if name and name not in EXCLUDED_MALWARE_NAMES:
             names.add(name)
 
         res = body['result'].lower()
@@ -142,11 +153,34 @@ def handle_hexdigest(actapi, vtapi, hexdigest):
     if kind:
         names.add(kind.most_common()[0][0])
 
-    for name in names:
-        actapi.fact("isTool", "vt")\
-            .source("hash", hexdigest)\
-            .destination("tool", name)\
+    results = response['results']
+    content_id = results['sha256']
+    for hash in ['sha1', 'sha256', 'md5']:
+        actapi.fact('represents', 'vt')\
+            .source('hash', results[hash])\
+            .destination('content', content_id)\
             .add()
+
+    for name in names:
+        actapi.fact('classifiedAs', 'vt')\
+            .source('content', content_id)\
+            .destination('tool', name)\
+            .add()
+
+    if 'detected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
+            my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
+            actapi.fact('at', 'vt')\
+                .source('content', content_id)\
+                .destination('uri', my_uri)\
+                .add()
+    if 'undetected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
+            my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
+            actapi.fact('at', 'vt')\
+                .source('content', content_id)\
+                .destination('uri', my_uri)\
+                .add()
 
 
 def handle_ip(actapi, vtapi, ip):
@@ -174,29 +208,116 @@ def handle_ip(actapi, vtapi, ip):
     try:
         results = response['results']
     except KeyError:
-        print(response, "in handle_ip for", ip)
+        logging.error("%s in handle_ip for %s", response, ip)
         sys.exit(1)
+
+    # create a dictionary of url that is observed in relation to the address.
+    urls = collections.defaultdict(list)
+    if 'detected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
+            urls[u.netloc].append(u)
+    if 'undetected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
+            urls[u.netloc].append(u)
 
     if 'resolutions' in results:
         for resolution in results['resolutions']:
-            actapi.fact("DNSRecord", "A")\
-                .source("fqdn", resolution["hostname"])\
+            actapi.fact('resolvesTo')\
+                .source('fqdn', resolution['hostname'])\
                 .destination(ip_type, ip)\
                 .add()
+            # add all detected and undetected urls related to a given resolved hostname
+            if resolution['hostname'] in urls:
+                for u in urls[resolution['hostname']]:
+                    _ = add_uri(actapi, 'fqdn', resolution['hostname'], list(u))
+    # if the actuall ip is part of the url, add the urls directly connected to the
+    # ip.
+    if ip in urls:
+        for u in urls[ip]:
+            add_uri(actapi, ip_type, ip, list(u))
 
     if 'detected_downloaded_samples' in results:
         for sample in results['detected_downloaded_samples']:
-            actapi.fact("observation")\
-                .source("hash", sample["sha256"])\
-                .destination(ip_type, ip)\
+
+            my_uri = add_uri(actapi, ip_type, ip, ['network', ip, '', '', '', ''])
+
+            actapi.fact('at')\
+                .source('content', sample['sha256'])\
+                .destination('uri', my_uri)\
                 .add()
+
+            actapi.fact('represents')\
+                .source('hash', sample['sha256'])\
+                .destination('content', sample['sha256'])\
+                .add()
+
+            handle_hexdigest(actapi, vtapi, sample['sha256'])
 
     if 'detected_communicating_samples' in results:
         for sample in results['detected_communicating_samples']:
-            actapi.fact("usesC2", ip_type)\
-                .source("hash", sample["sha256"])\
-                .destination(ip_type, ip)\
+            my_uri = add_uri(actapi, ip_type, ip, ['network', ip, '', '', '', ''])
+
+            actapi.fact('connectsTo', ip_type)\
+                .source('content', sample['sha256'])\
+                .destination('uri', my_uri)\
                 .add()
+
+            actapi.fact('represents')\
+                .source('hash', sample['sha256'])\
+                .destination('content', sample['sha256'])\
+                .add()
+
+            handle_hexdigest(actapi, vtapi, sample['sha256'])
+
+
+def add_uri(actapi: act.Act,
+            addr_type: str,
+            addr: str,
+            url: List[str],
+            cache: dict={}) -> str:
+    """Add a URI to the platform by creating the componentOf and scheme facts
+If called multiple times with arguments creating the same URI, the facts will only sent once.
+Return: The URI added
+"""
+    try:
+        my_uri = str(urllib.parse.urlunparse(url))
+        if my_uri in cache:
+            return my_uri
+
+        cache[my_uri] = True
+
+        actapi.fact("componentOf")\
+              .source(addr_type, addr)\
+              .destination("uri", my_uri)\
+              .add()
+
+        actapi.fact("scheme", url[0])\
+              .source("uri", my_uri)\
+              .add()
+
+        if url[2]:  # path
+            actapi.fact("componentOf")\
+                  .source("path", url[2])\
+                  .destination("uri", my_uri)\
+                  .add()
+
+            basename = os.path.basename(url[2])
+            if basename.strip():
+                actapi.fact("componentOf")\
+                      .source("path", basename)\
+                      .destination("uri", my_uri)\
+                      .add()
+
+        if url[3]:  # query
+            actapi.fact("componentOf")\
+                  .source("query", url[3])\
+                  .destination("uri", my_uri)\
+                  .add()
+
+    except act.base.ResponseError as e:
+        sys.stderr.write(str(e))
+
+    return my_uri
 
 
 def handle_domain(actapi, vtapi, domain):
@@ -209,8 +330,15 @@ def handle_domain(actapi, vtapi, domain):
     try:
         results = response['results']
     except KeyError:
-        print(response, "in handle_domain for", domain)
+        logging.error("%s in handle_domain for %s", response, domain)
         sys.exit(1)
+
+    if 'detected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
+            _ = add_uri(actapi, 'fqdn', domain, list(u))
+    if 'undetected_urls' in results:
+        for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
+            _ = add_uri(actapi, 'fqdn', domain, list(u))
 
     if 'resolutions' in results:
         for resolution in results['resolutions']:
@@ -230,24 +358,36 @@ def handle_domain(actapi, vtapi, domain):
             else:
                 continue  # if it is an unknown type, abort early. No query will happen.
 
-            actapi.fact("DNSRecord", "A")\
-                .source("fqdn", domain)\
+            actapi.fact('resolvesTo')\
+                .source('fqdn', domain)\
                 .destination(ip_type, ip)\
                 .add()
 
     if 'detected_downloaded_samples' in results:
         for sample in results['detected_downloaded_samples']:
-            actapi.fact("observation")\
-                .source("hash", sample["sha256"])\
-                .destination("fqdn", domain)\
+            my_uri = add_uri(actapi, 'fqdn', domain, ['network', domain, '', '', '', ''])
+            actapi.fact('at')\
+                .source('content', sample['sha256'])\
+                .destination('uri', my_uri)\
                 .add()
+            actapi.fact('represents')\
+                .source('hash', sample['sha256'])\
+                .destination('content', sample['sha256'])\
+                .add()
+            handle_hexdigest(actapi, vtapi, sample['sha256'])
 
     if 'detected_communicating_samples' in results:
         for sample in results['detected_communicating_samples']:
-            actapi.fact("usesC2", "fqdn")\
-                .source("hash", sample["sha256"])\
-                .destination("fqdn", domain)\
+            my_uri = add_uri(actapi, 'fqdn', domain, ['network', domain, '', '', '', ''])
+            actapi.fact('connectsTo')\
+                .source('content', sample['sha256'])\
+                .destination('uri', my_uri)\
                 .add()
+            actapi.fact('represents')\
+                .source('hash', sample['sha256'])\
+                .destination('content', sample['sha256'])\
+                .add()
+            handle_hexdigest(actapi, vtapi, sample['sha256'])
 
 
 def main():
@@ -255,7 +395,11 @@ def main():
 
     args = parse_args()
 
-    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "vt-enrichment")
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "vt-enrichment", requests_common_kwargs={'auth': auth})
 
     in_data = sys.stdin.read().strip()
 
