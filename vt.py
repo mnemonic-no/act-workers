@@ -38,6 +38,7 @@ from typing import List
 import os
 import act
 from functools import partialmethod
+from typing import Optional, Text, Generator
 
 import requests
 from virus_total_apis import PublicApi as VirusTotalApi
@@ -56,7 +57,7 @@ KASPERSKY_RE = re.compile(r"((.+?):)?(.+?)\.(.+?)\.([^.]+)(\.(.+))?")
 VERSION = "{}.{}".format(sum(1 for x in [False, set(), ["Y"], {}, 0] if x), sum(1 for y in [False] if y))
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Extract command lines argument"""
 
     parser = argparse.ArgumentParser(description='ACT VT Client v{}'.format(VERSION))
@@ -86,7 +87,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def name_extraction(engine, body):
+def name_extraction(engine: Text, body: dict) -> Optional[Text]:
     """Extract the name from certain AV engines based on regular
     expression matching"""
 
@@ -103,7 +104,7 @@ def name_extraction(engine, body):
     return None
 
 
-def is_adware(text):
+def is_adware(text: Text) -> bool:
     """Test for adware signature using heuristics in ADWARE_OVERRIDES"""
 
     for adware_override in ADWARE_OVERRIDES:
@@ -112,7 +113,7 @@ def is_adware(text):
     return False
 
 
-def handle_hexdigest(actapi, vtapi, hexdigest, cache={}):
+def handle_hexdigest(actapi: act.Act, vtapi: VirusTotalApi, hexdigest: Text, cache: dict={}) -> None:
     """Read hexdigest from stdin, query VirusTotal and
     output a JSON text readable by generic_uploader.py"""
 
@@ -122,7 +123,7 @@ def handle_hexdigest(actapi, vtapi, hexdigest, cache={}):
     cache['hexdigest'] = True
 
     names = set()
-    kind = collections.Counter()
+    kind: collections.Counter = collections.Counter()
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
 
@@ -183,7 +184,7 @@ def handle_hexdigest(actapi, vtapi, hexdigest, cache={}):
                 .add()
 
 
-def handle_ip(actapi, vtapi, ip):
+def handle_ip(actapi: act.Act, vtapi: VirusTotalApi, ip: Text) -> None:
     """Read IP address from stdin, query VirusTotal and
     output a JSON text readable by generic_uploaderr.py"""
 
@@ -212,7 +213,7 @@ def handle_ip(actapi, vtapi, ip):
         sys.exit(1)
 
     # create a dictionary of url that is observed in relation to the address.
-    urls = collections.defaultdict(list)
+    urls: collections.defaultdict = collections.defaultdict(list)
     if 'detected_urls' in results:
         for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
             urls[u.netloc].append(u)
@@ -229,7 +230,7 @@ def handle_ip(actapi, vtapi, ip):
             # add all detected and undetected urls related to a given resolved hostname
             if resolution['hostname'] in urls:
                 for u in urls[resolution['hostname']]:
-                    _ = add_uri(actapi, 'fqdn', resolution['hostname'], list(u))
+                    add_uri(actapi, 'fqdn', resolution['hostname'], list(u))
     # if the actuall ip is part of the url, add the urls directly connected to the
     # ip.
     if ip in urls:
@@ -320,7 +321,7 @@ Return: The URI added
     return my_uri
 
 
-def handle_domain(actapi, vtapi, domain):
+def handle_domain(actapi: act.Act, vtapi: VirusTotalApi, domain: Text) -> None:
     """Read IP address from stdin, query VirusTotal and
     output a JSON text readable by generic_uploaderr.py"""
 
@@ -335,10 +336,10 @@ def handle_domain(actapi, vtapi, domain):
 
     if 'detected_urls' in results:
         for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
-            _ = add_uri(actapi, 'fqdn', domain, list(u))
+            add_uri(actapi, 'fqdn', domain, list(u))
     if 'undetected_urls' in results:
         for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
-            _ = add_uri(actapi, 'fqdn', domain, list(u))
+            add_uri(actapi, 'fqdn', domain, list(u))
 
     if 'resolutions' in results:
         for resolution in results['resolutions']:
@@ -390,7 +391,7 @@ def handle_domain(actapi, vtapi, domain):
             handle_hexdigest(actapi, vtapi, sample['sha256'])
 
 
-def main():
+def main() -> None:
     """main function"""
 
     args = parse_args()
@@ -421,17 +422,17 @@ def main():
 
 
 @contextlib.contextmanager
-def no_ssl_verification():
+def no_ssl_verification() -> Generator[None, None, None]:
     """Monkey patch request to default to no verification of ssl"""
 
     old_request = requests.Session.request
-    requests.Session.request = partialmethod(old_request, verify=False)
+    requests.Session.request = partialmethod(old_request, verify=False)  # type: ignore
 
     warnings.filterwarnings('ignore', 'Unverified HTTPS request')
     yield
     warnings.resetwarnings()
 
-    requests.Session.request = old_request
+    requests.Session.request = old_request  # type: ignore
 
 
 if __name__ == '__main__':
