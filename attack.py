@@ -27,7 +27,7 @@ from stix2 import Filter, MemoryStore, parse
 
 import act
 import worker
-from worker import handle_fact
+from act.helpers import handle_fact
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
