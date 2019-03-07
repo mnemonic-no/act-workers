@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import re
+import socket
 import sqlite3
 import sys
 import time
@@ -44,7 +45,8 @@ ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
 BLACKLIST = {
     "ip": [  # Blacklist IP addresses. Values is IP
         lambda ip: not ip.strip(),                             # Empty values
-        lambda ip: ip.strip().lstrip("0").startswith(".")      # IP addreses starting with "0."
+        lambda ip: ip.strip().lstrip("0").startswith("."),     # IP addreses starting with "0."
+        lambda ip: re.search(r"(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)", ip)  # RFC1918
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
@@ -142,6 +144,14 @@ def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> N
     cache.commit()
 
 
+def remove_zero_padding(ip: str) -> str:
+    """
+    Remove 0-padding from IP
+    "001.001.001.001 => 1.1.1.1"
+    """
+    return re.sub(r"\b0+\B", "", ip)
+
+
 def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[str, ASNRecord], None, None]:
     """
     Query shadowserver ASN usingi IP
@@ -171,6 +181,9 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         except KeyError:
             error("Key error: {}: {}".format(ip, traceback.format_exc()))
             continue
+        except socket.timeout:
+            error("Socket timeout query shadowserver asn: {} ({}".format(ip, query_ip))
+            break  # This will also lead to timeout on all other IPs in this bulk query
 
         if not asn_record.asn:
             warning("No ASN found for ip {}".format(ip))
@@ -190,8 +203,11 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache
     if not the result is output to stdout.
     """
 
-    # Filter blacklisted IPs and remove whitespace at beginning and end
-    ip_list = [ip.strip() for ip in ip_list if not blacklisted(ip, "ip")]
+    # Remove zero padding and whitespace
+    ip_list = [remove_zero_padding(ip.strip()) for ip in ip_list]
+
+    # Filter blacklisted IPs
+    ip_list = [ip for ip in ip_list if not blacklisted(ip, "ip")]
 
     for (ip, res) in asn_query(ip_list, cache):
         # Remove everything after first occurence of "," in isp name
