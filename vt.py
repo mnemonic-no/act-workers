@@ -286,16 +286,15 @@ Return: The URI added
         act.helpers.handle_fact(actapi.fact("scheme", url[0])\
               .source("uri", my_uri))
 
-        if url[2]:  # path
+        if url[2] and not url[2].strip() == "/":  # path
             act.helpers.handle_fact(actapi.fact("componentOf")\
                   .source("path", url[2])\
                   .destination("uri", my_uri))
 
             basename = os.path.basename(url[2])
             if basename.strip():
-                act.helpers.handle_fact(actapi.fact("componentOf")\
-                      .source("path", basename)\
-                      .destination("uri", my_uri))
+                act.helpers.handle_fact(actapi.fact("basename", basename)\
+                      .source("path", url[2]))
 
         if url[3]:  # query
             act.helpers.handle_fact(actapi.fact("componentOf")\
