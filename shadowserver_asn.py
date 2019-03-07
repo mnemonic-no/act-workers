@@ -32,7 +32,7 @@ from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act
 import worker
-from worker import handle_fact
+from act.helpers import handle_fact
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"

@@ -11,8 +11,6 @@ from typing import Any, Optional
 import requests
 import urllib3
 
-import act
-
 
 class UnknownResult(Exception):
     """UnknownResult is used in API request (not 200 result)"""
@@ -96,14 +94,6 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
         raise UnknownResult(errmsg.format(req))
 
     return req.json()
-
-
-def handle_fact(fact: act.fact.Fact) -> None:
-    """ add fact if we configured act_baseurl - if not print fact """
-    if fact.config.act_baseurl:
-        fact.add()
-    else:
-        print(fact)
 
 
 def sendmail(smtphost: str, sender: str, recipient: str, subject: str, body: str) -> None:

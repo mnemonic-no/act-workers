@@ -17,7 +17,7 @@ from typing import Dict, List
 
 import act
 import worker
-from worker import handle_fact
+from act.helpers import handle_fact
 
 
 def parseargs() -> argparse.Namespace:
