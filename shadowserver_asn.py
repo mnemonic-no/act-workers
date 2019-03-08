@@ -46,7 +46,13 @@ BLACKLIST = {
     "ip": [  # Blacklist IP addresses. Values is IP
         lambda ip: not ip.strip(),                             # Empty values
         lambda ip: ip.strip().lstrip("0").startswith("."),     # IP addreses starting with "0."
-        lambda ip: re.search(r"(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)", ip)  # RFC1918
+        lambda ip: ip == "255.255.255.255",                    # broadcast
+        lambda ip: ip.startswith("224."),                      # multicast
+        lambda ip: ip.startswith("240."),                      # experimental
+        lambda ip: ip.startswith("127."),                      # localhost
+        lambda ip: ip.startswith("192.168."),                  # RFC 1918, 192.168.0.0/16
+        lambda ip: ip.startswith("10."),                       # RFC 1918, 10.0.0.0/8
+        lambda ip: re.search(r"(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)", ip)  # RFC1918, 172.16.12
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
