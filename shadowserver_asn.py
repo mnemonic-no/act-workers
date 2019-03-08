@@ -26,6 +26,7 @@ import sqlite3
 import sys
 import time
 import traceback
+from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
 from typing import Dict, Generator, List, Tuple, Union
 
@@ -47,12 +48,10 @@ BLACKLIST = {
         lambda ip: not ip.strip(),                             # Empty values
         lambda ip: ip.strip().lstrip("0").startswith("."),     # IP addreses starting with "0."
         lambda ip: ip == "255.255.255.255",                    # broadcast
-        lambda ip: ip.startswith("224."),                      # multicast
-        lambda ip: ip.startswith("240."),                      # experimental
-        lambda ip: ip.startswith("127."),                      # localhost
-        lambda ip: ip.startswith("192.168."),                  # RFC 1918, 192.168.0.0/16
-        lambda ip: ip.startswith("10."),                       # RFC 1918, 10.0.0.0/8
-        lambda ip: re.search(r"(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)", ip)  # RFC1918, 172.16.12
+        lambda ip: IPv4Address(ip).is_multicast,
+        lambda ip: IPv4Address(ip).is_private,
+        lambda ip: IPv4Address(ip).is_loopback,
+        lambda ip: IPv4Address(ip).is_unspecified,
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
@@ -150,14 +149,6 @@ def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> N
     cache.commit()
 
 
-def remove_zero_padding(ip: str) -> str:
-    """
-    Remove 0-padding from IP
-    "001.001.001.001 => 1.1.1.1"
-    """
-    return re.sub(r"\b0+\B", "", ip)
-
-
 def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[str, ASNRecord], None, None]:
     """
     Query shadowserver ASN usingi IP
@@ -209,13 +200,22 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache
     if not the result is output to stdout.
     """
 
-    # Remove zero padding and whitespace
-    ip_list = [remove_zero_padding(ip.strip()) for ip in ip_list]
+    ip_query = []
 
-    # Filter blacklisted IPs
-    ip_list = [ip for ip in ip_list if not blacklisted(ip, "ip")]
+    for ip in ip_list:
+        try:
+            ip_str = str(IPv4Address(ip))
+        except AddressValueError:
+            error("Illegal IP address: {}".format(ip))
+            continue
 
-    for (ip, res) in asn_query(ip_list, cache):
+        # Exclude blacklisted IPs
+        if blacklisted(ip_str, "ip"):
+            warning("IP address is blacklisted: {}".format(ip))
+        else:
+            ip_query.append(ip_str)
+
+    for (ip, res) in asn_query(ip_query, cache):
         # Remove everything after first occurence of "," in isp name
         handle_fact(
             actapi.fact("memberOf", "ipv4Network")
