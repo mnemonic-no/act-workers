@@ -21,10 +21,12 @@ import argparse
 import json
 import os
 import re
+import socket
 import sqlite3
 import sys
 import time
 import traceback
+from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
 from typing import Dict, Generator, List, Tuple, Union
 
@@ -44,7 +46,12 @@ ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
 BLACKLIST = {
     "ip": [  # Blacklist IP addresses. Values is IP
         lambda ip: not ip.strip(),                             # Empty values
-        lambda ip: ip.strip().lstrip("0").startswith(".")      # IP addreses starting with "0."
+        lambda ip: ip.strip().lstrip("0").startswith("."),     # IP addreses starting with "0."
+        lambda ip: ip == "255.255.255.255",                    # broadcast
+        lambda ip: IPv4Address(ip).is_multicast,
+        lambda ip: IPv4Address(ip).is_private,
+        lambda ip: IPv4Address(ip).is_loopback,
+        lambda ip: IPv4Address(ip).is_unspecified,
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
         lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
@@ -171,6 +178,9 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         except KeyError:
             error("Key error: {}: {}".format(ip, traceback.format_exc()))
             continue
+        except socket.timeout:
+            error("Socket timeout query shadowserver asn: {} ({}".format(ip, query_ip))
+            break  # This will also lead to timeout on all other IPs in this bulk query
 
         if not asn_record.asn:
             warning("No ASN found for ip {}".format(ip))
@@ -190,10 +200,22 @@ def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache
     if not the result is output to stdout.
     """
 
-    # Filter blacklisted IPs and remove whitespace at beginning and end
-    ip_list = [ip.strip() for ip in ip_list if not blacklisted(ip, "ip")]
+    ip_query = []
 
-    for (ip, res) in asn_query(ip_list, cache):
+    for ip in ip_list:
+        try:
+            ip_str = str(IPv4Address(ip))
+        except AddressValueError:
+            error("Illegal IP address: {}".format(ip))
+            continue
+
+        # Exclude blacklisted IPs
+        if blacklisted(ip_str, "ip"):
+            warning("IP address is blacklisted: {}".format(ip))
+        else:
+            ip_query.append(ip_str)
+
+    for (ip, res) in asn_query(ip_query, cache):
         # Remove everything after first occurence of "," in isp name
         handle_fact(
             actapi.fact("memberOf", "ipv4Network")
