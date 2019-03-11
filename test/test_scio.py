@@ -1,8 +1,6 @@
 """ Test for scio worker """
 import json
 
-import pytest
-
 import act
 import scio_worker
 
