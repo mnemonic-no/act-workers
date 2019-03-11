@@ -11,53 +11,44 @@ from logging import warning, error
 import traceback
 import urllib3
 import requests
+import worker
 import act
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 RRTYPE_M = {
     "a": {
-        "fact_t": "DNSRecord",
+        "fact_t": "resolvesTo",
         "fact_v": "A",
         "source_t": "fqdn",
         "dest_t": "ipv4"
     },
     "aaaa": {
-        "fact_t": "DNSRecord",
+        "fact_t": "resolvesTo",
         "fact_v": "AAAA",
         "source_t": "fqdn",
         "dest_t": "ipv6"
     },
     "cname": {
-        "fact_t": "DNSRecord",
+        "fact_t": "resolvesTo",
         "fact_v": "CNAME",
         "source_t": "fqdn",
         "dest_t": "fqdn"
     }
 }
 
-
-def parseargs():
+def parseargs() -> argparse.Namespace:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description='PDNS enrichment')
-    parser.add_argument('--proxy-string', dest='proxy_string', default="",
-                        help="Proxy to query through")
+    parser = worker.parseargs('PDNS enrichment')
     parser.add_argument('--pdns-baseurl', dest='pdns_baseurl',
                         default="https://api.mnemonic.no/", help="Argus API host")
     parser.add_argument('--pdns-timeout', dest='timeout', type=int,
                         default=299, help="Timeout")
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="Argus API key")
-    parser.add_argument('--userid', dest='user_id', required=True,
-                        help="User ID")
-    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True,
-                        help='ACT API URI')
-    parser.add_argument("--logfile", dest="logfile",
-                        help="Log to file (default = stdout)")
-    parser.add_argument("--loglevel", dest="loglevel", default="info",
-                        help="Loglevel (default = info)")
 
     return parser.parse_args()
+
 
 
 def batch_query(url, headers=None, timeout=299):
@@ -146,12 +137,12 @@ def process(actapi, pdns_baseurl, apikey, timeout=299):
             answer = row["answer"]
 
             if rrtype in RRTYPE_M:
-                fact = actapi.fact(RRTYPE_M[rrtype]["fact_t"],
-                                   RRTYPE_M[rrtype]["fact_v"])
-                fact = fact.source(RRTYPE_M[rrtype]["source_t"], query)
-                fact = fact.destination(RRTYPE_M[rrtype]["dest_t"], answer)
+                act.helpers.handle_fact(
+                    actapi.fact(RRTYPE_M[rrtype]["fact_t"],
+                                RRTYPE_M[rrtype]["fact_v"])
+                    .source(RRTYPE_M[rrtype]["source_t"], query)
+                    .destination(RRTYPE_M[rrtype]["dest_t"], answer))
 
-                fact.add()
             elif rrtype == "ptr":
                 pass  # We do not insert ptr to act
             else:
