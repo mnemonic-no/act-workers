@@ -231,7 +231,9 @@
       "077d9e0e12357d27f7f0c336239e961a7049971446f7a3f10268d9439ef67885",
       "077d9e0e12357d27f7f0c336239e961a7049971446f7a3f10268d9439ef67885"
     ],
-    "ipv4net": [],
+    "ipv4net": [
+        "192.168.0.0/16"
+    ],
     "uri": [
       "http://www.us-cert.gov/tlp.",
       "http://www.us-cert.gov/tlp.",

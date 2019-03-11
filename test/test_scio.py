@@ -21,14 +21,18 @@ def test_scio_facts(capsys) -> None:  # type: ignore
 
     report_id = doc["hexdigest"]
 
+    sha256 = doc["indicators"]["sha256"][0]
+
     fact_assertions = [
         api.fact("name", "TA18-149A.stix.xml").source("report", report_id),
         api.fact("mentions", "ipv4").source("report", report_id).destination("ipv4", "187.127.112.60"),
         api.fact("mentions", "hash").source("report", report_id).destination("hash", "4613f51087f01715bf9132c704aea2c2"),
-        api.fact("mentions", "hash").source("report", report_id).destination("hash", "077d9e0e12357d27f7f0c336239e961a7049971446f7a3f10268d9439ef67885"),
+        api.fact("mentions", "hash").source("report", report_id).destination("hash", sha256),
         api.fact("mentions", "country").source("report", report_id).destination("country", "Colombia"),
         api.fact("mentions", "tool").source("report", report_id).destination("tool", "kore"),
-        api.fact("mentions", "email").source("report", report_id).destination("email", "redhat@gmail.com")
+        api.fact("mentions", "email").source("report", report_id).destination("email", "redhat@gmail.com"),
+        api.fact("mentions", "ipv4Network").source("report", report_id).destination("ipv4Network", "192.168.0.0/16"),
+        api.fact("represents").source("hash", sha256).destination("content", sha256)
     ]
 
     for fact_assertion in fact_assertions:

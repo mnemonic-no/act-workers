@@ -17,7 +17,7 @@ EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
 
 EXTRACT_INDICATORS = ["md5", "sha1", "sha256",
                       "fqdn", "ipv4", "ipv6", "email",
-                      "msid", "cve"]
+                      "msid", "cve", "uri", "ipv4net"]
 
 SCIO_GEONAMES_ACT_MAP = {
     "countries": "country",
@@ -31,6 +31,7 @@ SCIO_INDICATOR_ACT_MAP = {
     "md5": "hash",
     "sha1": "hash",
     "sha256": "hash",
+    "ipv4net": "ipv4Network",
     "cve": "vulnerability",
     "msid": "vulnerability",
 }
@@ -94,6 +95,15 @@ def add_to_act(actapi, doc):
             act_indicator_type,
             indicators.get(scio_indicator_type, []),
             report_id)
+
+    # For SHA256, create content object
+    for sha256 in list(set(indicators.get("sha256", []))):
+        handle_fact(
+            actapi.fact("represents")
+            .source("hash", sha256)
+            .destination("content", sha256))
+
+    # TODO - extract components from URI
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
