@@ -9,7 +9,7 @@ import traceback
 from logging import error
 
 import act
-from act.helpers import handle_fact
+from act.helpers import handle_fact, handle_uri
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]
@@ -103,7 +103,9 @@ def add_to_act(actapi, doc):
             .source("hash", sha256)
             .destination("content", sha256))
 
-    # TODO - extract components from URI
+    # Add all URI components
+    for uri in list(set(indicators.get("uri", []))):
+        handle_uri(actapi, uri)
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
