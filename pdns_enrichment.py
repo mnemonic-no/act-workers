@@ -7,12 +7,15 @@ generic_uploader.py to stdout"""
 import argparse
 import socket
 import sys
-from logging import warning, error
 import traceback
-import urllib3
+from logging import error, warning
+from typing import Any, Dict, Generator, Optional
+
 import requests
-import worker
+import urllib3
+
 import act
+import worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -37,6 +40,7 @@ RRTYPE_M = {
     }
 }
 
+
 def parseargs() -> argparse.Namespace:
     """ Parse arguments """
     parser = worker.parseargs('PDNS enrichment')
@@ -50,8 +54,7 @@ def parseargs() -> argparse.Namespace:
     return parser.parse_args()
 
 
-
-def batch_query(url, headers=None, timeout=299):
+def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299) -> Generator[Dict[str, Any], None, None]:
     """ Execute query until we have all results """
 
     offset = 0
@@ -71,12 +74,12 @@ def batch_query(url, headers=None, timeout=299):
     }
 
     while True:  # do - while offset < count
-        options["params"]["offset"] = offset
-        req = requests.get(url, **options)
+        options["params"]["offset"] = offset  # type: ignore
+        req = requests.get(url, **options)  # type:ignore
 
         if not req.status_code == 200:
             errmsg = "status_code: {0.status_code}: {0.content}"
-            raise UnknownResult(errmsg.format(req))
+            raise worker.UnknownResult(errmsg.format(req))
 
         res = req.json()
         data = res["data"]
@@ -90,7 +93,7 @@ def batch_query(url, headers=None, timeout=299):
             break
 
 
-def pdns_query(pdns_baseurl, apikey, query, timeout):
+def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - Argus API key with the passivedns role (minimum)
@@ -111,18 +114,15 @@ def pdns_query(pdns_baseurl, apikey, query, timeout):
         else:
             headers = {}
 
-        return batch_query(pdns_url,
-                           headers=headers,
-                           timeout=timeout)
+        yield from batch_query(pdns_url, headers=headers, timeout=timeout)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(
-            err, query))
+        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def process(actapi, pdns_baseurl, apikey, timeout=299):
+def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -133,27 +133,18 @@ def process(actapi, pdns_baseurl, apikey, timeout=299):
 
         for row in pdns_query(pdns_baseurl, apikey, timeout=timeout, query=query):
             rrtype = row["rrtype"]
-            query = row["query"]
-            answer = row["answer"]
 
             if rrtype in RRTYPE_M:
                 act.helpers.handle_fact(
-                    actapi.fact(RRTYPE_M[rrtype]["fact_t"],
-                                RRTYPE_M[rrtype]["fact_v"])
-                    .source(RRTYPE_M[rrtype]["source_t"], query)
-                    .destination(RRTYPE_M[rrtype]["dest_t"], answer))
+                    api.fact(RRTYPE_M[rrtype]["fact_t"],
+                             RRTYPE_M[rrtype]["fact_v"])
+                    .source(RRTYPE_M[rrtype]["source_t"], row["query"])
+                    .destination(RRTYPE_M[rrtype]["dest_t"], row["answer"]))
 
             elif rrtype == "ptr":
                 pass  # We do not insert ptr to act
             else:
                 warning("Unsupported rrtype: %s: %s" % (rrtype, row))
-
-
-class UnknownResult(Exception):
-    """UnknownResult is used in API request (not 200 result)"""
-
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
 
 
 if __name__ == '__main__':
@@ -162,6 +153,6 @@ if __name__ == '__main__':
     try:
         actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
         process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
-    except Exception as e:
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
