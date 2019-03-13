@@ -43,13 +43,6 @@ from typing import Optional, Text, Generator
 import requests
 from virus_total_apis import PublicApi as VirusTotalApi
 
-EXCLUDED_MALWARE_NAMES = ['trojan', 'malware', 'generic']
-
-AV_HEURISTICS = ['trojan', 'adware', 'dropper', 'miner',
-                 'backdoor', 'malware', 'downloader', 'rat',
-                 'hacktool', 'ransomware', 'cryptolocker',
-                 'banker', 'financial', 'eicar', 'scanner']
-
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
 
 MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
@@ -123,7 +116,7 @@ def handle_hexdigest(actapi: act.Act, vtapi: VirusTotalApi, hexdigest: Text, cac
     cache['hexdigest'] = True
 
     names = set()
-    kind: collections.Counter = collections.Counter()
+
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
 
@@ -136,23 +129,13 @@ def handle_hexdigest(actapi: act.Act, vtapi: VirusTotalApi, hexdigest: Text, cac
             continue
 
         name = name_extraction(engine, body)
-        if name and name not in EXCLUDED_MALWARE_NAMES:
+        if name:
             names.add(name)
 
         res = body['result'].lower()
 
         if is_adware(res):
             names.add('adware')
-
-        for heur in AV_HEURISTICS:
-            if heur in res:
-                # Add a vote for this heuristic
-                kind[heur] += 1
-
-    # Decide on malware "kind" based on popular vote among the
-    # names extracted from the AV_HEURISTICS.
-    if kind:
-        names.add(kind.most_common()[0][0])
 
     results = response['results']
     content_id = results['sha256']
@@ -161,7 +144,6 @@ def handle_hexdigest(actapi: act.Act, vtapi: VirusTotalApi, hexdigest: Text, cac
                                 .source('hash', results[hash])\
                                 .destination('content', content_id))
                                 
-
     for name in names:
         act.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
             .source('content', content_id)\
