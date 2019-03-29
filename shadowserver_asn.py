@@ -284,11 +284,13 @@ def main() -> None:
     db_cache.close()
 
 
-if __name__ == '__main__':
-
+def main_log_error() -> None:
     try:
         main()
-    # pylint: disable=broad-except
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
-        sys.exit(1)
+        raise
+
+
+if __name__ == '__main__':
+    main_log_error()

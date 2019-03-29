@@ -26,7 +26,7 @@ def parseargs():
     return parser.parse_args()
 
 
-def process(actapi):
+def main(actapi):
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
     be the on the form accepted by the ACT Rest API fact API."""
@@ -41,12 +41,17 @@ def process(actapi):
             error("ResponseError while storing objects: %s" % err)
 
 
-if __name__ == '__main__':
-    ARGS = parseargs()
-
+def main_log_error() -> None:
+    "Call main() and log all exceptions as errors"
     try:
+        ARGS = parseargs()
+
         actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
-        process(actapi)
-    except Exception as e:
+        main(actapi)
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

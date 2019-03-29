@@ -98,10 +98,13 @@ def main():
         handle_hexdigest(actapi, in_data, args.proxy)
 
 
-if __name__ == '__main__':
-
+def main_log_error() -> None:
     try:
         main()
-    except Exception as e:
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
-        sys.exit(1)
+        raise
+
+
+if __name__ == '__main__':
+    main_log_error()

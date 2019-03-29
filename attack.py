@@ -371,9 +371,14 @@ def main() -> None:
                 add_to_cache(args.notifycache, object_id)
 
 
-if __name__ == '__main__':
+def main_log_error() -> None:
+    "Call main() and log all excetions  as errors"
     try:
         main()
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

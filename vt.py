@@ -143,7 +143,7 @@ def handle_hexdigest(actapi: act.Act, vtapi: VirusTotalApi, hexdigest: Text, cac
         act.helpers.handle_fact(actapi.fact('represents', 'vt')\
                                 .source('hash', results[hash])\
                                 .destination('content', content_id))
-                                
+
     for name in names:
         act.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
             .source('content', content_id)\
@@ -398,10 +398,13 @@ def no_ssl_verification() -> Generator[None, None, None]:
     requests.Session.request = old_request  # type: ignore
 
 
-if __name__ == '__main__':
-
+def main_log_error() -> None:
     try:
         main()
-    except Exception as e:
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()
