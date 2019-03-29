@@ -31,7 +31,7 @@ setup(
             'act-shadowserver-asn = shadowserver_asn:main_log_error',
         ]
     },
-    url="https://github.com/mnemonic-no",
+    url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
