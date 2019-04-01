@@ -2,7 +2,7 @@
 import json
 
 import act
-import scio_worker
+from act_workers import scio
 
 
 def test_scio_facts(capsys) -> None:  # type: ignore
@@ -12,7 +12,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
 
     api = act.Act("", None, "error")
 
-    scio_worker.add_to_act(api, doc)
+    scio.add_to_act(api, doc, output_format="str")
 
     captured = capsys.readouterr()
     facts = set(captured.out.split("\n"))

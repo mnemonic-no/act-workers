@@ -1,5 +1,5 @@
 import pytest
-import misp
+from act_workers_libs import misp
 import json
 import uuid
 
