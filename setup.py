@@ -21,16 +21,18 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
-            'act-vt = vt:main_log_error',
-            'act-attack = attack:main_log_error',
-            'act-mnemonic-pdns = mnemonic_pdns:main_log_error',
-            'act-cyber-uio = cyber_uio:main_log_error',
-            'act-misp-feeds = misp_feeds:main_log_error',
-            'act-scio = scio:main_log_error',
-            'act-uploader = generic_uploader:main_log_error',
-            'act-shadowserver-asn = shadowserver_asn:main_log_error',
+            'act-vt = act_worker.vt:main_log_error',
+            'act-attack = act_worker.attack:main_log_error',
+            'act-mnemonic-pdns = act_worker.mnemonic_pdns:main_log_error',
+            'act-country-regions = act_worker.country_regions:main_log_error',
+            'act-cyber-uio = act_worker.cyber_uio:main_log_error',
+            'act-misp-feeds = act_worker.misp_feeds:main_log_error',
+            'act-scio = act_worker.scio:main_log_error',
+            'act-uploader = act_worker.generic_uploader:main_log_error',
+            'act-shadowserver-asn = act_worker.shadowserver_asn:main_log_error',
         ]
     },
+    packages=["act_worker", "act_worker_lib"],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 
