@@ -5,6 +5,7 @@ import time
 import re
 import ipaddress
 
+from typing import Optional, Text, Any, Tuple, Dict, Callable
 
 class ThreatLevelID(enum.Enum):
     """2.2.1.5.  threat_level_id
@@ -92,14 +93,14 @@ class Event(object):
     # --- END_SHOULD ---
 
     tlp = None
-    misp_galaxy = {}
+    misp_galaxy: Dict[Text, Text] = {}
 
-    def __init__(self, loads=None):
-        if not loads:
-            self._uuid = uuid.uuid4()
-            self.timestamp = int(time.time())
-            self.publish_timestamp = int(time.time())
-        else:
+    def __init__(self, loads: Optional[Text]=None) -> None:
+        self._uuid: uuid.UUID = uuid.uuid4()
+        self.timestamp: int = int(time.time())
+        self.publish_timestamp: int = int(time.time())
+
+        if loads:
             data = json.loads(loads)
             event = data["Event"]
             self._uuid = uuid.UUID(event["uuid"])
@@ -132,10 +133,10 @@ class Event(object):
                 obj_attributes = obj.get("Attribute", [])
                 self.attributes += [Attribute(e) for e in obj_attributes]
 
-    def __str__(self):
+    def __str__(self) -> Text:
         return "({0}) {1} - {2} ".format(self.timestamp, self._uuid, self.info)
 
-    def write_to(self, stream):
+    def write_to(self, stream: Any) -> None:
         stream.write(json.dumps(
             {
                 "uuid": str(self._uuid),
@@ -155,18 +156,20 @@ class Event(object):
             }))
 
     @property
-    def uuid(self):
+    def uuid(self):  # type: ignore
         return self._uuid
 
 
 class Attribute(object):  # attributeattributes in misp babel
 
-    def __init__(self, attributedict):
+    def __init__(self, attributedict: Dict[Text, Text]):
 
         try:
             self._uuid = attributedict["uuid"]
-            self.id = attributedict["uuid"]
+            self.id: Text = attributedict["uuid"]
             mapper_fn = map_misp_to_act.get(attributedict["type"], lambda x: (None, None))
+            self.act_type: Optional[Text] = None
+            self.value: Optional[Text] = None
             self.act_type, self.value = mapper_fn(attributedict["value"])
             if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
                 print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
@@ -175,49 +178,49 @@ class Attribute(object):  # attributeattributes in misp babel
             print(attributedict["value"][:100])
             raise
 
-    def __str__(self):
+    def __str__(self) -> Text:
         return "{0} {1}:{2}".format(self.id, self.act_type, self.value)
 
 
-def hash_f(x):
+def hash_f(x: Text) -> Tuple[Text, Text]:
     return "hash", x.lower()
 
 
-def certificate_f(x):
+def certificate_f(x: Text) -> Tuple[Text, Text]:
     return "certificate", x.lower()
 
 
-def threat_actor_f(x):
+def threat_actor_f(x: Text) -> Tuple[Text, Text]:
     return "threatActor", x.lower()
 
 
-def campaign_f(x):
+def campaign_f(x: Text) -> Tuple[Text, Text]:
     return "campaign", x.lower()
 
 
-def email_f(x):
+def email_f(x: Text) -> Tuple[Text, Text]:
     return "email", x.lower()
 
 
-def person_f(x):
+def person_f(x: Text) -> Tuple[Text, Text]:
     return "person", x.lower()
 
 
-def organization_f(x):
+def organization_f(x: Text) -> Tuple[Text, Text]:
     return "organization", x.lower()
 
 
-def fqdn_f(x):
+def fqdn_f(x: Text) -> Tuple[Text, Text]:
     return "fqdn", x.lower()
 
 
-def ip_f(x):
+def ip_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
     try:
-        addr = ipaddress.IPv6Address(x)
-        return "ipv6", addr.exploded
+        addrv6 = ipaddress.IPv6Address(x)
+        return "ipv6", str(addrv6.exploded)
     except ipaddress.AddressValueError:
         try:
-            addr = ipaddress.IPv4Address(x)
+            ipaddress.IPv4Address(x)
             return "ipv4", x
         except ipaddress.AddressValueError:
             pass
@@ -225,25 +228,25 @@ def ip_f(x):
     return None, None
 
 
-def uri_f(x):
+def uri_f(x: Text) -> Tuple[Text, Text]:
     if not x.startswith("http"):
         x = "http://{0}".format(x)
     return "uri", x
 
 
-def user_agent_f(x):
+def user_agent_f(x: Text) -> Tuple[Text, Text]:
     return "userAgent", x
 
 
-def vulnerability_f(x):
+def vulnerability_f(x: Text) -> Tuple[Text, Text]:
     return "vulnerability", x.lower()
 
 
-def mutex_f(x):
+def mutex_f(x: Text) -> Tuple[Text, Text]:
     return "mutex", x
 
 
-map_misp_to_act = {
+map_misp_to_act: Dict[Text, Callable[[Text], Tuple[Optional[Text], Optional[Text]]]] = {
     "authentihash": hash_f,
     "campaign-name": campaign_f,
     "hostname": fqdn_f,
