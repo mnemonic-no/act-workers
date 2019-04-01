@@ -10,7 +10,7 @@ import configparser
 import collections
 import hashlib
 import json
-import misp
+from act_workers_libs import misp
 import os
 import requests
 import sys
@@ -128,8 +128,21 @@ def enrich(act_type, value, status=collections.defaultdict(int)):
     return status.copy()
 
 
-def main(client):
+def main():
     """program entry point"""
+
+    ARGS = parseargs()
+    CONF = configparser.ConfigParser()
+    read = CONF.read(ARGS.config)
+    if len(read) == 0:
+        print("Could not read config file")
+        sys.exit(1)
+
+    actapi = act.Act(CONF['platform']['base_url'],
+                     ARGS.act_user_id,
+                     CONF['misp']['loglevel'],
+                     CONF['misp']['logfile'],
+                     "misp-import")
 
     verify_dir()
     status = {}  # in case of empty feed/no enrichment uploads.
@@ -185,21 +198,14 @@ def main(client):
             log("{} {} sent to enrichment".format(v, k))
 
 
-if __name__ == "__main__":
-    ARGS = parseargs()
-    CONF = configparser.ConfigParser()
-    read = CONF.read(ARGS.config)
-    if len(read) == 0:
-        print("Could not read config file")
-        sys.exit(1)
-
+def main_log_error() -> None:
+    "Call main() and log all excetions  as errors"
     try:
-        actapi = act.Act(CONF['platform']['base_url'],
-                         ARGS.act_user_id,
-                         CONF['misp']['loglevel'],
-                         CONF['misp']['logfile'],
-                         "misp-import")
-        main(actapi)
-    except Exception as e:
+        main()
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

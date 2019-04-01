@@ -1,6 +1,6 @@
 import json
 import argparse
-from ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
+from act_workers_libs.ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
     add_ta_to_map, add_ta_alias_to_map, create_config
 
 

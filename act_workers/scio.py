@@ -139,15 +139,23 @@ def add_to_act(actapi, doc):
         report_id)
 
 
-if __name__ == '__main__':
+def main() -> None:
     ARGS = parseargs()
 
+    # Add IOCs from reports to the ACT platform
+    add_to_act(
+        act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "scio"),
+        get_scio_report()
+    )
+
+
+def main_log_error() -> None:
     try:
-        # Add IOCs from reports to the ACT platform
-        add_to_act(
-            act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "scio"),
-            get_scio_report()
-        )
-    except Exception as e:
+        main()
+    except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

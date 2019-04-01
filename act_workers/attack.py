@@ -26,7 +26,7 @@ import stix2
 from stix2 import Filter, MemoryStore, parse
 
 import act
-import worker
+from act_workers_libs import worker
 from act.helpers import handle_fact
 
 MITRE_URLS = {
@@ -371,9 +371,14 @@ def main() -> None:
                 add_to_cache(args.notifycache, object_id)
 
 
-if __name__ == '__main__':
+def main_log_error() -> None:
+    "Call main() and log all excetions  as errors"
     try:
         main()
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

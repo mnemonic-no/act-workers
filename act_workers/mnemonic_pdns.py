@@ -15,7 +15,7 @@ import requests
 import urllib3
 
 import act
-import worker
+from act_workers_libs import worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -147,12 +147,19 @@ def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299) ->
                 warning("Unsupported rrtype: %s: %s" % (rrtype, row))
 
 
-if __name__ == '__main__':
+def main() -> None:
     ARGS = parseargs()
+    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
+    process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
 
+
+def main_log_error() -> None:
     try:
-        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
-        process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
+        main()
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()

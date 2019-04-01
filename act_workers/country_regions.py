@@ -16,7 +16,7 @@ from logging import error, warning
 from typing import Dict, List
 
 import act
-import worker
+from act_workers_libs import worker
 from act.helpers import handle_fact
 
 
@@ -60,9 +60,9 @@ def process(actapi: act.Act, country_list: List[Dict[str, str]]) -> None:
             warning("Missing sub-region or region: {}".format(c_map))
 
 
-if __name__ == '__main__':
+def main_log_error() -> None:
+    "Main function. Log all exceptions to error"
     ARGS = parseargs()
-
     try:
         process(
             act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region"),
@@ -71,3 +71,7 @@ if __name__ == '__main__':
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
+
+
+if __name__ == '__main__':
+    main_log_error()
