@@ -1,6 +1,6 @@
 import json
 import pytest
-from update_ta_aliases_list import add_ta_to_map, add_ta_alias_to_map
+from act_workers.update_ta_aliases_list import add_ta_to_map, add_ta_alias_to_map
 
 
 # testing update_ta_aliases_list.py

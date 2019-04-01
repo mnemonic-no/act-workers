@@ -55,19 +55,20 @@ def get_scio_report():
     return json.load(sys.stdin)
 
 
-def report_mentions_fact(actapi, object_type, object_values, report_id):
+def report_mentions_fact(actapi, object_type, object_values, report_id, output_format):
     for value in list(set(object_values)):
         try:
             handle_fact(
                 actapi.fact("mentions", object_type)
                 .source("report", report_id)
-                .destination(object_type, value)
+                .destination(object_type, value),
+                output_format
             )
         except act.base.ResponseError as e:
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi, doc):
+def add_to_act(actapi, doc, output_format="json"):
     """Add a report to the ACT platform"""
 
     report_id = doc["hexdigest"]
@@ -78,7 +79,8 @@ def add_to_act(actapi, doc):
         # Report title
         handle_fact(
             actapi.fact("name", title)
-            .source("report", report_id)
+            .source("report", report_id),
+            output_format
         )
     except act.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
@@ -94,18 +96,21 @@ def add_to_act(actapi, doc):
             actapi,
             act_indicator_type,
             indicators.get(scio_indicator_type, []),
-            report_id)
+            report_id,
+            output_format)
 
     # For SHA256, create content object
     for sha256 in list(set(indicators.get("sha256", []))):
         handle_fact(
             actapi.fact("represents")
             .source("hash", sha256)
-            .destination("content", sha256))
+            .destination("content", sha256),
+            output_format
+        )
 
     # Add all URI components
     for uri in list(set(indicators.get("uri", []))):
-        handle_uri(actapi, uri)
+        handle_uri(actapi, uri, output_format=output_format)
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
@@ -115,28 +120,32 @@ def add_to_act(actapi, doc):
             actapi,
             SCIO_GEONAMES_ACT_MAP[location_type],
             locations,
-            report_id)
+            report_id,
+            output_format)
 
     # Threat actor
     report_mentions_fact(
         actapi,
         "threatActor",
         doc.get("threat-actor", {}).get("names", []),
-        report_id)
+        report_id,
+        output_format)
 
     # Tools
     report_mentions_fact(
         actapi,
         "tool",
         [tool.lower() for tool in doc.get("tools", {}).get("names", [])],
-        report_id)
+        report_id,
+        output_format)
 
     # Sector
     report_mentions_fact(
         actapi,
         "sector",
         doc.get("sectors", []),
-        report_id)
+        report_id,
+        output_format)
 
 
 def main() -> None:
