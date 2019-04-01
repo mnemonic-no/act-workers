@@ -32,7 +32,7 @@ setup(
             'act-shadowserver-asn = act_worker.shadowserver_asn:main_log_error',
         ]
     },
-    packages=["act_worker", "act_worker_lib"],
+    packages=["act_workers", "act_workers_libs"],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api>=0.5.3', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 

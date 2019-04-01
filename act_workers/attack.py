@@ -26,7 +26,7 @@ import stix2
 from stix2 import Filter, MemoryStore, parse
 
 import act
-from act_worker_lib import worker
+from act_workers_libs import worker
 from act.helpers import handle_fact
 
 MITRE_URLS = {

@@ -10,7 +10,7 @@ import configparser
 import collections
 import hashlib
 import json
-from act_worker_lib import misp
+from act_workers_libs import misp
 import os
 import requests
 import sys

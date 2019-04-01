@@ -15,7 +15,7 @@ import requests
 import urllib3
 
 import act
-from act_worker_lib import worker
+from act_workers_libs import worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
