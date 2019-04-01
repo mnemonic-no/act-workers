@@ -34,7 +34,7 @@ setup(
     },
     packages=["act_worker", "act_worker_lib"],
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
+    install_requires=['act-api>=0.5.3', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
