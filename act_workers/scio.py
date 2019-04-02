@@ -68,9 +68,9 @@ def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List
 def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
-    report_id = doc["hexdigest"]
-
-    title = doc.get("title", "No title")
+    report_id: Text = doc["hexdigest"]
+    title: Text = doc.get("title", "No title")
+    indicators: Dict = doc.get("indicators", {})
 
     try:
         # Report title
@@ -81,8 +81,6 @@ def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None
         )
     except act.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
-
-    indicators = doc.get("indicators", {})
 
     # Loop over all items under indicators in report
     for scio_indicator_type in EXTRACT_INDICATORS:
