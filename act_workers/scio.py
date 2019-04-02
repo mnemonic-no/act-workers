@@ -7,7 +7,7 @@ import json
 import sys
 import traceback
 from logging import error
-from typing import Any, List, Text
+from typing import Any, Dict, List, Text, cast
 
 import act
 from act.helpers import handle_fact, handle_uri
@@ -45,10 +45,10 @@ def parseargs() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_scio_report() -> Any:
+def get_scio_report() -> Dict:
     """Read scio report from stdin"""
 
-    return json.load(sys.stdin)
+    return cast(Dict, json.load(sys.stdin))
 
 
 def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List[Text], report_id: Text, output_format: Text) -> None:
