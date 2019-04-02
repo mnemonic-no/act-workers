@@ -9,7 +9,7 @@ import socket
 import sys
 import traceback
 from logging import error, warning
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional, Text
 
 import requests
 import urllib3
@@ -54,15 +54,15 @@ def parseargs() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299) -> Generator[Dict[str, Any], None, None]:
+def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
     """ Execute query until we have all results """
 
     offset = 0
     count = 0
 
     proxies = {
-        'http': ARGS.proxy_string,
-        'https': ARGS.proxy_string
+        'http': proxy_string,
+        'https': proxy_string
     }
 
     options = {
@@ -93,7 +93,7 @@ def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299) ->
             break
 
 
-def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int) -> Generator[Dict[str, Any], None, None]:
+def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - Argus API key with the passivedns role (minimum)
@@ -114,7 +114,7 @@ def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int) -> Gene
         else:
             headers = {}
 
-        yield from batch_query(pdns_url, headers=headers, timeout=timeout)
+        yield from batch_query(pdns_url, headers=headers, timeout=timeout, proxy_string=proxy_string)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
@@ -122,7 +122,7 @@ def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int) -> Gene
         error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299) -> None:
+def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, proxy_string: Optional[Text] = None) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -131,7 +131,7 @@ def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299) ->
         if not query:
             continue
 
-        for row in pdns_query(pdns_baseurl, apikey, timeout=timeout, query=query):
+        for row in pdns_query(pdns_baseurl, apikey, timeout=timeout, query=query, proxy_string=proxy_string):
             rrtype = row["rrtype"]
 
             if rrtype in RRTYPE_M:
@@ -148,9 +148,9 @@ def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299) ->
 
 
 def main() -> None:
-    ARGS = parseargs()
-    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "pdns-enrichment")
-    process(actapi, ARGS.pdns_baseurl, ARGS.apikey, ARGS.timeout)
+    args = parseargs()
+    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "pdns-enrichment")
+    process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string)
 
 
 def main_log_error() -> None:
