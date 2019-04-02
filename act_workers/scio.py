@@ -7,7 +7,7 @@ import json
 import sys
 import traceback
 from logging import error
-from typing import Any, Dict, List, Text, cast
+from typing import Dict, List, Text, cast
 
 import act
 from act.helpers import handle_fact, handle_uri
@@ -65,7 +65,7 @@ def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi: act.Act, doc: Any, output_format: Text = "json") -> None:
+def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
     report_id = doc["hexdigest"]
