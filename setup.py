@@ -21,20 +21,21 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
-            'act-vt = act_worker.vt:main_log_error',
-            'act-attack = act_worker.attack:main_log_error',
-            'act-mnemonic-pdns = act_worker.mnemonic_pdns:main_log_error',
-            'act-country-regions = act_worker.country_regions:main_log_error',
-            'act-cyber-uio = act_worker.cyber_uio:main_log_error',
-            'act-misp-feeds = act_worker.misp_feeds:main_log_error',
-            'act-scio = act_worker.scio:main_log_error',
-            'act-uploader = act_worker.generic_uploader:main_log_error',
-            'act-shadowserver-asn = act_worker.shadowserver_asn:main_log_error',
+            'act-vt = act_workers.vt:main_log_error',
+            'act-attack = act_workers.attack:main_log_error',
+            'act-mnemonic-pdns = act_workers.mnemonic_pdns:main_log_error',
+            'act-country-regions = act_workers.country_regions:main_log_error',
+            'act-cyber-uio = act_workers.cyber_uio:main_log_error',
+            'act-misp-feeds = act_workers.misp_feeds:main_log_error',
+            'act-scio = act_workers.scio:main_log_error',
+            'act-uploader = act_workers.generic_uploader:main_log_error',
+            'act-shadowserver-asn = act_workers.shadowserver_asn:main_log_error',
         ]
     },
     packages=["act_workers", "act_workers_libs"],
+    data_files=[('/etc/', ['etc/actworkers.ini'])],
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api>=0.5.3', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
+    install_requires=['act-api>=0.5.4', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[

@@ -3,6 +3,7 @@
 and adding data to the platform"""
 
 import act
+import act.helpers
 from logging import error
 import traceback
 import argparse
@@ -10,7 +11,7 @@ import configparser
 import collections
 import hashlib
 import json
-from act_workers_libs import misp
+from act_workers_libs import misp, worker
 import os
 import requests
 import sys
@@ -38,8 +39,8 @@ def log(*msg) -> None:  # type: ignore
 
 def parseargs() -> argparse.Namespace:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description='Get SCIO reports and IOCs from stdin')
-    parser.add_argument('--userid', dest='act_user_id', required=True, help="User ID")
+    parser = worker.parseargs('Get MISP feeds from MISP sharing directories')
+
     parser.add_argument('--config', metavar="CONFIGFILE", default="/etc/actworkers.ini", type=str,
                         help='Use this file for config.')
 
@@ -50,13 +51,27 @@ def verify_dir(conf: configparser.ConfigParser) -> None:
     """Verify that the directory structure exists and that there is
     always a feed file (Even empty)"""
 
-    if not os.path.isdir(conf['misp']['manifest_dir']):
-        print("Could not open manifest directory:", conf['misp']['manifest_dir'])
-    feed_file = os.path.join(conf['misp']['manifest_dir'], 'misp_feeds.txt')
-    if not os.path.isfile(feed_file):
-        with open(feed_file, "wb"):
-            pass
+    manifest_dir: Text = ""
 
+    # If there is specified a manifest directory in the .ini file we
+    # verify that it exists (or fail hard). If no such directory
+    # is defined, we default to using $XDG_CACHE_DIR and create a new
+    # 'misp_maifest' directory there. 
+    if conf['misp'].get('manifest_dir', None):
+        manifest_dir = conf['misp']['manifest_dir']
+        if not os.path.isdir(manifest_dir):
+            print("Could not open manifest directory:", conf['misp']['manifest_dir'])
+            sys.exit(1)
+    else:
+        manifest_dir = worker.get_cache_dir('misp_manifest', create=True)
+
+    # Check that the misp_feeds.txt file actually exists. If not 'touch'
+    # the file to make sure there is at least some default config present.
+    feed_file = os.path.join(manifest_dir, 'misp_feeds.txt')
+    if not os.path.isfile(feed_file):
+        with open(feed_file, 'w') as feed_h:
+            feed_h.write("https://www.circl.lu/doc/misp/feed-osint/")
+    return manifest_dir
 
 def handle_event_file(conf: configparser.ConfigParser, feed_url: Text, uuid: Text) -> misp.Event:
     """Download, parse and store single event file"""
@@ -75,7 +90,7 @@ def handle_event_file(conf: configparser.ConfigParser, feed_url: Text, uuid: Tex
 
     certfile: Optional[Text] = None
 
-    if conf['cert']['file']:
+    if conf['cert'].get('file', None):
         certfile = conf['cert']['file']
 
     url = urlparse.urljoin(feed_url, "{0}.json".format(uuid))
@@ -83,7 +98,7 @@ def handle_event_file(conf: configparser.ConfigParser, feed_url: Text, uuid: Tex
     return misp.Event(loads=req.text)
 
 
-def handle_feed(conf: configparser.ConfigParser, feed_url: Text) -> Generator[misp.Event, None, None]:
+def handle_feed(conf: configparser.ConfigParser, manifest_dir: Text, feed_url: Text) -> Generator[misp.Event, None, None]:
     """Get the manifest file, check if an event file is downloaded
     before (cache) and dispatch event handling of separate files"""
 
@@ -96,7 +111,7 @@ def handle_feed(conf: configparser.ConfigParser, feed_url: Text) -> Generator[mi
         }
 
     certfile: Optional[Text] = None
-    if conf['cert']['file']:
+    if conf['cert'].get('file', None):
         certfile = conf['cert']['file']
 
     manifest_url = urlparse.urljoin(feed_url, "manifest.json")
@@ -107,7 +122,7 @@ def handle_feed(conf: configparser.ConfigParser, feed_url: Text) -> Generator[mi
     feed_sha1 = hashlib.sha1(feed_url.encode("utf-8")).hexdigest()
 
     try:
-        with open("misp/manifest/{0}".format(feed_sha1)) as infile:
+        with open(os.path.join(manifest_dir, feed_sha1)) as infile:
             old_manifest = json.load(infile)
     except IOError:
         old_manifest = {}
@@ -116,7 +131,7 @@ def handle_feed(conf: configparser.ConfigParser, feed_url: Text) -> Generator[mi
         if uuid not in old_manifest:
             yield handle_event_file(conf, feed_url, uuid)
 
-    with open("misp/manifest/{0}".format(feed_sha1), "wb") as outfile:
+    with open(os.path.join(manifest_dir, feed_sha1), "wb") as outfile:
         outfile.write(json.dumps(manifest).encode("utf-8"))
 
 
@@ -140,19 +155,16 @@ def main() -> None:
     if len(read) == 0:
         print("Could not read config file")
         sys.exit(1)
+        
+    actapi =  act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
 
-    actapi = act.Act(conf['platform']['base_url'],
-                     args.act_user_id,
-                     conf['misp']['loglevel'],
-                     conf['misp']['logfile'],
-                     "misp-import")
-
-    verify_dir(conf)
+    manifest_dir = verify_dir(conf)
+    misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")
     status: Dict[Text, int] = {}  # in case of empty feed/no enrichment uploads.
 
-    with open("misp/misp_feeds.txt") as f:
+    with open(misp_feeds_file) as f:
         for line in f:
-            feed_data = handle_feed(conf, line.strip())
+            feed_data = handle_feed(conf, manifest_dir, line.strip())
             for event in feed_data:
                 n = 0
                 e = 0
@@ -162,7 +174,7 @@ def main() -> None:
                 fact = actapi.fact("hasTitle", event.info)\
                              .source("report", str(event.uuid))
                 if conf['platform']['base_url']:
-                    fact.add()
+                    act.helpers.handle_fact(fact)
                     n += 1
                 else:
                     print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
@@ -172,7 +184,7 @@ def main() -> None:
                              .destination("report", str(event.uuid))
                 if conf['platform']['base_url']:
                     try:
-                        fact.add()
+                        act.helpers.handle_fact(fact)
                         n += 1
                     except act.base.ResponseError as err:
                         e += 1
@@ -186,11 +198,11 @@ def main() -> None:
                     fact = actapi.fact("seenIn", "report")\
                                  .source(attribute.act_type, attribute.value)\
                                  .destination("report", str(event.uuid))
-                    if attribute.value:
+                    if attribute.value and args.act_baseurl:
                         status = enrich(conf, attribute.act_type, attribute.value)
                     if conf['platform']['base_url']:
                         try:
-                            fact.add()
+                            act.helpers.handle_fact(fact)
                             n += 1
                         except act.base.ResponseError as err:
                             e += 1
