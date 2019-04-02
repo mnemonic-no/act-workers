@@ -33,6 +33,8 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
+    parser.add_argument("--output-format", dest="output_format", default="json",
+                        help="Output format for fact (default = json)")
     return parser
 
 

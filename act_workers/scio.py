@@ -7,9 +7,11 @@ import json
 import sys
 import traceback
 from logging import error
+from typing import Dict, List, Text, cast
 
 import act
 from act.helpers import handle_fact, handle_uri
+from act_workers_libs import worker
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]
@@ -37,25 +39,20 @@ SCIO_INDICATOR_ACT_MAP = {
 }
 
 
-def parseargs():
+def parseargs() -> argparse.Namespace:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description='Get SCIO reports and IOCs from stdin')
-    parser.add_argument('--userid', dest='act_user_id', required=True, help="User ID")
-    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True, help='API URI')
-    parser.add_argument("--logfile", dest="logfile", help="Log to file (default = stdout)")
-    parser.add_argument("--loglevel", dest="loglevel", default="info",
-                        help="Loglevel (default = info)")
-
+    parser = worker.parseargs('Get SCIO reports and IOCs from stdin')
     return parser.parse_args()
 
 
-def get_scio_report():
+def get_scio_report() -> Dict:
     """Read scio report from stdin"""
 
-    return json.load(sys.stdin)
+    return cast(Dict, json.load(sys.stdin))
 
 
-def report_mentions_fact(actapi, object_type, object_values, report_id, output_format):
+def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List[Text], report_id: Text, output_format: Text) -> None:
+    """Add mentions fact to report"""
     for value in list(set(object_values)):
         try:
             handle_fact(
@@ -68,12 +65,12 @@ def report_mentions_fact(actapi, object_type, object_values, report_id, output_f
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi, doc, output_format="json"):
+def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
-    report_id = doc["hexdigest"]
-
-    title = doc.get("title", "No title")
+    report_id: Text = doc["hexdigest"]
+    title: Text = doc.get("title", "No title")
+    indicators: Dict = doc.get("indicators", {})
 
     try:
         # Report title
@@ -84,8 +81,6 @@ def add_to_act(actapi, doc, output_format="json"):
         )
     except act.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
-
-    indicators = doc.get("indicators", {})
 
     # Loop over all items under indicators in report
     for scio_indicator_type in EXTRACT_INDICATORS:
@@ -149,16 +144,19 @@ def add_to_act(actapi, doc, output_format="json"):
 
 
 def main() -> None:
-    ARGS = parseargs()
+    """main function"""
+    args = parseargs()
 
     # Add IOCs from reports to the ACT platform
     add_to_act(
-        act.Act(ARGS.act_baseurl, ARGS.act_user_id, ARGS.loglevel, ARGS.logfile, "scio"),
-        get_scio_report()
+        act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "scio"),
+        get_scio_report(),
+        args.output_format,
     )
 
 
 def main_log_error() -> None:
+    """Execute main() and log errors to error"""
     try:
         main()
     except Exception:
