@@ -43,6 +43,8 @@ from typing import Optional, Text, Generator
 import requests
 from virus_total_apis import PublicApi as VirusTotalApi
 
+from act_workers_libs import worker
+
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
 
 MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
@@ -53,11 +55,9 @@ VERSION = "{}.{}".format(sum(1 for x in [False, set(), ["Y"], {}, 0] if x), sum(
 def parse_args() -> argparse.Namespace:
     """Extract command lines argument"""
 
-    parser = argparse.ArgumentParser(description='ACT VT Client v{}'.format(VERSION))
+    parser = worker.parseargs('ACT VT Client v{}'.format(VERSION))
     parser.add_argument('--apikey', metavar='KEY', type=str,
                         required=True, help='VirusTotal API key')
-    parser.add_argument('--proxy', metavar='PROXY', type=str,
-                        help='set the system proxy')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--hexdigest', action='store_true',
                        default=False, help='query hexdigestsum on stdin')
@@ -65,16 +65,7 @@ def parse_args() -> argparse.Namespace:
                        default=False, help='query ip on stdin')
     group.add_argument('--domain', action='store_true',
                        default=False, help='query domain on stdin')
-
-    parser.add_argument('--userid', dest='user_id', required=True,
-                        help="User ID")
-    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True,
-                        help='ACT API URI')
-    parser.add_argument("--logfile", dest="logfile",
-                        help="Log to file (default = stdout)")
-    parser.add_argument("--loglevel", dest="loglevel", default="info",
-                        help="Loglevel (default = info)")
-    parser.add_argument('--http_user', dest='http_user',  help="HTTP Basic Auth user")
+    parser.add_argument('--http_user', dest='http_user', help="HTTP Basic Auth user")
     parser.add_argument('--http_password', dest='http_password', help="HTTP Basic Auth password")
 
     return parser.parse_args()
@@ -368,9 +359,9 @@ def main() -> None:
     in_data = sys.stdin.read().strip()
 
     proxies = {
-        'http': args.proxy,
-        'https': args.proxy
-    } if args.proxy else None
+        'http': args.proxy_string,
+        'https': args.proxy_string
+    } if args.proxy_string else None
 
     vtapi = VirusTotalApi(args.apikey, proxies=proxies)
 
