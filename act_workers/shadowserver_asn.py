@@ -76,7 +76,7 @@ def get_cn_map(filename: str) -> Dict:
     """
     cn_map = {}
 
-    for c_map in json.loads(open(filename, "r").read()):
+    for c_map in json.loads(open(filename, "r", encoding="utf8").read()):
         cn_map[c_map["alpha-2"]] = c_map["name"]
 
     return cn_map
