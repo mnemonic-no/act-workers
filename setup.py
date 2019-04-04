@@ -25,7 +25,6 @@ setup(
             'act-attack = act_workers.attack:main_log_error',
             'act-mnemonic-pdns = act_workers.mnemonic_pdns:main_log_error',
             'act-country-regions = act_workers.country_regions:main_log_error',
-            'act-cyber-uio = act_workers.cyber_uio:main_log_error',
             'act-misp-feeds = act_workers.misp_feeds:main_log_error',
             'act-scio = act_workers.scio:main_log_error',
             'act-uploader = act_workers.generic_uploader:main_log_error',
