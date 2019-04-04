@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="0.5.4",
+    version="0.5.5",
     author="mnemonic AS",
     author_email="opensource@mnemonic.no",
     description="Python library to connect to the ACT rest API",
