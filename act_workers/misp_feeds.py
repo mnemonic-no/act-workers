@@ -2,23 +2,24 @@
 """MISP feed worker pulling down feeds in misp_feeds.txt
 and adding data to the platform"""
 
-import act
-import act.helpers
-from logging import error
-import traceback
 import argparse
-import configparser
 import collections
+import configparser
 import hashlib
 import json
-from act_workers_libs import misp, worker
 import os
-import requests
 import sys
 import syslog
+import traceback
+from logging import error
+from typing import Dict, Generator, Optional, Text, cast
 
-from typing import Text, Optional, Dict, Generator
+import requests
 from colorama import Fore, Style
+
+import act
+import act.helpers
+from act_workers_libs import misp, worker
 
 try:
     import urlparse
@@ -41,8 +42,8 @@ def parseargs() -> argparse.Namespace:
     """ Parse arguments """
     parser = worker.parseargs('Get MISP feeds from MISP sharing directories')
 
-    parser.add_argument('--config', metavar="CONFIGFILE", default="/etc/actworkers.ini", type=str,
-                        help='Use this file for config.')
+    parser.add_argument('--config', metavar="CONFIGFILE", type=str, help='Use this file for config.')
+    parser.add_argument('--config-defaults', action="store_true", default=False, help='Print default config (ini) file to stdout.')
 
     return parser.parse_args()
 
@@ -56,7 +57,7 @@ def verify_dir(conf: configparser.ConfigParser) -> None:
     # If there is specified a manifest directory in the .ini file we
     # verify that it exists (or fail hard). If no such directory
     # is defined, we default to using $XDG_CACHE_DIR and create a new
-    # 'misp_maifest' directory there. 
+    # 'misp_maifest' directory there.
     if conf['misp'].get('manifest_dir', None):
         manifest_dir = conf['misp']['manifest_dir']
         if not os.path.isdir(manifest_dir):
@@ -73,12 +74,12 @@ def verify_dir(conf: configparser.ConfigParser) -> None:
             feed_h.write("https://www.circl.lu/doc/misp/feed-osint/")
     return manifest_dir
 
+
 def handle_event_file(conf: configparser.ConfigParser, feed_url: Text, uuid: Text) -> misp.Event:
     """Download, parse and store single event file"""
 
     if conf['misp']['loglevel'] == "info":
         log("Handling {0} from {1}".format(uuid, feed_url))
-
 
     proxies: Optional[Dict[Text, Text]] = None
 
@@ -135,7 +136,7 @@ def handle_feed(conf: configparser.ConfigParser, manifest_dir: Text, feed_url: T
         outfile.write(json.dumps(manifest).encode("utf-8"))
 
 
-def enrich(conf: configparser.ConfigParser, act_type: Text, value: Text, status: Dict[Text, int] =collections.defaultdict(int)) -> Dict[Text, int]:
+def enrich(conf: configparser.ConfigParser, act_type: Text, value: Text, status: Dict[Text, int] = collections.defaultdict(int)) -> Dict[Text, int]:
     """Post an indicator to a predifined url for enrichment"""
 
     url = conf['misp_enrich'].get(act_type, None)
@@ -146,17 +147,19 @@ def enrich(conf: configparser.ConfigParser, act_type: Text, value: Text, status:
     return status.copy()
 
 
+
 def main() -> None:
     """program entry point"""
 
     args = parseargs()
-    conf = configparser.ConfigParser()
-    read = conf.read(args.config)
-    if len(read) == 0:
-        print("Could not read config file")
-        sys.exit(1)
-        
-    actapi =  act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
+
+    if args.config_defaults:
+        print(worker.default_ini())
+        sys.exit(0)
+
+    conf = worker.get_config(args.config)
+
+    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
 
     manifest_dir = verify_dir(conf)
     misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")
