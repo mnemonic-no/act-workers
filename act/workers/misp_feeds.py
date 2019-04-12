@@ -17,9 +17,9 @@ from typing import Dict, Generator, Optional, Text, cast
 import requests
 from colorama import Fore, Style
 
-import act
-import act.helpers
-from act_workers_libs import misp, worker
+import act.api
+import act.api.helpers
+from libs import misp, worker
 
 try:
     import urlparse
@@ -159,7 +159,7 @@ def main() -> None:
 
     conf = worker.get_config(args.config)
 
-    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
 
     manifest_dir = verify_dir(conf)
     misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")
@@ -177,7 +177,7 @@ def main() -> None:
                 fact = actapi.fact("hasTitle", event.info)\
                              .source("report", str(event.uuid))
                 if conf['platform']['base_url']:
-                    act.helpers.handle_fact(fact)
+                    act.api.helpers.handle_fact(fact)
                     n += 1
                 else:
                     print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
@@ -187,9 +187,9 @@ def main() -> None:
                              .destination("report", str(event.uuid))
                 if conf['platform']['base_url']:
                     try:
-                        act.helpers.handle_fact(fact)
+                        act.api.helpers.handle_fact(fact)
                         n += 1
-                    except act.base.ResponseError as err:
+                    except act.api.base.ResponseError as err:
                         e += 1
                         log(str(err))
                 else:
@@ -205,9 +205,9 @@ def main() -> None:
                         status = enrich(conf, attribute.act_type, attribute.value)
                     if conf['platform']['base_url']:
                         try:
-                            act.helpers.handle_fact(fact)
+                            act.api.helpers.handle_fact(fact)
                             n += 1
-                        except act.base.ResponseError as err:
+                        except act.api.base.ResponseError as err:
                             e += 1
                             log(str(err))
                     else:

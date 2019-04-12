@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="0.5.6",
+    version="0.6.0",
     author="mnemonic AS",
     author_email="opensource@mnemonic.no",
     description="Python library to connect to the ACT rest API",
@@ -21,18 +21,21 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
-            'act-vt = act_workers.vt:main_log_error',
-            'act-attack = act_workers.attack:main_log_error',
-            'act-mnemonic-pdns = act_workers.mnemonic_pdns:main_log_error',
-            'act-country-regions = act_workers.country_regions:main_log_error',
-            'act-misp-feeds = act_workers.misp_feeds:main_log_error',
-            'act-scio = act_workers.scio:main_log_error',
-            'act-uploader = act_workers.generic_uploader:main_log_error',
-            'act-shadowserver-asn = act_workers.shadowserver_asn:main_log_error',
+            'act-vt = act.workers.vt:main_log_error',
+            'act-attack = act.workers.attack:main_log_error',
+            'act-mnemonic-pdns = act.workers.mnemonic_pdns:main_log_error',
+            'act-country-regions = act.workers.country_regions:main_log_error',
+            'act-misp-feeds = act.workers.misp_feeds:main_log_error',
+            'act-scio = act.workers.scio:main_log_error',
+            'act-uploader = act.workers.generic_uploader:main_log_error',
+            'act-shadowserver-asn = act.workers.shadowserver_asn:main_log_error',
         ]
     },
-    packages=["act_workers", "act_workers_libs"],
-    data_files=[('etc/', ['etc/actworkers.ini'])],
+    data_files=[('act/workers/etc/', ['act/workers/etc/actworkers.ini'])],
+
+    packages=["act.workers"],
+    namespace_packages=['act'],
+
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api>=0.5.4', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 

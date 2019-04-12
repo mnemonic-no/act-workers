@@ -6,10 +6,11 @@ import socket
 import sys
 from email.mime.text import MIMEText
 from logging import error
-from typing import Any, List, Optional, Text
+from typing import Any, List, Optional, Text, cast
 
 import requests
 import urllib3
+from pkg_resources import resource_string
 
 """Common worker library"""
 
@@ -132,10 +133,9 @@ def get_ini(ini_id: Text = "actworkers", ini_filename: Text = "actworkers.ini") 
 
 
 def default_ini() -> Text:
-    "Print default ini file to stdout"
-    filename = os.path.join(os.path.dirname(__file__), "../etc/actworkers.ini")
-    with open(filename) as f:
-        return "".join([line for line in f])
+    "Return ini file"
+
+    return resource_string(__name__, '../../../etc/actworkers.ini').decode('utf-8')
 
 
 def get_config(config_filename: Optional[Text]) -> configparser.ConfigParser:
