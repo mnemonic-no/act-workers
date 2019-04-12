@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="0.5.5",
+    version="0.5.6",
     author="mnemonic AS",
     author_email="opensource@mnemonic.no",
     description="Python library to connect to the ACT rest API",
@@ -32,7 +32,7 @@ setup(
         ]
     },
     packages=["act_workers", "act_workers_libs"],
-    data_files=[('/etc/', ['etc/actworkers.ini'])],
+    data_files=[('etc/', ['etc/actworkers.ini'])],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api>=0.5.4', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
 
