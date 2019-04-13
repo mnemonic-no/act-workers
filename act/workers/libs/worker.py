@@ -1,3 +1,5 @@
+"""Common worker library"""
+
 import argparse
 import configparser
 import os
@@ -11,8 +13,6 @@ from typing import Any, List, Optional, Text, cast
 import requests
 import urllib3
 from pkg_resources import resource_string
-
-"""Common worker library"""
 
 
 class UnknownResult(Exception):
@@ -135,7 +135,9 @@ def get_ini(ini_id: Text = "actworkers", ini_filename: Text = "actworkers.ini") 
 def default_ini() -> Text:
     "Return ini file"
 
-    return resource_string(__name__, '../../../etc/actworkers.ini').decode('utf-8')
+    # Do not use os.path, or relative paths
+    # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#basic-resource-access
+    return resource_string("act.workers", "etc/actworkers.ini").decode('utf-8')
 
 
 def get_config(config_filename: Optional[Text]) -> configparser.ConfigParser:

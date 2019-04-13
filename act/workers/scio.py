@@ -11,7 +11,7 @@ from typing import Dict, List, Text, cast
 
 import act.api
 from act.api.helpers import handle_fact, handle_uri
-from libs import worker
+from act.workers.libs import worker
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]

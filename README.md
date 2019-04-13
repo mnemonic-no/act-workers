@@ -21,3 +21,10 @@ All workers requires the act-api library:
 * [act-api](https://github.com/mnemonic-no/act-api-python) (act-api on [pypi](https://pypi.org/project/act-api/))
 
 In addition some of the libraries might have additional requirements. See requirements.txt for a full list of all requirements.
+
+## Package development
+Some of the workers depends on local resources being available through pkg_resources. To develop locally, run this command:
+
+```bash
+pip install -e .
+```

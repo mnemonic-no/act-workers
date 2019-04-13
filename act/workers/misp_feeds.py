@@ -19,7 +19,7 @@ from colorama import Fore, Style
 
 import act.api
 import act.api.helpers
-from libs import misp, worker
+from act.workers.libs import misp, worker
 
 try:
     import urlparse

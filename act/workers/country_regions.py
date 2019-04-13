@@ -16,7 +16,7 @@ from logging import error, warning
 from typing import Dict, List
 
 import act.api
-from libs import worker
+from act.workers.libs import worker
 from act.api.helpers import handle_fact
 
 

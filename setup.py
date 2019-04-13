@@ -13,6 +13,7 @@ setup(
     name="act-workers",
     version="0.6.0",
     author="mnemonic AS",
+    zip_safe=True,
     author_email="opensource@mnemonic.no",
     description="Python library to connect to the ACT rest API",
     long_description=long_description,
@@ -31,14 +32,17 @@ setup(
             'act-shadowserver-asn = act.workers.shadowserver_asn:main_log_error',
         ]
     },
-    data_files=[('act/workers/etc/', ['act/workers/etc/actworkers.ini'])],
 
-    packages=["act.workers"],
+    # Include ini-file(s) from act/workers/etc
+    package_data={'act.workers': ['etc/*.ini']},
+    packages=["act.workers", "act.workers.libs"],
+
+    # https://packaging.python.org/guides/packaging-namespace-packages/#pkgutil-style-namespace-packages
+    # __init__.py under all packages under in the act namespace must contain exactly string:
+    # __path__ = __import__('pkgutil').extend_path(__path__, __name__)
     namespace_packages=['act'],
-
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api>=0.5.4', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
-
+    install_requires=['act-api>=0.6.0', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
         "Development Status :: 4 - Beta",

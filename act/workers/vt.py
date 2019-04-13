@@ -41,7 +41,7 @@ from typing import Generator, List, Optional, Text
 import requests
 
 import act.api
-from libs import worker
+from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
 
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']

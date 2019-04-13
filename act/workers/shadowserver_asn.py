@@ -33,7 +33,7 @@ from typing import Dict, Generator, List, Tuple, Union
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act.api
-from libs import worker
+from act.workers.libs import worker
 from act.api.helpers import handle_fact
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
