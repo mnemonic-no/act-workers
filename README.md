@@ -23,7 +23,7 @@ All workers requires the act-api library:
 In addition some of the libraries might have additional requirements. See requirements.txt for a full list of all requirements.
 
 ## Package development
-Some of the workers depends on local resources being available through pkg_resources. To develop locally, run this command:
+Some of the workers depend on local resources being available through pkg_resources. To develop locally, run this command:
 
 ```bash
 pip install -e .
