@@ -3,7 +3,7 @@
 and adding data to the platform"""
 
 import act
-import act.helpers
+import act.api.helpers
 from logging import error
 import traceback
 import argparse
@@ -11,7 +11,7 @@ import configparser
 import collections
 import hashlib
 import json
-from act_workers_libs import misp, worker
+from act.workers.libs import misp, worker
 import os
 import requests
 import sys
@@ -56,7 +56,7 @@ def verify_dir(conf: configparser.ConfigParser) -> None:
     # If there is specified a manifest directory in the .ini file we
     # verify that it exists (or fail hard). If no such directory
     # is defined, we default to using $XDG_CACHE_DIR and create a new
-    # 'misp_maifest' directory there. 
+    # 'misp_maifest' directory there.
     if conf['misp'].get('manifest_dir', None):
         manifest_dir = conf['misp']['manifest_dir']
         if not os.path.isdir(manifest_dir):
@@ -155,7 +155,7 @@ def main() -> None:
     if len(read) == 0:
         print("Could not read config file")
         sys.exit(1)
-        
+
     actapi =  act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
 
     manifest_dir = verify_dir(conf)
@@ -174,7 +174,7 @@ def main() -> None:
                 fact = actapi.fact("hasTitle", event.info)\
                              .source("report", str(event.uuid))
                 if conf['platform']['base_url']:
-                    act.helpers.handle_fact(fact)
+                    act.api.helpers.handle_fact(fact)
                     n += 1
                 else:
                     print(Style.BRIGHT, Fore.YELLOW, fact.json(), Style.RESET_ALL)
@@ -184,7 +184,7 @@ def main() -> None:
                              .destination("report", str(event.uuid))
                 if conf['platform']['base_url']:
                     try:
-                        act.helpers.handle_fact(fact)
+                        act.api.helpers.handle_fact(fact)
                         n += 1
                     except act.base.ResponseError as err:
                         e += 1
@@ -202,7 +202,7 @@ def main() -> None:
                         status = enrich(conf, attribute.act_type, attribute.value)
                     if conf['platform']['base_url']:
                         try:
-                            act.helpers.handle_fact(fact)
+                            act.api.helpers.handle_fact(fact)
                             n += 1
                         except act.base.ResponseError as err:
                             e += 1

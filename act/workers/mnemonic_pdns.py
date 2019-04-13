@@ -14,8 +14,8 @@ from typing import Any, Dict, Generator, Optional, Text
 import requests
 import urllib3
 
-import act
-from act_workers_libs import worker
+import act.api
+from act.workers.libs import worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -122,7 +122,7 @@ def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int, proxy_s
         error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, proxy_string: Optional[Text] = None) -> None:
+def process(api: act.api.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, proxy_string: Optional[Text] = None) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -135,7 +135,7 @@ def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, pr
             rrtype = row["rrtype"]
 
             if rrtype in RRTYPE_M:
-                act.helpers.handle_fact(
+                act.api.helpers.handle_fact(
                     api.fact(RRTYPE_M[rrtype]["fact_t"],
                              RRTYPE_M[rrtype]["fact_v"])
                     .source(RRTYPE_M[rrtype]["source_t"], row["query"])
@@ -149,7 +149,7 @@ def process(api: act.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, pr
 
 def main() -> None:
     args = parseargs()
-    actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "pdns-enrichment")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "pdns-enrichment")
     process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string)
 
 

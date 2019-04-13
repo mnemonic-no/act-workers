@@ -32,9 +32,9 @@ from typing import Dict, Generator, List, Tuple, Union
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
-import act
-from act_workers_libs import worker
-from act.helpers import handle_fact
+import act.api
+from act.workers.libs import worker
+from act.api.helpers import handle_fact
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"
@@ -193,7 +193,7 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         yield (ip, asn_record)
 
 
-def handle_ip(actapi: act.Act, cn_map: Dict[str, str], ip_list: List[str], cache: sqlite3.Connection) -> None:
+def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], cache: sqlite3.Connection) -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
@@ -259,7 +259,7 @@ def main() -> None:
     """main function"""
 
     ARGS = parseargs()
-    actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
+    actapi = act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
 
     # Get map of CC -> Country Name
     cn_map = get_cn_map(ARGS.country_codes)
