@@ -15,7 +15,7 @@ setup(
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
-    description="Python library to connect to the ACT rest API",
+    description="ACT workers",
     long_description=long_description,
     long_description_content_type='text/markdown',
     license="MIT",
