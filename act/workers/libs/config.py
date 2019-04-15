@@ -106,7 +106,8 @@ def load_ini(config_id, config_name, opts=None):
 
 def get_env(key: Text) -> Dict:
     """
-    TODO
+    Get environment variable based on key
+    (uppercase and replace "-" with "_")
     """
     env_key = key.replace("-", "_").upper()
 
@@ -117,7 +118,10 @@ def get_env(key: Text) -> Dict:
 
 def get_default(action: argparse.Action, section, key):
     """
-    TODO
+    Find default value for an option in this order:
+    - environment variable
+    - ini file
+    - argparse default
     """
     default = action.default
     env = get_env(key)
