@@ -14,7 +14,7 @@ def test_argparse_only():
     parser.add_argument('--bool', action='store_true')
     parser.add_argument('--str-arg')
 
-    commandline = "--str test".split()
+    commandline = "--str-arg test".split()
 
     args = config.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
 
