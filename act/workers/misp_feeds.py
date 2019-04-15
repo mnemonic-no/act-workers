@@ -3,19 +3,15 @@
 and adding data to the platform"""
 
 import argparse
-import collections
-import configparser
 import hashlib
 import json
 import os
 import sys
-import syslog
 import traceback
 from logging import error, info
 from typing import Dict, Generator, Optional, Text
 
 import requests
-from colorama import Fore, Style
 
 import act
 import act.api.helpers

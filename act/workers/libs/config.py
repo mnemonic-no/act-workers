@@ -1,13 +1,16 @@
 #!/usr/bin/env python
+
+""" config module, supports loading config from ini, environment and arguments """
+
 import argparse
 import configparser
 import os
 from functools import partialmethod
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Dict, List, Optional, Text, Tuple
 
 # Monkeypatch ArgumentParser to not allow abbrevations as those will make it
 # hard to mix and match options on commandline, env and ini files
-argparse.ArgumentParser.__init__ = partialmethod(argparse.ArgumentParser.__init__, allow_abbrev=False)
+argparse.ArgumentParser.__init__ = partialmethod(argparse.ArgumentParser.__init__, allow_abbrev=False)  # type: ignore
 
 
 class SectionNotFound(Exception):
@@ -78,7 +81,9 @@ def find_default_ini(ini_id: Text = "actworkers",
         return f.read()
 
 
-def load_ini(config_id, config_name, opts=None):
+def load_ini(config_id: Text,
+             config_name: Text,
+             opts: Optional[List] = None) -> Tuple[Optional[configparser.ConfigParser], List]:
     """
     return config, remainder_argv
     """
@@ -156,7 +161,11 @@ def get_default(action: argparse.Action, section: Dict, key: Text) -> Any:
     return default
 
 
-def handle_args(parser: argparse.ArgumentParser, config_id: Text, config_name: Text, section_name: Text, opts: Optional[List] = None) -> argparse.Namespace:
+def handle_args(parser: argparse.ArgumentParser,
+                config_id: Text,
+                config_name: Text,
+                section_name: Text,
+                opts: Optional[List] = None) -> argparse.Namespace:
     """
     parses and sets up the command line argument system above
     with config file parsing.
