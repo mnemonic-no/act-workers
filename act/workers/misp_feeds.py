@@ -79,7 +79,10 @@ def handle_event_file(feed_url: Text, uuid: Text, proxy_string: Optional[Text] =
     return misp.Event(loads=req.text)
 
 
-def handle_feed(manifest_dir: Text, feed_url: Text, proxy_string: Optional[Text] = None, cert_file: Optional[Text] = None) -> Generator[misp.Event, None, None]:
+def handle_feed(manifest_dir: Text,
+                feed_url: Text,
+                proxy_string: Optional[Text] = None,
+                cert_file: Optional[Text] = None) -> Generator[misp.Event, None, None]:
     """Get the manifest file, check if an event file is downloaded
     before (cache) and dispatch event handling of separate files"""
 
@@ -135,7 +138,8 @@ def main() -> None:
 
                 act.api.helpers.handle_fact(
                     actapi.fact("hasTitle", event.info)
-                    .source("report", str(event.uuid)))
+                    .source("report", str(event.uuid)),
+                    output_format=args.output_format)
 
                 n += 1
 
@@ -143,7 +147,8 @@ def main() -> None:
                     act.api.helpers.handle_fact(
                         actapi.fact("externalLink")
                         .source("uri", "{0}/{1}.json".format(line.strip(), event.uuid))
-                        .destination("report", str(event.uuid)))
+                        .destination("report", str(event.uuid)),
+                        output_format=args.output_format)
 
                     n += 1
                 except act.base.ResponseError as err:
@@ -157,7 +162,8 @@ def main() -> None:
                         act.api.helpers.handle_fact(
                             actapi.fact("seenIn", "report")
                             .source(attribute.act_type, attribute.value)
-                            .destination("report", str(event.uuid)))
+                            .destination("report", str(event.uuid)),
+                            output_format=args.output_format)
                         n += 1
                     except act.base.ResponseError as err:
                         e += 1

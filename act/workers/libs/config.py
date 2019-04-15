@@ -2,7 +2,7 @@
 import argparse
 import configparser
 import os
-from typing import Any, List, Optional, Text, Dict
+from typing import Any, Dict, List, Optional, Text
 
 
 class SectionNotFound(Exception):
@@ -116,7 +116,7 @@ def get_env(key: Text) -> Dict:
     return {}
 
 
-def get_default(action: argparse.Action, section, key):
+def get_default(action: argparse.Action, section: Dict, key: Text) -> Any:
     """
     Find default value for an option in this order:
     - environment variable
@@ -151,7 +151,7 @@ def get_default(action: argparse.Action, section, key):
     return default
 
 
-def handle_args(parser, config_id, config_name, section_name, opts=None):
+def handle_args(parser: argparse.ArgumentParser, config_id: Text, config_name: Text, section_name: Text, opts: Optional[List] = None) -> argparse.Namespace:
     """
     parses and sets up the command line argument system above
     with config file parsing.

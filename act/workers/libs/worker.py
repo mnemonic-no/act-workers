@@ -21,7 +21,26 @@ class UnknownResult(Exception):
 
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(
+        description=description, epilog="""
+
+  --config INI_FILE     Override default locations of ini file
+
+    Arguments can be specified in ini-files, environment variables and
+    as command line arguments, and will be parsed in that order.
+
+    By default, workers will look for an ini file in /etc/actworkers.ini
+    and ~/.config/actworkers/actworkers.ini (or in $XDG_CONFIG_DIR if
+    specified).
+
+    Each worker will read the confiuration from the "DEFAULT" section in the
+    ini file, and in it's own section (in that order).
+
+
+'
+
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
+
     parser.add_argument('--http-timeout', dest='http-timeout', type=int,
                         default=120, help="Timeout")
     parser.add_argument('--proxy-string', dest='proxy_string', help="Proxy to use for external queries")
@@ -34,8 +53,8 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
-    parser.add_argument("--output-format", dest="output_format", default="json",
-                        help="Output format for fact (default = json)")
+    parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
+                        help="Output format for fact (default=json)")
     return parser
 
 
