@@ -2,7 +2,12 @@
 import argparse
 import configparser
 import os
+from functools import partialmethod
 from typing import Any, Dict, List, Optional, Text
+
+# Monkeypatch ArgumentParser to not allow abbrevations as those will make it
+# hard to mix and match options on commandline, env and ini files
+argparse.ArgumentParser.__init__ = partialmethod(argparse.ArgumentParser.__init__, allow_abbrev=False)
 
 
 class SectionNotFound(Exception):
