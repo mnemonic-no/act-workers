@@ -9,9 +9,9 @@ import traceback
 from logging import error
 from typing import Dict, List, Text, cast
 
-import act
-from act.helpers import handle_fact, handle_uri
-from act_workers_libs import worker
+import act.api
+from act.api.helpers import handle_fact, handle_uri
+from act.workers.libs import worker
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]
@@ -51,7 +51,7 @@ def get_scio_report() -> Dict:
     return cast(Dict, json.load(sys.stdin))
 
 
-def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List[Text], report_id: Text, output_format: Text) -> None:
+def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: List[Text], report_id: Text, output_format: Text) -> None:
     """Add mentions fact to report"""
     for value in list(set(object_values)):
         try:
@@ -61,11 +61,11 @@ def report_mentions_fact(actapi: act.Act, object_type: Text, object_values: List
                 .destination(object_type, value),
                 output_format
             )
-        except act.base.ResponseError as e:
+        except act.api.base.ResponseError as e:
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None:
+def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
     report_id: Text = doc["hexdigest"]
@@ -79,7 +79,7 @@ def add_to_act(actapi: act.Act, doc: Dict, output_format: Text = "json") -> None
             .source("report", report_id),
             output_format
         )
-    except act.base.ResponseError as e:
+    except act.api.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
 
     # Loop over all items under indicators in report
@@ -149,7 +149,7 @@ def main() -> None:
 
     # Add IOCs from reports to the ACT platform
     add_to_act(
-        act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "scio"),
+        act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "scio"),
         get_scio_report(),
         args.output_format,
     )

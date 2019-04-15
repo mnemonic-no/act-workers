@@ -15,9 +15,9 @@ import traceback
 from logging import error, warning
 from typing import Dict, List
 
-import act
-from act_workers_libs import worker
-from act.helpers import handle_fact
+import act.api
+from act.workers.libs import worker
+from act.api.helpers import handle_fact
 
 
 def parseargs() -> argparse.Namespace:
@@ -30,7 +30,7 @@ def parseargs() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def process(actapi: act.Act, country_list: List[Dict[str, str]]) -> None:
+def process(actapi: act.api.Act, country_list: List[Dict[str, str]]) -> None:
     """
     Loop over all ISO-3166 countries and construct facts for
     county -memberOf-> subRegion and subRegion -memberOf-> region.
@@ -65,7 +65,7 @@ def main_log_error() -> None:
     ARGS = parseargs()
     try:
         process(
-            act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region"),
+            act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region"),
             worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
         )
     except Exception:

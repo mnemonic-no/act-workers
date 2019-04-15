@@ -25,9 +25,9 @@ from typing import Any, Dict, List
 import stix2
 from stix2 import Filter, MemoryStore, parse
 
-import act
-from act_workers_libs import worker
-from act.helpers import handle_fact
+import act.api
+from act.workers.libs import worker
+from act.api.helpers import handle_fact
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
@@ -157,7 +157,7 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             if tool.type not in ("malware", "tool"):
                 continue
 
-            chain = act.fact.fact_chain(
+            chain = act.api.fact.fact_chain(
                 client.fact("classifiedAs")
                 .source("content", "*")
                 .destination("tool", tool.name.lower()),
@@ -181,7 +181,7 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             if technique.type != "attack-pattern":
                 continue
 
-            chain = act.fact.fact_chain(
+            chain = act.api.fact.fact_chain(
                 client.fact("observedIn", "incident")
                 .source("technique", technique.name)
                 .destination("incident", "*"),
@@ -333,7 +333,7 @@ def send_notification(
 def main() -> None:
     """ Main function """
     args = parseargs()
-    client = act.Act(
+    client = act.api.Act(
         args.act_baseurl,
         args.user_id,
         args.loglevel,

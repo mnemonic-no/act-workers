@@ -8,7 +8,7 @@ import traceback
 import argparse
 import json
 import sys
-import act
+import act.api
 
 
 def parseargs():
@@ -37,7 +37,7 @@ def main(actapi):
         fact = actapi.fact(**data)
         try:
             fact.add()
-        except act.base.ResponseError as err:
+        except act.api.base.ResponseError as err:
             error("ResponseError while storing objects: %s" % err)
 
 
@@ -46,7 +46,7 @@ def main_log_error() -> None:
     try:
         ARGS = parseargs()
 
-        actapi = act.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
+        actapi = act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
         main(actapi)
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))

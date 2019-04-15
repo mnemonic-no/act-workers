@@ -1,8 +1,8 @@
 """ Test for scio worker """
 import json
 
-import act
-from act_workers import scio
+import act.api
+from act.workers import scio
 
 
 def test_scio_facts(capsys) -> None:  # type: ignore
@@ -10,7 +10,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
     with open("test/scio-doc.json") as scio_doc:
         doc = json.loads(scio_doc.read())
 
-    api = act.Act("", None, "error")
+    api = act.api.Act("", None, "error")
 
     scio.add_to_act(api, doc, output_format="str")
 
