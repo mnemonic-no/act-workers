@@ -36,16 +36,22 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     Each worker will read the confiuration from the "DEFAULT" section in the
     ini file, and in it's own section (in that order).
 
+    It is also possible to use environment variables for configuration.
+    Workers will look for environment variables for all arguments with
+    the argument name in uppercase and "-" replaced with "_".
+
+    E.g. set the CERT_FILE environment variable to configure the
+    --cert-file option.
 
 '
 
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument('--http-timeout', dest='http-timeout', type=int,
+    parser.add_argument('--http-timeout', dest='http_timeout', type=int,
                         default=120, help="Timeout")
     parser.add_argument('--proxy-string', dest='proxy_string', help="Proxy to use for external queries")
     parser.add_argument('--cert-file', dest='cert_file', help="Cerfiticate to add if you are behind a SSL/TLS interception proxy.")
-    parser.add_argument('--userid', dest='user_id',
+    parser.add_argument('--user-id', dest='user_id',
                         help="User ID")
     parser.add_argument('--act-baseurl', dest='act_baseurl',
                         help='ACT API URI')
