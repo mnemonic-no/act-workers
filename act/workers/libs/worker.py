@@ -22,9 +22,10 @@ class UnknownResult(Exception):
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--http-timeout', dest='timeout', type=int,
+    parser.add_argument('--http-timeout', dest='http-timeout', type=int,
                         default=120, help="Timeout")
     parser.add_argument('--proxy-string', dest='proxy_string', help="Proxy to use for external queries")
+    parser.add_argument('--cert-file', dest='cert_file', help="Cerfiticate to add if you are behind a SSL/TLS interception proxy.")
     parser.add_argument('--userid', dest='user_id',
                         help="User ID")
     parser.add_argument('--act-baseurl', dest='act_baseurl',
