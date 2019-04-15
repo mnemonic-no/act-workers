@@ -9,7 +9,7 @@ INI_TEST_FILE = os.path.join(os.path.dirname(__file__), "data/config_testdata.in
 
 def test_argparse_only():
     """ all arguments from command line, using default for number and bool """
-    parser = argparse.ArgumentParser("test argparse")
+    parser = argparse.ArgumentParser("test argparse", allow_abbrev=False)
     parser.add_argument('--number', type=int, default=1)
     parser.add_argument('--bool', action='store_true')
     parser.add_argument('--str-arg')
@@ -25,7 +25,7 @@ def test_argparse_only():
 
 def test_argparse_ini():
     """ all arguments from ini file """
-    parser = argparse.ArgumentParser("test argparse")
+    parser = argparse.ArgumentParser("test argparse", allow_abbrev=False)
     parser.add_argument('--number', type=int, default=1)
     parser.add_argument('--bool', action='store_true')
     parser.add_argument('--str-arg')
@@ -41,7 +41,7 @@ def test_argparse_ini():
 
 def test_argparse_env():
     """ all arguments from env """
-    parser = argparse.ArgumentParser("test argparse")
+    parser = argparse.ArgumentParser("test argparse", allow_abbrev=False)
     parser.add_argument('--number', type=int, default=1)
     parser.add_argument('--bool', action='store_true')
     parser.add_argument('--str-arg')
@@ -73,7 +73,7 @@ def test_argparse_env_ini():
     --str-arg from cmdline
 
     """
-    parser = argparse.ArgumentParser("test argparse")
+    parser = argparse.ArgumentParser("test argparse", allow_abbrev=False)
     parser.add_argument('--number', type=int, default=1)
     parser.add_argument('--bool', action='store_true')
     parser.add_argument('--str-arg')

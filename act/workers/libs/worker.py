@@ -22,6 +22,7 @@ class UnknownResult(Exception):
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(
+        allow_abbrev=False,
         description=description, epilog="""
 
   --config INI_FILE     Override default locations of ini file
