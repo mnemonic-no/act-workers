@@ -21,11 +21,38 @@ class UnknownResult(Exception):
 
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--http-timeout', dest='timeout', type=int,
+    parser = argparse.ArgumentParser(
+        allow_abbrev=False,
+        description=description, epilog="""
+
+  --config INI_FILE     Override default locations of ini file
+
+    Arguments can be specified in ini-files, environment variables and
+    as command line arguments, and will be parsed in that order.
+
+    By default, workers will look for an ini file in /etc/actworkers.ini
+    and ~/.config/actworkers/actworkers.ini (or in $XDG_CONFIG_DIR if
+    specified).
+
+    Each worker will read the confiuration from the "DEFAULT" section in the
+    ini file, and in it's own section (in that order).
+
+    It is also possible to use environment variables for configuration.
+    Workers will look for environment variables for all arguments with
+    the argument name in uppercase and "-" replaced with "_".
+
+    E.g. set the CERT_FILE environment variable to configure the
+    --cert-file option.
+
+'
+
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument('--http-timeout', dest='http_timeout', type=int,
                         default=120, help="Timeout")
     parser.add_argument('--proxy-string', dest='proxy_string', help="Proxy to use for external queries")
-    parser.add_argument('--userid', dest='user_id',
+    parser.add_argument('--cert-file', dest='cert_file', help="Cerfiticate to add if you are behind a SSL/TLS interception proxy.")
+    parser.add_argument('--user-id', dest='user_id',
                         help="User ID")
     parser.add_argument('--act-baseurl', dest='act_baseurl',
                         help='ACT API URI')
@@ -33,8 +60,8 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
-    parser.add_argument("--output-format", dest="output_format", default="json",
-                        help="Output format for fact (default = json)")
+    parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
+                        help="Output format for fact (default=json)")
     return parser
 
 
