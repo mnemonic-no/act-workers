@@ -168,7 +168,7 @@ def main() -> None:
 
 
 def main_log_error() -> None:
-    "Call main() and log all excetions  as errors"
+    "Call main() and log all exceptions as errors"
     try:
         main()
     except Exception:
