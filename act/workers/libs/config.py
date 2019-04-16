@@ -1,6 +1,47 @@
 #!/usr/bin/env python
 
-""" config module, supports loading config from ini, environment and arguments """
+"""
+
+config module, supports loading config from ini, environment and arguments
+
+The configuration presedence are (from lowest to highest):
+    1. argparse default
+    3. ini file
+    3. environment variable
+    4. command line argument
+
+# Config
+
+Arguments are parsed in two phases. First, it will look for the argument --config argument
+which can be used to specify an alternative location for the ini file. If not --config argument
+is given it will look for an ini file in the following locations:
+
+    /etc/<CONFIG_FILE_NAME>
+    ~/.config/<CONFIG_ID>/<CONFIG_FILE_NAME> (or directory specified by XDG_CONFIG_HOME)
+
+The ini file can contain a "[DEFAULT]" section that will be used for all configurations.
+In addition it can have a section that corresponds with <SECTION_NAME> that for
+specific cofiguration, that will over overide config from DEFAULT
+
+# Environment variables
+
+The configuration step will also look for environment variables in uppercase and
+with "-" replaced with "_". For the example below it will lookup the following environment
+variables:
+
+    - $NUMBER
+    - $BOOL
+    - $STR_ARG
+
+Example:
+
+>>> parser = argparse.ArgumentParser("test argparse")
+>>> parser.add_argument('--number', type=int, default=1)
+>>> parser.add_argument('--bool', action='store_true')
+>>> parser.add_argument('--str-arg')
+>>> args = config.handle_args(parser, <CONFIG_ID>, <CONFIG_FILE_NAME>, <SECTION_NAME>)
+
+"""
 
 import argparse
 import configparser
@@ -128,10 +169,15 @@ def get_env(key: Text) -> Dict:
 
 def get_default(action: argparse.Action, section: Dict, key: Text) -> Any:
     """
-    Find default value for an option in this order:
-    - environment variable
-    - ini file
-    - argparse default
+    Find default value for an option. This will only be used if an
+    argument is not specified at the command line. The defaults will
+    be found in this order and continue until a value is found:
+        1. environment variable
+        2. ini file
+        3. argparse default
+
+    This will only be used if the argument is not specified at the
+    command line.
     """
     default = action.default
     env = get_env(key)
