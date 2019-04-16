@@ -114,8 +114,6 @@ def handle_feed(manifest_dir: Text,
 def main() -> None:
     """program entry point"""
 
-    args = parseargs()
-
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "misp")
@@ -147,7 +145,7 @@ def main() -> None:
                         output_format=args.output_format)
 
                     n += 1
-                except act.base.ResponseError as err:
+                except act.api.base.ResponseError as err:
                     e += 1
                     error("Error adding fact to platform", exc_info=True)
 
@@ -161,7 +159,7 @@ def main() -> None:
                             .destination("report", str(event.uuid)),
                             output_format=args.output_format)
                         n += 1
-                    except act.base.ResponseError as err:
+                    except act.api.base.ResponseError as err:
                         e += 1
                         error("Error adding fact to platform", exc_info=True)
                 info("{0} facts. {1} errors.".format(n, e))
