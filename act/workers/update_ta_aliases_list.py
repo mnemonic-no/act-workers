@@ -1,17 +1,14 @@
+#!/usr/bin/env python3
 import json
 import argparse
 from act.workers.libs.ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
     add_ta_to_map, add_ta_alias_to_map, create_config
 
+from act.workers.libs import worker, config
 
-def parseargs():
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
-    parser = argparse.ArgumentParser(description='Updates list of threat actor \
-        aliases from an ACT platform')
-    parser.add_argument('--baseurl', required=True, help='URL to ACT platform \
-        installation')
-    parser.add_argument('--userid', required=True, help="User ID for ACT \
-        platform")
+    parser = worker.parseargs('Updates list of threat actor aliases from an ACT platform')
     parser.add_argument('--aliasfile', required=True, help=".cfg-file with \
         existing threat actor aliases")
     parser.add_argument('--newaliasfile', required=True, help="name of \
@@ -19,13 +16,14 @@ def parseargs():
     parser.add_argument('--output-json', action='store_true', help="Enable \
         this flag if json testfiles should be created.")
 
-    return parser.parse_args()
-
+    return parser
 
 def main():
     """main function"""
 
-    args = parseargs()
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "attack")
 
     # gets all ta names from objects(as a set of strings) and facts(as a
     # set with tuples of two strings) in ACT.

@@ -16,18 +16,18 @@ from logging import error, warning
 from typing import Dict, List
 
 import act.api
-from act.workers.libs import worker
+from act.workers.libs import worker, config
 from act.api.helpers import handle_fact
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Country/region enrichment')
     parser.add_argument('--country-region-url', dest='country_region_url',
                         default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
                         help="Country region URL in json format")
 
-    return parser.parse_args()
+    return parser
 
 
 def process(actapi: act.api.Act, country_list: List[Dict[str, str]]) -> None:
@@ -62,11 +62,14 @@ def process(actapi: act.api.Act, country_list: List[Dict[str, str]]) -> None:
 
 def main_log_error() -> None:
     "Main function. Log all exceptions to error"
-    ARGS = parseargs()
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "country-regions")
+
     try:
         process(
-            act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "country-region"),
-            worker.fetch_json(ARGS.country_region_url, ARGS.proxy_string, ARGS.timeout)
+            act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "country-region"),
+            worker.fetch_json(args.country_region_url, args.proxy_string, args.timeout)
         )
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))

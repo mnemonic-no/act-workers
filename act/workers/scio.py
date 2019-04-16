@@ -11,7 +11,7 @@ from typing import Dict, List, Text, cast
 
 import act.api
 from act.api.helpers import handle_fact, handle_uri
-from act.workers.libs import worker
+from act.workers.libs import worker, config
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]
@@ -145,7 +145,8 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 
 def main() -> None:
     """main function"""
-    args = parseargs()
+
+    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "scio")
 
     # Add IOCs from reports to the ACT platform
     add_to_act(

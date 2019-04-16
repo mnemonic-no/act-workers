@@ -41,7 +41,7 @@ from typing import Generator, List, Optional, Text
 import requests
 
 import act.api
-from act.workers.libs import worker
+from act.workers.libs import worker, config
 from virus_total_apis import PublicApi as VirusTotalApi
 
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
@@ -51,7 +51,7 @@ KASPERSKY_RE = re.compile(r"((.+?):)?(.+?)\.(.+?)\.([^.]+)(\.(.+))?")
 VERSION = "{}.{}".format(sum(1 for x in [False, set(), ["Y"], {}, 0] if x), sum(1 for y in [False] if y))
 
 
-def parse_args() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
     parser = worker.parseargs('ACT VT Client v{}'.format(VERSION))
@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--http_user', dest='http_user', help="HTTP Basic Auth user")
     parser.add_argument('--http_password', dest='http_password', help="HTTP Basic Auth password")
 
-    return parser.parse_args()
+    return parser
 
 
 def name_extraction(engine: Text, body: dict) -> Optional[Text]:
@@ -347,7 +347,9 @@ def handle_domain(actapi: act.api.Act, vtapi: VirusTotalApi, domain: Text) -> No
 def main() -> None:
     """main function"""
 
-    args = parse_args()
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "vt")
 
     auth = None
     if args.http_user:

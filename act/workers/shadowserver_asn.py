@@ -33,7 +33,7 @@ from typing import Dict, Generator, List, Tuple, Union
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act.api
-from act.workers.libs import worker
+from act.workers.libs import worker, config
 from act.api.helpers import handle_fact
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
@@ -82,7 +82,7 @@ def get_cn_map(filename: str) -> Dict:
     return cn_map
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Shadowserver ASN enrichment')
     parser.add_argument(
@@ -93,7 +93,7 @@ def parseargs() -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--bulk', help='bulk query from file. File must contain one IP per line.')
     group.add_argument('--stdin', action='store_true', help='query ip on stdin')
-    return parser.parse_args()
+    return parser
 
 
 def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
@@ -258,22 +258,24 @@ def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], c
 def main() -> None:
     """main function"""
 
-    ARGS = parseargs()
-    actapi = act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "shadowserver-asn")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "shadowserver-asn")
 
     # Get map of CC -> Country Name
-    cn_map = get_cn_map(ARGS.country_codes)
+    cn_map = get_cn_map(args.country_codes)
 
     db_cache = get_db_cache(CACHE_DIR)
 
     # Read IPs from stdin
-    if ARGS.stdin:
+    if args.stdin:
         in_data = [ip for ip in sys.stdin.read().split("\n")]
         handle_ip(actapi, cn_map, in_data, db_cache)
 
     # Bulk lookup
-    elif ARGS.bulk:
-        all_ips = [ip for ip in open(ARGS.bulk, "r")]
+    elif args.bulk:
+        all_ips = [ip for ip in open(args.bulk, "r")]
         batch_size = 50
         i = 0
         while i < len(all_ips):
