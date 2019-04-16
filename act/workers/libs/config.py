@@ -20,7 +20,7 @@ class SectionNotFound(Exception):
         Exception.__init__(self, *args)
 
 
-def get_xdg_dir(xdg_id: str, env_name: Text, default: Text, create: bool = False) -> str:
+def get_xdg_dir(xdg_id: Text, env_name: Text, default: Text, create: bool = False) -> Text:
     """
     Get xdg dir.
 
@@ -48,7 +48,7 @@ Return path to cache_directory
     return xdg_dir
 
 
-def get_config_dir(config_id: str, create: bool = False) -> str:
+def get_config_dir(config_id: Text, create: bool = False) -> Text:
     """
     Get config dir.
 
