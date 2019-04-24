@@ -351,6 +351,10 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "vt")
 
+    if args.print_default_ini:
+        print(worker.default_ini())
+        sys.exit(0)
+
     auth = None
     if args.http_user:
         auth = (args.http_user, args.http_password)

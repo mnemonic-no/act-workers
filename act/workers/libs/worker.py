@@ -6,10 +6,11 @@ import smtplib
 import socket
 from email.mime.text import MIMEText
 from logging import error
-from typing import Any, Optional
+from typing import Any, Optional, Text
 
 import requests
 import urllib3
+from pkg_resources import resource_string
 
 
 class UnknownResult(Exception):
@@ -60,9 +61,16 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
+    parser.add_argument("--print-default-ini", dest="print_default_ini", action="store_true",
+                        help="Print default ini file")
     parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
                         help="Output format for fact (default=json)")
     return parser
+
+
+def default_ini() -> Text:
+    "Get content of default ini file"
+    return resource_string("act.workers", "etc/actworkers.ini").decode('utf-8')
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:

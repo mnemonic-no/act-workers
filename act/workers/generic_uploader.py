@@ -38,6 +38,10 @@ def main_log_error() -> None:
             "actworkers.ini",
             "uploader")
 
+        if args.print_default_ini:
+            print(worker.default_ini())
+            sys.exit(0)
+
         actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "generic-uploader")
         main(actapi)
     except Exception:

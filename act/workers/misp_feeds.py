@@ -117,6 +117,11 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "misp")
+
+    if args.print_default_ini:
+        print(worker.default_ini())
+        sys.exit(0)
+
     manifest_dir = args.manifest_dir
     actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
 

@@ -39,10 +39,10 @@ SCIO_INDICATOR_ACT_MAP = {
 }
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Get SCIO reports and IOCs from stdin')
-    return parser.parse_args()
+    return parser
 
 
 def get_scio_report() -> Dict:
@@ -147,6 +147,10 @@ def main() -> None:
     """main function"""
 
     args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "scio")
+
+    if args.print_default_ini:
+        print(worker.default_ini())
+        sys.exit(0)
 
     # Add IOCs from reports to the ACT platform
     add_to_act(

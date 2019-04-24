@@ -337,6 +337,10 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "attack")
 
+    if args.print_default_ini:
+        print(worker.default_ini())
+        sys.exit(0)
+
     client = act.api.Act(
         args.act_baseurl,
         args.user_id,
