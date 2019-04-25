@@ -4,6 +4,7 @@
 
 import argparse
 import json
+import os
 import sys
 import traceback
 from logging import error
@@ -11,7 +12,10 @@ from typing import Dict, List, Text, cast
 
 import act.api
 from act.api.helpers import handle_fact, handle_uri
-from act.workers.libs import worker, config
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
                     "sub-regions", "sub-regions-derived"]
@@ -146,15 +150,19 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 def main() -> None:
     """main function"""
 
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "scio")
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     # Add IOCs from reports to the ACT platform
     add_to_act(
-        act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "scio"),
+        actapi,
         get_scio_report(),
         args.output_format,
     )

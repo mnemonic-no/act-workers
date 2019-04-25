@@ -15,12 +15,15 @@ import requests
 
 import act
 import act.api.helpers
-from act.workers.libs import config, misp, worker
+from act.workers.libs import misp, worker
 
 try:
     import urlparse
 except ModuleNotFoundError:  # Python3
     import urllib.parse as urlparse  # type: ignore
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -116,14 +119,15 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "misp")
-
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
     manifest_dir = args.manifest_dir
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "misp-import")
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     verify_manifest_dir(manifest_dir)
     misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")

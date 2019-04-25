@@ -10,7 +10,11 @@ from typing import Any, Optional, Text
 
 import requests
 import urllib3
-from pkg_resources import resource_string
+
+from act.workers.libs import config
+
+CONFIG_ID = "actworkers"
+CONFIG_NAME = "actworkers.ini"
 
 
 class UnknownResult(Exception):
@@ -31,8 +35,8 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     Arguments can be specified in ini-files, environment variables and
     as command line arguments, and will be parsed in that order.
 
-    By default, workers will look for an ini file in /etc/actworkers.ini
-    and ~/.config/actworkers/actworkers.ini (or in $XDG_CONFIG_DIR if
+    By default, workers will look for an ini file in /etc/{1}
+    and ~/.config/{0}/{1}.ini (or in $XDG_CONFIG_DIR if
     specified).
 
     Each worker will read the confiuration from the "DEFAULT" section in the
@@ -45,9 +49,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     E.g. set the CERT_FILE environment variable to configure the
     --cert-file option.
 
-'
-
-""", formatter_class=argparse.RawDescriptionHelpFormatter)
+""".format(CONFIG_ID, CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('--http-timeout', dest='http_timeout', type=int,
                         default=120, help="Timeout")
@@ -61,21 +63,21 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Log to file (default = stdout)")
     parser.add_argument("--loglevel", dest="loglevel", default="info",
                         help="Loglevel (default = info)")
-    parser.add_argument("--print-default-ini", dest="print_default_ini", action="store_true",
-                        help="Print default ini file")
     parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
                         help="Output format for fact (default=json)")
+    parser.add_argument('--http-user', dest='http_user', help="ACT HTTP Basic Auth user")
+    parser.add_argument('--http-password', dest='http_password', help="ACT HTTP Basic Auth password")
     return parser
 
 
-def default_ini() -> Text:
-    "Get content of default ini file"
-    return resource_string("act.workers", "etc/actworkers.ini").decode('utf-8')
+def handle_args(parser: argparse.ArgumentParser, worker_name: Text) -> argparse.Namespace:
+    """ Wrapper for config.handle_args where we set config_id and config_name """
+    return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name)
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:
     """
-    Getch cache dir.
+    Get cache dir.
 
     Honors $XDG_CACHE_HOME, but fallbacks to $HOME/.cache
 

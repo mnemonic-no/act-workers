@@ -11,13 +11,17 @@ If not, print facts to stdout.
 
 
 import argparse
+import os
 import traceback
 from logging import error, warning
 from typing import Dict, List
 
 import act.api
-from act.workers.libs import worker, config
 from act.api.helpers import handle_fact
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -64,12 +68,18 @@ def main_log_error() -> None:
     "Main function. Log all exceptions to error"
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "country-regions")
+    args = worker.handle_args(parseargs(), WORKER_NAME)
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     try:
         process(
-            act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "country-region"),
-            worker.fetch_json(args.country_region_url, args.proxy_string, args.timeout)
+            actapi,
+            worker.fetch_json(args.country_region_url, args.proxy_string, args.http_timeout)
         )
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))

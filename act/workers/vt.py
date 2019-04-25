@@ -41,8 +41,11 @@ from typing import Generator, List, Optional, Text
 import requests
 
 import act.api
-from act.workers.libs import worker, config
+from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
 
@@ -64,8 +67,6 @@ def parseargs() -> argparse.ArgumentParser:
                        default=False, help='query ip on stdin')
     group.add_argument('--domain', action='store_true',
                        default=False, help='query domain on stdin')
-    parser.add_argument('--http_user', dest='http_user', help="HTTP Basic Auth user")
-    parser.add_argument('--http_password', dest='http_password', help="HTTP Basic Auth password")
 
     return parser
 
@@ -349,17 +350,13 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "vt")
-
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
     auth = None
     if args.http_user:
         auth = (args.http_user, args.http_password)
 
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "vt-enrichment", requests_common_kwargs={'auth': auth})
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     in_data = sys.stdin.read().strip()
 

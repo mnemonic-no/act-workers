@@ -5,6 +5,7 @@ stdin, writing result in a format understandable by
 generic_uploader.py to stdout"""
 
 import argparse
+import os
 import socket
 import sys
 import traceback
@@ -15,7 +16,10 @@ import requests
 import urllib3
 
 import act.api
-from act.workers.libs import worker, config
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -150,13 +154,14 @@ def process(api: act.api.Act, pdns_baseurl: str, apikey: str, timeout: int = 299
 def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "mnemonic-pdns")
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
 
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "pdns-enrichment")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
+
     process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string)
 
 

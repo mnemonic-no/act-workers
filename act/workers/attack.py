@@ -27,7 +27,10 @@ from stix2 import Filter, MemoryStore, parse
 
 import act.api
 from act.api.helpers import handle_fact
-from act.workers.libs import config, worker
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
@@ -335,18 +338,13 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "attack")
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
 
-    client = act.api.Act(
-        args.act_baseurl,
-        args.user_id,
-        args.loglevel,
-        args.logfile,
-        "mitre-attack")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     if args.type:
         types = [args.type]
@@ -365,9 +363,9 @@ def main() -> None:
         # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.http_timeout)
 
-        techniques_notify = add_techniques(client, attack)
-        groups_notify = add_groups(client, attack)
-        software_notify = add_software(client, attack)
+        techniques_notify = add_techniques(actapi, attack)
+        groups_notify = add_groups(actapi, attack)
+        software_notify = add_software(actapi, attack)
 
         # filter revoked objects from those allready notified
         notify = [

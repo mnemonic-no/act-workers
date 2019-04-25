@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import json
-import sys
+import os
 import argparse
 from act.workers.libs.ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
     add_ta_to_map, add_ta_alias_to_map, create_config
 
-from act.workers.libs import worker, config
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -24,11 +27,7 @@ def main():
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "attack")
-
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
     # gets all ta names from objects(as a set of strings) and facts(as a
     # set with tuples of two strings) in ACT.

@@ -33,8 +33,11 @@ from typing import Dict, Generator, List, Tuple, Union
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act.api
-from act.workers.libs import worker, config
 from act.api.helpers import handle_fact
+from act.workers.libs import worker
+
+# Set worker name from filename
+WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"
@@ -260,13 +263,13 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = config.handle_args(parseargs(), "actworkers", "actworkers.ini", "shadowserver-asn")
+    args = worker.handle_args(parseargs(), WORKER_NAME)
 
-    if args.print_default_ini:
-        print(worker.default_ini())
-        sys.exit(0)
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
 
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "shadowserver-asn")
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
 
     # Get map of CC -> Country Name
     cn_map = get_cn_map(args.country_codes)
