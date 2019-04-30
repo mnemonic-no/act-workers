@@ -4,6 +4,7 @@
 
 import argparse
 import json
+import os
 import sys
 import traceback
 from logging import error
@@ -39,10 +40,10 @@ SCIO_INDICATOR_ACT_MAP = {
 }
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Get SCIO reports and IOCs from stdin')
-    return parser.parse_args()
+    return parser
 
 
 def get_scio_report() -> Dict:
@@ -145,11 +146,20 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 
 def main() -> None:
     """main function"""
-    args = parseargs()
+
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs())
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
 
     # Add IOCs from reports to the ACT platform
     add_to_act(
-        act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "scio"),
+        actapi,
         get_scio_report(),
         args.output_format,
     )

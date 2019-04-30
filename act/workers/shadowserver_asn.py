@@ -33,8 +33,8 @@ from typing import Dict, Generator, List, Tuple, Union
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
 import act.api
-from act.workers.libs import worker
 from act.api.helpers import handle_fact
+from act.workers.libs import worker
 
 CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"
@@ -82,18 +82,17 @@ def get_cn_map(filename: str) -> Dict:
     return cn_map
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Shadowserver ASN enrichment')
     parser.add_argument(
         '--country-codes',
-        required=True,
         help="Should point to file downloaded from {}".format(ISO_3166_FILE))
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--bulk', help='bulk query from file. File must contain one IP per line.')
     group.add_argument('--stdin', action='store_true', help='query ip on stdin')
-    return parser.parse_args()
+    return parser
 
 
 def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
@@ -258,22 +257,38 @@ def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], c
 def main() -> None:
     """main function"""
 
-    ARGS = parseargs()
-    actapi = act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "shadowserver-asn")
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs())
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+
+    if not args.country_codes:
+        sys.stderr.write("You must specify --country-codes on command line or in config file\n")
+        sys.exit(1)
+
+    if not os.path.isfile(args.country_codes):
+        sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
+        sys.exit(2)
+
 
     # Get map of CC -> Country Name
-    cn_map = get_cn_map(ARGS.country_codes)
+    cn_map = get_cn_map(args.country_codes)
 
     db_cache = get_db_cache(CACHE_DIR)
 
     # Read IPs from stdin
-    if ARGS.stdin:
+    if args.stdin:
         in_data = [ip for ip in sys.stdin.read().split("\n")]
         handle_ip(actapi, cn_map, in_data, db_cache)
 
     # Bulk lookup
-    elif ARGS.bulk:
-        all_ips = [ip for ip in open(ARGS.bulk, "r")]
+    elif args.bulk:
+        all_ips = [ip for ip in open(args.bulk, "r")]
         batch_size = 50
         i = 0
         while i < len(all_ips):

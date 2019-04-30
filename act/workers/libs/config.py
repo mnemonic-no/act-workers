@@ -61,6 +61,13 @@ class SectionNotFound(Exception):
         Exception.__init__(self, *args)
 
 
+class NotSupported(Exception):
+    """Option not supported"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
 def get_xdg_dir(xdg_id: Text, env_name: Text, default: Text, create: bool = False) -> Text:
     """
     Get xdg dir.
@@ -233,9 +240,12 @@ def handle_args(parser: argparse.ArgumentParser,
     # pylint: disable=protected-access
     for g in parser._action_groups:
         for action in g._actions:
+            if action.required:
+                raise NotSupported('"required" argument is not supported (found in option {}). '.format("".join(action.option_strings)) +
+                                   "Set to false and test after it has been parsed by handle_args()")
             for option_string in action.option_strings:
                 if option_string.startswith('--'):
-                    key = option_string[2:]
-                    action.default = get_default(action, config, key)
+                    key=option_string[2:]
+                    action.default=get_default(action, config, key)
 
     return parser.parse_args(remainder_argv)

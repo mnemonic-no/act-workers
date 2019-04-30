@@ -1,15 +1,21 @@
 """Common worker library"""
 
 import argparse
+import inspect
 import os
 import smtplib
 import socket
 from email.mime.text import MIMEText
 from logging import error
-from typing import Any, Optional
+from typing import Any, Optional, Text
 
 import requests
 import urllib3
+
+from act.workers.libs import config
+
+CONFIG_ID = "actworkers"
+CONFIG_NAME = "actworkers.ini"
 
 
 class UnknownResult(Exception):
@@ -23,15 +29,15 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(
         allow_abbrev=False,
-        description=description, epilog="""
+        description="{} ({})".format(description, worker_name()), epilog="""
 
   --config INI_FILE     Override default locations of ini file
 
     Arguments can be specified in ini-files, environment variables and
     as command line arguments, and will be parsed in that order.
 
-    By default, workers will look for an ini file in /etc/actworkers.ini
-    and ~/.config/actworkers/actworkers.ini (or in $XDG_CONFIG_DIR if
+    By default, workers will look for an ini file in /etc/{1}
+    and ~/.config/{0}/{1} (or in $XDG_CONFIG_DIR if
     specified).
 
     Each worker will read the confiuration from the "DEFAULT" section in the
@@ -44,9 +50,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     E.g. set the CERT_FILE environment variable to configure the
     --cert-file option.
 
-'
-
-""", formatter_class=argparse.RawDescriptionHelpFormatter)
+""".format(CONFIG_ID, CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('--http-timeout', dest='http_timeout', type=int,
                         default=120, help="Timeout")
@@ -62,12 +66,32 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Loglevel (default = info)")
     parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
                         help="Output format for fact (default=json)")
+    parser.add_argument('--http-user', dest='http_user', help="ACT HTTP Basic Auth user")
+    parser.add_argument('--http-password', dest='http_password', help="ACT HTTP Basic Auth password")
     return parser
+
+
+def __mod_name(stack: inspect.FrameInfo) -> Text:
+    """ Return name of module from a stack ("_" is replaced by "-") """
+    mod = inspect.getmodule(stack[0])
+    return os.path.basename(mod.__file__).replace(".py", "").replace("_", "-")
+
+
+def worker_name() -> Text:
+    """ Return first external module that called this function, directly, or indirectly """
+
+    modules = [__mod_name(stack) for stack in inspect.stack() if __mod_name(stack)]
+    return [name for name in modules if name != modules[0]][0]
+
+
+def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
+    """ Wrapper for config.handle_args where we set config_id and config_name """
+    return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:
     """
-    Getch cache dir.
+    Get cache dir.
 
     Honors $XDG_CACHE_HOME, but fallbacks to $HOME/.cache
 

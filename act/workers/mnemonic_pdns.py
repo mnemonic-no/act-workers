@@ -5,6 +5,7 @@ stdin, writing result in a format understandable by
 generic_uploader.py to stdout"""
 
 import argparse
+import os
 import socket
 import sys
 import traceback
@@ -41,7 +42,7 @@ RRTYPE_M = {
 }
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('PDNS enrichment')
     parser.add_argument('--pdns-baseurl', dest='pdns_baseurl',
@@ -51,7 +52,7 @@ def parseargs() -> argparse.Namespace:
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="Argus API key")
 
-    return parser.parse_args()
+    return parser
 
 
 def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
@@ -148,8 +149,16 @@ def process(api: act.api.Act, pdns_baseurl: str, apikey: str, timeout: int = 299
 
 
 def main() -> None:
-    args = parseargs()
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "pdns-enrichment")
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs())
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+
     process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string)
 
 

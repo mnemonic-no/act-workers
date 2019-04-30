@@ -26,8 +26,8 @@ import stix2
 from stix2 import Filter, MemoryStore, parse
 
 import act.api
-from act.workers.libs import worker
 from act.api.helpers import handle_fact
+from act.workers.libs import worker
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
@@ -45,19 +45,19 @@ class NotificationError(Exception):
         Exception.__init__(self, *args)
 
 
-def parseargs() -> argparse.Namespace:
+def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Mitre ATT&CK worker')
     parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked/deprecated objects")
     parser.add_argument('--sender', dest='sender', help="Sender address used to send revoked/deprecated objects")
     parser.add_argument('--recipient', dest='recipient', help="Recipient address used to send revoked/deprecated objects")
-    parser.add_argument('--types', default="enterprise,mobile,pre", help='Mitre attack types, comma separated. Default is "enterprise,mobile,pre"')
+    parser.add_argument(
+        '--type',
+        choices=list(MITRE_URLS.keys()),
+        help='Specify a single type to download (enterprise, mobile or pre). Default is to fetch all')
     parser.add_argument('--notifycache', dest='notifycache', help="Cache for revoked/deprecated objects", default=DEFAULT_NOTIFY_CACHE)
-    args = parser.parse_args()
 
-    args.types = [t.strip() for t in args.types.split(",")]
-
-    return args
+    return parser
 
 
 def get_attack(url: str, proxy_string: str, timeout: int) -> MemoryStore:
@@ -332,15 +332,23 @@ def send_notification(
 
 def main() -> None:
     """ Main function """
-    args = parseargs()
-    client = act.api.Act(
-        args.act_baseurl,
-        args.user_id,
-        args.loglevel,
-        args.logfile,
-        "mitre-attack")
 
-    for mitre_type in args.types:
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs())
+
+    auth = None
+    if args.http_user:
+        auth = (args.http_user, args.http_password)
+
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+
+    if args.type:
+        types = [args.type]
+    else:
+        types = list(MITRE_URLS.keys())
+
+    for mitre_type in types:
         url = MITRE_URLS.get(mitre_type.lower())
 
         if not url:
@@ -350,11 +358,11 @@ def main() -> None:
         cache = notify_cache(args.notifycache)
 
         # Get attack dataset as Stix Memory Store
-        attack = get_attack(url, args.proxy_string, args.timeout)
+        attack = get_attack(url, args.proxy_string, args.http_timeout)
 
-        techniques_notify = add_techniques(client, attack)
-        groups_notify = add_groups(client, attack)
-        software_notify = add_software(client, attack)
+        techniques_notify = add_techniques(actapi, attack)
+        groups_notify = add_groups(actapi, attack)
+        software_notify = add_software(actapi, attack)
 
         # filter revoked objects from those allready notified
         notify = [

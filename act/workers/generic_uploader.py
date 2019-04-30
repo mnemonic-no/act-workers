@@ -3,30 +3,17 @@
 """General ACT backend uploader. Reads facts as JSON
 from the stdin, uploading accordingly"""
 
-from logging import error
-import traceback
-import argparse
 import json
+import os
 import sys
+import traceback
+from logging import error
+
 import act.api
+from act.workers.libs import worker
 
 
-def parseargs():
-    """ Parse arguments """
-    parser = argparse.ArgumentParser(description='PDNS enrichment')
-    parser.add_argument('--userid', dest='user_id', required=True,
-                        help="User ID")
-    parser.add_argument('--act-baseurl', dest='act_baseurl', required=True,
-                        help='ACT API URI')
-    parser.add_argument("--logfile", dest="logfile",
-                        help="Log to file (default = stdout)")
-    parser.add_argument("--loglevel", dest="loglevel", default="info",
-                        help="Loglevel (default = info)")
-
-    return parser.parse_args()
-
-
-def main(actapi):
+def main(actapi: act.api.Act) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
     be the on the form accepted by the ACT Rest API fact API."""
@@ -44,9 +31,15 @@ def main(actapi):
 def main_log_error() -> None:
     "Call main() and log all exceptions as errors"
     try:
-        ARGS = parseargs()
+        # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+        # (or replace .config with $XDG_CONFIG_DIR if set)
+        args = worker.handle_args(worker.parseargs("Generic uploader"))
 
-        actapi = act.api.Act(ARGS.act_baseurl, ARGS.user_id, ARGS.loglevel, ARGS.logfile, "generic-uploader")
+        auth = None
+        if args.http_user:
+            auth = (args.http_user, args.http_password)
+
+        actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
         main(actapi)
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
