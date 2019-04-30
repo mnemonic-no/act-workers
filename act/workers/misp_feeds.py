@@ -22,9 +22,6 @@ try:
 except ModuleNotFoundError:  # Python3
     import urllib.parse as urlparse  # type: ignore
 
-# Set worker name from filename
-WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
-
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -119,7 +116,7 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs(), WORKER_NAME)
+    args = worker.handle_args(parseargs())
 
     manifest_dir = args.manifest_dir
 
@@ -127,7 +124,7 @@ def main() -> None:
     if args.http_user:
         auth = (args.http_user, args.http_password)
 
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
 
     verify_manifest_dir(manifest_dir)
     misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")

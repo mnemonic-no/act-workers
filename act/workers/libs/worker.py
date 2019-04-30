@@ -1,6 +1,7 @@
 """Common worker library"""
 
 import argparse
+import inspect
 import os
 import smtplib
 import socket
@@ -28,7 +29,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(
         allow_abbrev=False,
-        description=description, epilog="""
+        description="{} ({})".format(description, worker_name()), epilog="""
 
   --config INI_FILE     Override default locations of ini file
 
@@ -70,9 +71,23 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     return parser
 
 
-def handle_args(parser: argparse.ArgumentParser, worker_name: Text) -> argparse.Namespace:
+def __mod_name(stack: inspect.FrameInfo) -> Text:
+    """ Return name of module from a stack ("_" is replaced by "-") """
+    mod = inspect.getmodule(stack[0])
+    return os.path.basename(mod.__file__).replace(".py", "").replace("_", "-")
+
+
+def worker_name() -> Text:
+    """ Return first external module that called this function, directly, or indirectly """
+
+    modules = [__mod_name(stack) for stack in inspect.stack() if __mod_name(stack)]
+    return [name for name in modules if name != modules[0]][0]
+
+
+def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     """ Wrapper for config.handle_args where we set config_id and config_name """
-    return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name)
+    print(worker_name())
+    return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:

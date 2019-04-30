@@ -20,9 +20,6 @@ import act.api
 from act.api.helpers import handle_fact
 from act.workers.libs import worker
 
-# Set worker name from filename
-WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
-
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -70,13 +67,13 @@ def main_log_error() -> None:
     "Main function. Log all exceptions to error"
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs(), WORKER_NAME)
+    args = worker.handle_args(parseargs())
 
     auth = None
     if args.http_user:
         auth = (args.http_user, args.http_password)
 
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, WORKER_NAME, requests_common_kwargs={'auth': auth})
+    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
 
     try:
         process(

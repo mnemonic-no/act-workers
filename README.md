@@ -55,7 +55,7 @@ $ act-country-regions --act-baseurl http://localhost:8888 --user-id 1
 
 All workers support options specified as command line arguments, environment variables and in a configuration file.
 
-An utility to show and start with a default ini file is also included:
+A utility to show and start with a default ini file is also included:
 
 ```bash
 act-worker-config --help

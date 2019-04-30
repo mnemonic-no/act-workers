@@ -7,9 +7,6 @@ from act.workers.libs.ta_list_methods import get_all_ta_from_act, get_all_alias_
 
 from act.workers.libs import worker
 
-# Set worker name from filename
-WORKER_NAME = os.path.basename(__file__).replace(".py", "").replace("_", "-")
-
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Updates list of threat actor aliases from an ACT platform')
@@ -27,7 +24,7 @@ def main():
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs(), WORKER_NAME)
+    args = worker.handle_args(parseargs())
 
     # gets all ta names from objects(as a set of strings) and facts(as a
     # set with tuples of two strings) in ACT.
