@@ -87,7 +87,6 @@ def parseargs() -> argparse.ArgumentParser:
     parser = worker.parseargs('Shadowserver ASN enrichment')
     parser.add_argument(
         '--country-codes',
-        required=True,
         help="Should point to file downloaded from {}".format(ISO_3166_FILE))
 
     group = parser.add_mutually_exclusive_group(required=True)
