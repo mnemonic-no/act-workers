@@ -87,7 +87,6 @@ def parseargs() -> argparse.ArgumentParser:
     parser = worker.parseargs('Shadowserver ASN enrichment')
     parser.add_argument(
         '--country-codes',
-        required=True,
         help="Should point to file downloaded from {}".format(ISO_3166_FILE))
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -267,6 +266,15 @@ def main() -> None:
         auth = (args.http_user, args.http_password)
 
     actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+
+    if not args.country_codes:
+        sys.stderr.write("You must specify --country-codes on command line or in config file\n")
+        sys.exit(1)
+
+    if not os.path.isfile(args.country_codes):
+        sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
+        sys.exit(2)
+
 
     # Get map of CC -> Country Name
     cn_map = get_cn_map(args.country_codes)
