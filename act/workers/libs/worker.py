@@ -86,7 +86,6 @@ def worker_name() -> Text:
 
 def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     """ Wrapper for config.handle_args where we set config_id and config_name """
-    print(worker_name())
     return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
 
 
