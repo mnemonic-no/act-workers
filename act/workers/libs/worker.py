@@ -37,7 +37,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     as command line arguments, and will be parsed in that order.
 
     By default, workers will look for an ini file in /etc/{1}
-    and ~/.config/{0}/{1}.ini (or in $XDG_CONFIG_DIR if
+    and ~/.config/{0}/{1} (or in $XDG_CONFIG_DIR if
     specified).
 
     Each worker will read the confiuration from the "DEFAULT" section in the
