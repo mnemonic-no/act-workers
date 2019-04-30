@@ -74,7 +74,7 @@ optional arguments:
     system - Copy default config to /etc/actworkers.ini
 ```
 
-You can see the default options in [etc/actworkers.ini](etc/actworkers.ini).
+You can see the default options in [act/workers/etc/actworkers.ini](act/workers/etc/actworkers.ini).
 
 The configuration presedence are (from lowest to highest):
 1. Defaults (shown in --help for each worker)
