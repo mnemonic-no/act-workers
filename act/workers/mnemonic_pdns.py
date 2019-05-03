@@ -94,7 +94,12 @@ def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299, pr
             break
 
 
-def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
+def pdns_query(
+        pdns_baseurl: str,
+        apikey: str,
+        query: str,
+        timeout: int,
+        proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - Argus API key with the passivedns role (minimum)
@@ -123,7 +128,13 @@ def pdns_query(pdns_baseurl: str, apikey: str, query: str, timeout: int, proxy_s
         error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def process(api: act.api.Act, pdns_baseurl: str, apikey: str, timeout: int = 299, proxy_string: Optional[Text] = None) -> None:
+def process(
+        api: act.api.Act,
+        pdns_baseurl: str,
+        apikey: str,
+        timeout: int = 299,
+        proxy_string: Optional[Text] = None,
+        output_format: Text = "json") -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -140,7 +151,7 @@ def process(api: act.api.Act, pdns_baseurl: str, apikey: str, timeout: int = 299
                     api.fact(RRTYPE_M[rrtype]["fact_t"],
                              RRTYPE_M[rrtype]["fact_v"])
                     .source(RRTYPE_M[rrtype]["source_t"], row["query"])
-                    .destination(RRTYPE_M[rrtype]["dest_t"], row["answer"]))
+                    .destination(RRTYPE_M[rrtype]["dest_t"], row["answer"]), output_format=output_format)
 
             elif rrtype == "ptr":
                 pass  # We do not insert ptr to act
@@ -159,10 +170,11 @@ def main() -> None:
 
     actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
 
-    process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string)
+    process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string, args.output_format)
 
 
 def main_log_error() -> None:
+    "Main function. Log all exceptions to error"
     try:
         main()
     except Exception:

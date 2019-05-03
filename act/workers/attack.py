@@ -20,7 +20,7 @@ import os
 import sys
 import traceback
 from logging import error, info, warning
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Text
 
 import stix2
 from stix2 import Filter, MemoryStore, parse
@@ -74,7 +74,7 @@ def get_attack(url: str, proxy_string: str, timeout: int) -> MemoryStore:
     return mem
 
 
-def add_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_techniques(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK techniques
 
@@ -108,13 +108,14 @@ def add_techniques(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             handle_fact(
                 client.fact("accomplishes")
                 .source("technique", technique.name)
-                .destination("tactic", tactic.phase_name)
+                .destination("tactic", tactic.phase_name),
+                output_format=output_format
             )
 
     return notify
 
 
-def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Groups
 
@@ -145,7 +146,8 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             if group.name != alias:
                 handle_fact(
                     client.fact("alias")
-                    .bidirectional("threatActor", group.name, "threatActor", alias)
+                    .bidirectional("threatActor", group.name, "threatActor", alias),
+                    output_format=output_format
                 )
 
         #   ATT&CK concept   STIX Properties
@@ -170,7 +172,7 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             )
 
             for fact in chain:
-                handle_fact(fact)
+                handle_fact(fact, output_format=output_format)
 
         #   ATT&CK concept   STIX Properties
         #   ==========================================================================
@@ -191,12 +193,12 @@ def add_groups(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             )
 
             for fact in chain:
-                handle_fact(fact)
+                handle_fact(fact, output_format=output_format)
 
     return notify
 
 
-def add_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
+def add_software(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
@@ -222,7 +224,8 @@ def add_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             if software.name.lower() != alias.lower():
                 handle_fact(
                     client.fact("alias")
-                    .bidirectional("tool", software.name.lower(), "tool", alias.lower())
+                    .bidirectional("tool", software.name.lower(), "tool", alias.lower()),
+                    output_format=output_format
                 )
 
         #   ATT&CK concept   STIX Properties
@@ -237,7 +240,8 @@ def add_software(client, attack: MemoryStore) -> List[stix2.AttackPattern]:
             handle_fact(
                 client.fact("implements")
                 .source("tool", software.name.lower())
-                .destination("technique", technique.name)
+                .destination("technique", technique.name),
+                output_format=output_format
             )
 
     return notify
@@ -360,9 +364,9 @@ def main() -> None:
         # Get attack dataset as Stix Memory Store
         attack = get_attack(url, args.proxy_string, args.http_timeout)
 
-        techniques_notify = add_techniques(actapi, attack)
-        groups_notify = add_groups(actapi, attack)
-        software_notify = add_software(actapi, attack)
+        techniques_notify = add_techniques(actapi, attack, args.output_format)
+        groups_notify = add_groups(actapi, attack, args.output_format)
+        software_notify = add_software(actapi, attack, args.output_format)
 
         # filter revoked objects from those allready notified
         notify = [

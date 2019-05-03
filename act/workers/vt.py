@@ -55,8 +55,8 @@ def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
     parser = worker.parseargs('ACT VT Client v{}'.format(VERSION))
-    parser.add_argument('--apikey', metavar='KEY', type=str,
-                        required=True, help='VirusTotal API key')
+    parser.add_argument('--apikey', metavar='KEY',
+                        help='VirusTotal API key')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--hexdigest', action='store_true',
                        default=False, help='query hexdigestsum on stdin')
@@ -94,7 +94,12 @@ def is_adware(text: Text) -> bool:
     return False
 
 
-def handle_hexdigest(actapi: act.api.Act, vtapi: VirusTotalApi, hexdigest: Text, cache: dict = {}) -> None:
+def handle_hexdigest(
+        actapi: act.api.Act,
+        vtapi: VirusTotalApi,
+        hexdigest: Text,
+        cache: dict = {},
+        output_format: Text = "json") -> None:
     """Read hexdigest from stdin, query VirusTotal and
     output a JSON text readable by generic_uploader.py"""
 
@@ -130,28 +135,32 @@ def handle_hexdigest(actapi: act.api.Act, vtapi: VirusTotalApi, hexdigest: Text,
     for hash in ['sha1', 'sha256', 'md5']:
         act.api.helpers.handle_fact(actapi.fact('represents', 'vt')
                                     .source('hash', results[hash])
-                                    .destination('content', content_id))
+                                    .destination('content', content_id),
+                                    output_format=output_format)
 
     for name in names:
         act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
                                     .source('content', content_id)
-                                    .destination('tool', name))
+                                    .destination('tool', name),
+                                    output_format=output_format)
 
     if 'detected_urls' in results:
         for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
             my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
             act.api.helpers.handle_fact(actapi.fact('at', 'vt')
                                         .source('content', content_id)
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
     if 'undetected_urls' in results:
         for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
             my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
             act.api.helpers.handle_fact(actapi.fact('at', 'vt')
                                         .source('content', content_id)
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
 
 
-def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text) -> None:
+def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format: Text = "json") -> None:
     """Read IP address from stdin, query VirusTotal and
     output a JSON text readable by generic_uploaderr.py"""
 
@@ -192,7 +201,8 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text) -> None:
         for resolution in results['resolutions']:
             act.api.helpers.handle_fact(actapi.fact('resolvesTo')
                                         .source('fqdn', resolution['hostname'])
-                                        .destination(ip_type, ip))
+                                        .destination(ip_type, ip),
+                                        output_format=output_format)
             # add all detected and undetected urls related to a given resolved hostname
             if resolution['hostname'] in urls:
                 for u in urls[resolution['hostname']]:
@@ -210,13 +220,15 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text) -> None:
 
             act.api.helpers.handle_fact(actapi.fact('at')
                                         .source('content', sample['sha256'])
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
 
             act.api.helpers.handle_fact(actapi.fact('represents')
                                         .source('hash', sample['sha256'])
-                                        .destination('content', sample['sha256']))
+                                        .destination('content', sample['sha256']),
+                                        output_format=output_format)
 
-            handle_hexdigest(actapi, vtapi, sample['sha256'])
+            handle_hexdigest(actapi, vtapi, sample['sha256'], output_format=output_format)
 
     if 'detected_communicating_samples' in results:
         for sample in results['detected_communicating_samples']:
@@ -224,20 +236,23 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text) -> None:
 
             act.api.helpers.handle_fact(actapi.fact('connectsTo', ip_type)
                                         .source('content', sample['sha256'])
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
 
             act.api.helpers.handle_fact(actapi.fact('represents')
                                         .source('hash', sample['sha256'])
-                                        .destination('content', sample['sha256']))
+                                        .destination('content', sample['sha256']),
+                                        output_format=output_format)
 
-            handle_hexdigest(actapi, vtapi, sample['sha256'])
+            handle_hexdigest(actapi, vtapi, sample['sha256'], output_format=output_format)
 
 
 def add_uri(actapi: act.api.Act,
             addr_type: str,
             addr: str,
             url: List[str],
-            cache: dict = {}) -> str:
+            cache: dict = {},
+            output_format: Text = "json") -> str:
     """Add a URI to the platform by creating the componentOf and scheme facts
 If called multiple times with arguments creating the same URI, the facts will only sent once.
 Return: The URI added
@@ -251,25 +266,30 @@ Return: The URI added
 
         act.api.helpers.handle_fact(actapi.fact("componentOf")
                                     .source(addr_type, addr)
-                                    .destination("uri", my_uri))
+                                    .destination("uri", my_uri),
+                                    output_format=output_format)
 
         act.api.helpers.handle_fact(actapi.fact("scheme", url[0])
-                                    .source("uri", my_uri))
+                                    .source("uri", my_uri),
+                                    output_format=output_format)
 
         if url[2] and not url[2].strip() == "/":  # path
             act.api.helpers.handle_fact(actapi.fact("componentOf")
                                         .source("path", url[2])
-                                        .destination("uri", my_uri))
+                                        .destination("uri", my_uri),
+                                        output_format=output_format)
 
             basename = os.path.basename(url[2])
             if basename.strip():
                 act.api.helpers.handle_fact(actapi.fact("basename", basename)
-                                            .source("path", url[2]))
+                                            .source("path", url[2]),
+                                            output_format=output_format)
 
         if url[3]:  # query
             act.api.helpers.handle_fact(actapi.fact("componentOf")
                                         .source("query", url[3])
-                                        .destination("uri", my_uri))
+                                        .destination("uri", my_uri),
+                                        output_format=output_format)
 
     except act.api.base.ResponseError as e:
         sys.stderr.write(str(e))
@@ -277,7 +297,11 @@ Return: The URI added
     return my_uri
 
 
-def handle_domain(actapi: act.api.Act, vtapi: VirusTotalApi, domain: Text) -> None:
+def handle_domain(
+        actapi: act.api.Act,
+        vtapi: VirusTotalApi,
+        domain: Text,
+        output_format: Text = "json") -> None:
     """Read IP address from stdin, query VirusTotal and
     output a JSON text readable by generic_uploaderr.py"""
 
@@ -317,29 +341,34 @@ def handle_domain(actapi: act.api.Act, vtapi: VirusTotalApi, domain: Text) -> No
 
             act.api.helpers.handle_fact(actapi.fact('resolvesTo')
                                         .source('fqdn', domain)
-                                        .destination(ip_type, ip))
+                                        .destination(ip_type, ip),
+                                        output_format=output_format)
 
     if 'detected_downloaded_samples' in results:
         for sample in results['detected_downloaded_samples']:
             my_uri = add_uri(actapi, 'fqdn', domain, ['network', domain, '', '', '', ''])
             act.api.helpers.handle_fact(actapi.fact('at')
                                         .source('content', sample['sha256'])
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
             act.api.helpers.handle_fact(actapi.fact('represents')
                                         .source('hash', sample['sha256'])
-                                        .destination('content', sample['sha256']))
-            handle_hexdigest(actapi, vtapi, sample['sha256'])
+                                        .destination('content', sample['sha256']),
+                                        output_format=output_format)
+            handle_hexdigest(actapi, vtapi, sample['sha256'], output_format=output_format)
 
     if 'detected_communicating_samples' in results:
         for sample in results['detected_communicating_samples']:
             my_uri = add_uri(actapi, 'fqdn', domain, ['network', domain, '', '', '', ''])
             act.api.helpers.handle_fact(actapi.fact('connectsTo')
                                         .source('content', sample['sha256'])
-                                        .destination('uri', my_uri))
+                                        .destination('uri', my_uri),
+                                        output_format=output_format)
             act.api.helpers.handle_fact(actapi.fact('represents')
                                         .source('hash', sample['sha256'])
-                                        .destination('content', sample['sha256']))
-            handle_hexdigest(actapi, vtapi, sample['sha256'])
+                                        .destination('content', sample['sha256']),
+                                        output_format=output_format)
+            handle_hexdigest(actapi, vtapi, sample['sha256'], output_format=output_format)
 
 
 def main() -> None:
@@ -348,6 +377,10 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
+
+    if not args.apikey:
+        sys.stderr.write("You must specify --apikey on command line or in config file\n")
+        sys.exit(1)
 
     auth = None
     if args.http_user:
@@ -365,13 +398,13 @@ def main() -> None:
     vtapi = VirusTotalApi(args.apikey, proxies=proxies)
 
     if args.hexdigest:
-        handle_hexdigest(actapi, vtapi, in_data)
+        handle_hexdigest(actapi, vtapi, in_data, output_format=args.output_format)
 
     if args.ip:
-        handle_ip(actapi, vtapi, in_data)
+        handle_ip(actapi, vtapi, in_data, output_format=args.output_format)
 
     if args.domain:
-        handle_domain(actapi, vtapi, in_data)
+        handle_domain(actapi, vtapi, in_data, output_format=args.output_format)
 
 
 @contextlib.contextmanager

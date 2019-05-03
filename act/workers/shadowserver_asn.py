@@ -28,7 +28,7 @@ import time
 import traceback
 from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
-from typing import Dict, Generator, List, Tuple, Union
+from typing import Dict, Generator, List, Text, Tuple, Union
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
@@ -192,7 +192,12 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         yield (ip, asn_record)
 
 
-def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], cache: sqlite3.Connection) -> None:
+def handle_ip(
+        actapi: act.api.Act,
+        cn_map: Dict[str, str],
+        ip_list: List[str],
+        cache: sqlite3.Connection,
+        output_format: Text = "json") -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
@@ -219,18 +224,20 @@ def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], c
         handle_fact(
             actapi.fact("memberOf", "ipv4Network")
             .source("ipv4", ip)
-            .destination("ipv4Network", res.prefix)
+            .destination("ipv4Network", res.prefix),
+            output_format=output_format
         )
         handle_fact(
             actapi.fact("memberOf", "asn")
             .source("ipv4Network", res.prefix)
-            .destination("asn", res.asn)
+            .destination("asn", res.asn),
+            output_format=output_format
         )
 
         if blacklisted(res, "asname"):
             debug('asname "{}" for ip {} is blacklisted, skipping'.format(res.asn, ip))
         else:
-            handle_fact(actapi.fact("name", res.asname).source("asn", res.asn))
+            handle_fact(actapi.fact("name", res.asname).source("asn", res.asn), output_format=output_format)
 
         if blacklisted(res, "isp"):
             debug('isp "{}" for ip {} is blacklisted, skipping'.format(res.isp, ip))
@@ -239,7 +246,8 @@ def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], c
             handle_fact(
                 actapi.fact("owns", "asn")
                 .source("organization", organization)
-                .destination("asn", res.asn)
+                .destination("asn", res.asn),
+                output_format=output_format
             )
 
             if blacklisted(res, "cn"):
@@ -250,7 +258,8 @@ def handle_ip(actapi: act.api.Act, cn_map: Dict[str, str], ip_list: List[str], c
                 handle_fact(
                     actapi.fact("locatedIn")
                     .source("organization", organization)
-                    .destination("country", cn_map[res.cn])
+                    .destination("country", cn_map[res.cn]),
+                    output_format=output_format
                 )
 
 
@@ -275,7 +284,6 @@ def main() -> None:
         sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
         sys.exit(2)
 
-
     # Get map of CC -> Country Name
     cn_map = get_cn_map(args.country_codes)
 
@@ -284,7 +292,7 @@ def main() -> None:
     # Read IPs from stdin
     if args.stdin:
         in_data = [ip for ip in sys.stdin.read().split("\n")]
-        handle_ip(actapi, cn_map, in_data, db_cache)
+        handle_ip(actapi, cn_map, in_data, db_cache, args.output_format)
 
     # Bulk lookup
     elif args.bulk:
@@ -292,7 +300,7 @@ def main() -> None:
         batch_size = 50
         i = 0
         while i < len(all_ips):
-            handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]), db_cache)
+            handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]), db_cache, args.output_format)
             i += batch_size
             time.sleep(1)
 
