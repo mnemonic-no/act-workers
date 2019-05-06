@@ -109,7 +109,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         try:
             handle_uri(actapi, uri, output_format=output_format)
         except act.api.schema.MissingField:
-            error("Unhandled to create facts from uri: {}".format(uri))
+            error("Unable to create facts from uri: {}".format(uri))
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
