@@ -14,7 +14,7 @@ from . import worker
 def is_public_ip(ip_str):
     """ Return True if ip (str) is public """
     try:
-        ip = IPv4Address(ip_)
+        ip = IPv4Address(ip_str)
     except AddressValueError:
         return False
 
