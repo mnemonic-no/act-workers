@@ -4,7 +4,7 @@ from typing import Any, Dict, Generator, Optional, Text
 
 import requests
 
-import worker
+from . import worker
 
 
 def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
