@@ -15,7 +15,7 @@ import requests
 import urllib3
 
 import act.api
-from act.workers.libs import worker, argus
+from act.workers.libs import argus, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -54,7 +54,6 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-
 def pdns_query(
         pdns_baseurl: str,
         apikey: str,
@@ -81,7 +80,11 @@ def pdns_query(
         else:
             headers = {}
 
-        yield from argus.batch_query(pdns_url, headers=headers, timeout=timeout, proxy_string=proxy_string)
+        yield from argus.batch_query(
+            "GET",
+            pdns_url,
+            headers=headers,
+            timeout=timeout, proxy_string=proxy_string)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,

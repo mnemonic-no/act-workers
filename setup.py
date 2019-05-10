@@ -22,6 +22,7 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
+            'act-argus-case= act.workers.argus_case:main_log_error',
             'act-vt = act.workers.vt:main_log_error',
             'act-attack = act.workers.attack:main_log_error',
             'act-mnemonic-pdns = act.workers.mnemonic_pdns:main_log_error',

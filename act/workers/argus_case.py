@@ -27,7 +27,7 @@ def parseargs() -> argparse.ArgumentParser:
                         default="https://api.mnemonic.no/", help="Argus API host")
     parser.add_argument('--argus-timeout', dest='timeout', type=int,
                         default=300, help="Timeout")
-    parser.add_argument('--argus-apikey', dest='apikey',
+    parser.add_argument('--argus-apikey', dest='argus_apikey',
                         help="Argus API key")
 
     return parser
@@ -46,46 +46,51 @@ def event_case_query(
 
     limit = 2000
 
+    import time
+    last_update = int((time.time() - 3600 * 12) * 1000)
+    start_time = last_update - 3600 * 1000
+
     try:
-        qmap = {
-            "baseurl": argus_baseurl.strip("/"),
+        criteria = {
             "lastUpdatedTimestamp": last_update,
             "startTimestamp": start_time,
             "sortBy": ["lastUpdated"],
+            "includeFlags": ["NOTIFIED"],
             "limit": limit
         }
 
-        argus_url = "{baseurl}/events/v1/{query}".format(**qmap)
+        argus_url = "{}/events/v1/aggregated/search".format(argus_baseurl.rstrip("/"))
 
-        if apikey:
-            headers = {"Argus-API-Key": apikey}
-        else:
-            headers = {}
+        headers = {
+            "Argus-API-Key": apikey
+        }
 
         yield from argus.batch_query(
+            "POST",
             argus_url,
             headers=headers,
             timeout=timeout,
+            json=criteria,
             proxy_string=proxy_string)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
+        error("Timeout ({0.__class__.__name__}), query: {1}".format(err))
 
 
 def process(
         api: act.api.Act,
-        argus_baseurl: str,
-        apikey: str,
+        argus_baseurl: Text,
+        apikey: Text,
         timeout: int = 299,
         proxy_string: Optional[Text] = None,
         output_format: Text = "json") -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
-    for row in argus_query(argus_baseurl, apikey, timeout=timeout, query=query, proxy_string=proxy_string):
-        print(row)
+    for event in event_case_query(argus_baseurl, apikey, timeout=timeout, proxy_string=proxy_string):
+        argus.handle_argus_event(api, event, output_format)
 
 
 def main() -> None:
@@ -96,6 +101,10 @@ def main() -> None:
     auth = None
     if args.http_user:
         auth = (args.http_user, args.http_password)
+
+    if not args.argus_apikey:
+        sys.stderr.write("You must specify --apikey on command line or in config file\n")
+        sys.exit(1)
 
     actapi = act.api.Act(
         args.act_baseurl,
@@ -108,7 +117,7 @@ def main() -> None:
     process(
         actapi,
         args.argus_baseurl,
-        args.apikey,
+        args.argus_apikey,
         args.timeout,
         args.proxy_string,
         args.output_format)
