@@ -5,7 +5,6 @@ stdin, writing result in a format understandable by
 generic_uploader.py to stdout"""
 
 import argparse
-import os
 import socket
 import sys
 import traceback
@@ -16,7 +15,7 @@ import requests
 import urllib3
 
 import act.api
-from act.workers.libs import worker
+from act.workers.libs import worker, argus
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -55,44 +54,6 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def batch_query(url: str, headers: Optional[Dict] = None, timeout: int = 299, proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
-    """ Execute query until we have all results """
-
-    offset = 0
-    count = 0
-
-    proxies = {
-        'http': proxy_string,
-        'https': proxy_string
-    }
-
-    options = {
-        "headers": headers,
-        "verify": False,
-        "timeout": timeout,
-        "proxies": proxies,
-        "params": {}
-    }
-
-    while True:  # do - while offset < count
-        options["params"]["offset"] = offset  # type: ignore
-        req = requests.get(url, **options)  # type:ignore
-
-        if not req.status_code == 200:
-            errmsg = "status_code: {0.status_code}: {0.content}"
-            raise worker.UnknownResult(errmsg.format(req))
-
-        res = req.json()
-        data = res["data"]
-        count = res.get("count", 0)
-
-        yield from data
-
-        offset += len(data)
-
-        if offset >= count:
-            break
-
 
 def pdns_query(
         pdns_baseurl: str,
@@ -120,7 +81,7 @@ def pdns_query(
         else:
             headers = {}
 
-        yield from batch_query(pdns_url, headers=headers, timeout=timeout, proxy_string=proxy_string)
+        yield from argus.batch_query(pdns_url, headers=headers, timeout=timeout, proxy_string=proxy_string)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
