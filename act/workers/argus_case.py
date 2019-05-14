@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-"""Worker module reading domains and ip-addresses from
-stdin, writing result in a format understandable by
-generic_uploader.py to stdout"""
+"""Worker module polling events from argus incidents"""
 
 import argparse
+import os
 import socket
 import sys
+import time
 import traceback
-from logging import error, warning
+from logging import error, info, warning
 from typing import Any, Dict, Generator, Optional, Text
 
 import requests
@@ -27,6 +27,7 @@ def parseargs() -> argparse.ArgumentParser:
                         default="https://api.mnemonic.no/", help="Argus API host")
     parser.add_argument('--argus-timeout', dest='timeout', type=int,
                         default=300, help="Timeout")
+    parser.add_argument('--last-update', type=int, help="Last updated timestamp (epoc, seconds). Default - use now-1w first time, and start on last retrieved event at next run.")
     parser.add_argument('--argus-apikey', dest='argus_apikey',
                         help="Argus API key")
 
@@ -34,8 +35,9 @@ def parseargs() -> argparse.ArgumentParser:
 
 
 def event_case_query(
-        argus_baseurl: str,
-        apikey: str,
+        argus_baseurl: Text,
+        apikey: Text,
+        last_update: int,
         timeout: int,
         proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
@@ -46,9 +48,7 @@ def event_case_query(
 
     limit = 2000
 
-    import time
-    last_update = int((time.time() - 3600 * 12) * 1000)
-    start_time = last_update - 3600 * 1000
+    start_time = last_update - 3600 * 24 * 7 * 1000
 
     try:
         criteria = {
@@ -70,30 +70,51 @@ def event_case_query(
             argus_url,
             headers=headers,
             timeout=timeout,
-            json=criteria,
+            json_params=criteria,
             proxy_string=proxy_string)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(err))
+        error("Timeout ({0.__class__.__name__})".format(err))
 
 
+# pylint: disable=too-many-arguments
 def process(
         api: act.api.Act,
         argus_baseurl: Text,
         apikey: Text,
+        last_update: Optional[int],
         timeout: int = 299,
         proxy_string: Optional[Text] = None,
         output_format: Text = "json") -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
-    for event in event_case_query(argus_baseurl, apikey, timeout=timeout, proxy_string=proxy_string):
+    cache_filename: Text = os.path.join(worker.get_cache_dir('argus_case', create=True), "last_update")
+
+    if not last_update:
+        if os.path.isfile(cache_filename):
+            # Read last_update from last recorded succsfully recieved event
+            with open(cache_filename) as f:
+                last_update = int(f.read().strip())
+        else:
+            # last_update not specified, set to now-1w
+            last_update = int((time.time() - 3600 * 24 * 7) * 1000)
+            info("last update not specified, autoconfigured as {}".format(last_update))
+
+    for event in event_case_query(argus_baseurl, apikey, last_update, timeout=timeout, proxy_string=proxy_string):
+        last_update = event["lastUpdatedTimestamp"]
         argus.handle_argus_event(api, event, output_format)
+
+    # Write last update timestamp
+    with open(cache_filename, "w") as f:
+        f.write(str(last_update))
 
 
 def main() -> None:
+    " main function "
+
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
@@ -118,6 +139,7 @@ def main() -> None:
         actapi,
         args.argus_baseurl,
         args.argus_apikey,
+        args.last_update,
         args.timeout,
         args.proxy_string,
         args.output_format)

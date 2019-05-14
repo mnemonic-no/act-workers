@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="0.6.3",
+    version="0.6.4",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -22,7 +22,7 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
-            'act-argus-case= act.workers.argus_case:main_log_error',
+            'act-argus-case = act.workers.argus_case:main_log_error',
             'act-vt = act.workers.vt:main_log_error',
             'act-attack = act.workers.attack:main_log_error',
             'act-mnemonic-pdns = act.workers.mnemonic_pdns:main_log_error',

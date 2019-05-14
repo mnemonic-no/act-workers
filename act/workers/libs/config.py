@@ -208,7 +208,8 @@ def get_default(action: argparse.Action, section: Dict, key: Text) -> Any:
     if action.nargs in (argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE):
         default = default.split()
 
-    if action.type is not None:
+    # If type is set and default is not None, enforce type
+    if action.type is not None and default is not None:
         default = action.type(default)
 
     return default
