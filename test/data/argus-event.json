@@ -1,0 +1,80 @@
+{
+  "associatedCase": {
+    "categoryID": 1,
+    "categoryName": "Malicious code infection",
+    "description": "Infected host",
+    "id": 123456789,
+    "priority": "medium",
+    "service": "ids",
+    "status": "WORKING_SOC",
+    "subject": "Infected host"
+  },
+  "attackInfo": {
+    "alarmDescription": "EXPLOIT - Example description",
+    "alarmID": 1,
+    "attackCategoryID": 1,
+    "attackCategoryName": "Attempted service exploit",
+    "signature": "SNORT-1:111111"
+  },
+  "comments": [],
+  "count": 1,
+  "customerInfo": {
+    "id": 0,
+    "name": "demo",
+    "shortName": "demo"
+  },
+  "destination": {
+    "geoLocation": null,
+    "networkAddress": {
+      "address": "1.2.3.4",
+      "host": true,
+      "ipv6": false,
+      "maskBits": 32,
+      "multicast": false,
+      "public": false
+    },
+    "port": 80
+  },
+  "detailedEventIDS": [
+    "NIDS/1557746177264/1/1233334c-3333-4444-4444-666666666666"
+  ],
+  "domain": {
+    "fqdn": "test-domain.com"
+  },
+  "endTimestamp": 1557746177264,
+  "flags": [
+    "NOTIFIED",
+    "FINALIZED",
+    "ASSOCIATED_TO_CASE_BY_FILTER"
+  ],
+  "id": "AGGR/1557746292469/1/111111-2222-3333-6666-777777777777",
+  "lastUpdatedTimestamp": 1557746932436,
+  "location": {
+    "id": 1,
+    "name": "Internt",
+    "shortName": "int",
+    "timeZone": "Europe/Oslo"
+  },
+  "properties": {
+    "device.vendor": "Suricata",
+    "device.product": "http",
+    "file.sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b\nbogus",
+    "file.md5": "68b329da9893e34099c7d8ad5cb9c940"
+  },
+  "protocol": "tcp",
+  "severity": "medium",
+  "source": {
+    "networkAddress": {
+      "address": "192.168.1.1",
+      "host": true,
+      "ipv6": false,
+      "maskBits": 32,
+      "multicast": false,
+      "public": true
+    },
+    "port": 12345
+  },
+  "startTimestamp": 1557746177264,
+  "timestamp": 1557746292469,
+  "uri": "http://test-domain.com/path.cgi"
+}
