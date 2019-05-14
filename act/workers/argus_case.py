@@ -56,7 +56,8 @@ def event_case_query(
             "startTimestamp": start_time,
             "sortBy": ["lastUpdated"],
             "includeFlags": ["NOTIFIED"],
-            "limit": limit
+            "limit": limit,
+            "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"]  # Do include events that are associted to incident by streaming filter
         }
 
         argus_url = "{}/events/v1/aggregated/search".format(argus_baseurl.rstrip("/"))
