@@ -120,11 +120,7 @@ def main() -> None:
 
     manifest_dir = args.manifest_dir
 
-    auth = None
-    if args.http_user:
-        auth = (args.http_user, args.http_password)
-
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+    actapi = worker.init_act(args)
 
     verify_manifest_dir(manifest_dir)
     misp_feeds_file = os.path.join(manifest_dir, "misp_feeds.txt")

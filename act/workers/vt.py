@@ -382,11 +382,7 @@ def main() -> None:
         sys.stderr.write("You must specify --apikey on command line or in config file\n")
         sys.exit(1)
 
-    auth = None
-    if args.http_user:
-        auth = (args.http_user, args.http_password)
-
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+    actapi = worker.init_act(args)
 
     in_data = sys.stdin.read().strip()
 
