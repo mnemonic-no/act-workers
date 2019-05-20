@@ -163,12 +163,7 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
-
-    auth = None
-    if args.http_user:
-        auth = (args.http_user, args.http_password)
-
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+    actapi = worker.init_act(args)
 
     process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string, args.output_format)
 

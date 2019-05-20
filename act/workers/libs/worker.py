@@ -12,6 +12,7 @@ from typing import Any, Optional, Text
 import requests
 import urllib3
 
+import act.api
 from act.workers.libs import config
 
 CONFIG_ID = "actworkers"
@@ -87,6 +88,24 @@ def worker_name() -> Text:
 def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     """ Wrapper for config.handle_args where we set config_id and config_name """
     return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
+
+
+def init_act(args: argparse.Namespace) -> act.api.Act:
+    """ Initialize act api from arguments """
+    requests_kwargs = {}
+    if args.http_user:
+        requests_kwargs["auth"] = (args.http_user, args.http_password)
+
+    if args.cert_file:
+        requests_kwargs["verify"] = args.cert_file
+
+    return act.api.Act(
+        args.act_baseurl,
+        args.user_id,
+        args.loglevel,
+        args.logfile,
+        worker_name(),
+        requests_common_kwargs=requests_kwargs)
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:

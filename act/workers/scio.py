@@ -154,11 +154,7 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
 
-    auth = None
-    if args.http_user:
-        auth = (args.http_user, args.http_password)
-
-    actapi = act.api.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, worker.worker_name(), requests_common_kwargs={'auth': auth})
+    actapi = worker.init_act(args)
 
     # Add IOCs from reports to the ACT platform
     add_to_act(

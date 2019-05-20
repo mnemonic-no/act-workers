@@ -34,21 +34,8 @@ def main_log_error() -> None:
         # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
         # (or replace .config with $XDG_CONFIG_DIR if set)
         args = worker.handle_args(worker.parseargs("Generic uploader"))
+        actapi = worker.init_act(args)
 
-        requests_kwargs = {}
-        if args.http_user:
-            requests_kwargs["auth"] = (args.http_user, args.http_password)
-
-        if args.cert_file:
-            requests_kwargs["verify"] = args.cert_file
-
-        actapi = act.api.Act(
-            args.act_baseurl,
-            args.user_id,
-            args.loglevel,
-            args.logfile,
-            worker.worker_name(),
-            requests_common_kwargs=requests_kwargs)
         main(actapi)
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
