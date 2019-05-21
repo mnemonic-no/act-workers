@@ -19,12 +19,12 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
     facts = set(captured.out.split("\n"))
     logs = [rec.message for rec in caplog.records]
 
-    # print(captured.out)
+    print(captured.out)
 
     prop = event["properties"]
     uri = event["uri"]
     incident_id = "ARGUS-{}".format(event["associatedCase"]["id"])
-    alert_id = event["id"]
+    event_id = "ARGUS-{}".format(event["id"])
 
     signature = event["attackInfo"]["signature"]
 
@@ -35,30 +35,31 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         .destination("content", "*"),
         api.fact("observedIn", "event")
         .source("content", "*")
-        .destination("event", alert_id)
+        .destination("event", event_id)
     )
 
     sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
 
     fact_assertions = [
-        api.fact("observedIn", "incident").source("event", alert_id).destination("incident", incident_id),
-        api.fact("observedIn", "event").source("content", sha256).destination("event", alert_id),
-        api.fact("detects", "event").source("signature", signature).destination("event", alert_id),
-        api.fact("observedIn", "event").source("uri", uri).destination("event", alert_id),
-        api.fact("observedIn", "event").source("fqdn", event["domain"]["fqdn"]).destination("event", alert_id),
+        api.fact("observedIn", "incident").source("event", event_id).destination("incident", incident_id),
+        api.fact("observedIn", "event").source("content", sha256).destination("event", event_id),
+        api.fact("detects", "event").source("signature", signature).destination("event", event_id),
+        api.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
         api.fact("componentOf").source("fqdn", "test-domain.com").destination("uri", uri),
         api.fact("componentOf").source("path", "/path.cgi").destination("uri", uri),
         api.fact("scheme", "http").source("uri", uri),
-        api.fact("observedIn", "event").source("uri", "tcp://1.2.3.4").destination("event", alert_id),
+        api.fact("observedIn", "event").source("uri", "tcp://1.2.3.4").destination("event", event_id),
     ]
 
     fact_negative_assertions = [
-
         # This fact should not exist, since we only add IPs with public addresses
-        api.fact("observedIn", "event").source("uri", "tcp://192.168.1.1").destination("event", alert_id),
+        api.fact("observedIn", "event").source("uri", "tcp://192.168.1.1").destination("event", event_id),
+
+        # We have URI, so this should not be constructed from the fqdn
+        api.fact("observedIn", "event").source("uri", "tcp://test-domain.com").destination("event", event_id),
 
         # Not valid content hash (sha256)
-        api.fact("observedIn", "event").source("content", "bogus").destination("event", alert_id),
+        api.fact("observedIn", "event").source("content", "bogus").destination("event", event_id),
     ]
 
     assert 'Illegal sha256: "bogus" in property "file.sha256"' in logs

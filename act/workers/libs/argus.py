@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, warning
-from typing import Any, Dict, Generator, Optional, Text
+from typing import Any, Dict, Generator, Optional, Text, cast
 
 import requests
 
@@ -61,7 +61,7 @@ def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> None:
 def handle_argus_event_hash(
         actapi: act.api.Act,
         properties: defaultdict,
-        alert_id: Text,
+        event_id: Text,
         output_format: Text) -> None:
     """ Handle file/process hash properties in events """
 
@@ -76,7 +76,7 @@ def handle_argus_event_hash(
                 handle_fact(
                     actapi.fact("observedIn", "event")
                     .source("content", value)
-                    .destination("event", alert_id),
+                    .destination("event", event_id),
                     output_format=output_format
                 )
 
@@ -94,27 +94,32 @@ def handle_argus_event_hash(
                         .destination("content", "*"),
                         actapi.fact("observedIn", "event")
                         .source("content", "*")
-                        .destination("event", alert_id),
+                        .destination("event", event_id),
                     )
 
                     for fact in chain:
                         handle_fact(fact, output_format=output_format)
 
 
-def handle_argus_event_ip(
-        actapi: act.api.Act,
-        event: defaultdict,
-        alert_id: Text,
-        output_format: Text) -> None:
-    "Create facts from source/destination IP address"
+def get_scheme(event: defaultdict) -> Text:
+    "Get scheme based on protocol, default to 'network'"
 
     protocols = ("tcp", "udp", "icmp")
 
     # If we have a known protocol, use this as scheme when constructing URI
     if event["protocol"] in protocols:
-        scheme = event["protocol"]
-    else:
-        scheme = "network"
+        return cast(Text, event["protocol"])
+    return "network"
+
+
+def handle_argus_event_ip(
+        actapi: act.api.Act,
+        event: defaultdict,
+        event_id: Text,
+        output_format: Text) -> None:
+    "Create facts from source/destination IP address"
+
+    scheme = get_scheme(event)
 
     for direction in ["source", "destination"]:
         # ensure we have IP information for this direction
@@ -131,9 +136,31 @@ def handle_argus_event_ip(
         # Facts, uri components
         handle_uri(actapi, uri, output_format=output_format)
 
-        # Fact: uri -> alert
+        # Fact: uri -> event
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", uri).destination("event", alert_id),
+            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
+            output_format=output_format)
+
+
+def handle_argus_event_fqdn(
+        actapi: act.api.Act,
+        event: defaultdict,
+        event_id: Text,
+        output_format: Text) -> None:
+    "Create fact from fqdn"
+
+    scheme = get_scheme(event)
+
+    # Fact: fqdn -> event
+    if event["domain"] and event["domain"]["fqdn"]:
+        uri = "{}://{}".format(scheme, event["domain"]["fqdn"])
+
+        # Facts, uri components
+        handle_uri(actapi, uri, output_format=output_format)
+
+        # Fact: uri -> event
+        handle_fact(
+            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
             output_format=output_format)
 
 
@@ -146,39 +173,39 @@ def handle_argus_event(actapi: act.api.Act, event: Dict, output_format: Text) ->
 
     signature = event["attackInfo"]["signature"]
 
-    # Use argus ID (AGGRid) as alert_id
-    alert_id = event["id"]
+    # Use argus ID (AGGRid) as event_id
+    event_id = "ARGUS-{}".format(event["id"])
 
-    # Fact: alert -> incident
+    # Fact: event -> incident
     if event["associatedCase"]:
         case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
         handle_fact(
-            actapi.fact("observedIn", "incident").source("event", alert_id).destination("incident", case_id),
+            actapi.fact("observedIn", "incident").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
 
-    # Fact: fqdn -> alert
-    if event["domain"]:
-        handle_fact(
-            actapi.fact("observedIn", "event").source("fqdn", event["domain"]["fqdn"]).destination("event", alert_id),
-            output_format=output_format)
+    # Facts: hash/content -> event
+    handle_argus_event_hash(actapi, properties, event_id, output_format)
 
-    # Facts: hash/content -> alert
-    handle_argus_event_hash(actapi, properties, alert_id, output_format)
+    # Facts: sourceIP -> event, destinationIP -> event
+    handle_argus_event_ip(actapi, event, event_id, output_format)
 
-    # Facts: sourceIP -> alert, destinationIP -> alert
-    handle_argus_event_ip(actapi, event, alert_id, output_format)
-
-    # Fact: signature -> alert
+    # Fact: signature -> event
     handle_fact(
-        actapi.fact("detects", "event").source("signature", signature).destination("event", alert_id),
+        actapi.fact("detects", "event").source("signature", signature).destination("event", event_id),
         output_format=output_format)
 
-    # Fact: uri -> alert
+    # Fact: uri -> event
     if event["uri"]:
         handle_uri(actapi, event["uri"], output_format=output_format)
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", event["uri"]).destination("event", alert_id),
+            actapi.fact("observedIn", "event").source("uri", event["uri"]).destination("event", event_id),
             output_format=output_format)
+    else:
+        # Only construct URI from fqdn if we do not have an uri on the event. The URI
+        # Is normally more correct (e.g. scheme and path will be more correctly specified)
+        # Facts: uri fqdn -> uri ->  event
+        handle_argus_event_fqdn(actapi, event, event_id, output_format)
+
 
 
 def batch_query(
