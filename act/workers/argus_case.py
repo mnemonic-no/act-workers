@@ -140,7 +140,9 @@ def process(
 
         # For every Nth event, update last updated event
         if (counter % 1000) == 0:
-            info("Offset: {}, last_update: {}".format(counter, last_update))
+            info("Offset: {}, last_update: {}".format(
+                counter,
+                time.asctime(time.localtime(last_update / 1000))))
             update_last_update(last_update)
 
     update_last_update(last_update)
