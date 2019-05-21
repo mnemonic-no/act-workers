@@ -74,9 +74,9 @@ def handle_argus_event_hash(
                     continue
 
                 handle_fact(
-                    actapi.fact("observedIn", "alert")
+                    actapi.fact("observedIn", "event")
                     .source("content", value)
-                    .destination("alert", alert_id),
+                    .destination("event", alert_id),
                     output_format=output_format
                 )
 
@@ -92,9 +92,9 @@ def handle_argus_event_hash(
                         actapi.fact("represents")
                         .source("hash", value)
                         .destination("content", "*"),
-                        actapi.fact("observedIn", "alert")
+                        actapi.fact("observedIn", "event")
                         .source("content", "*")
-                        .destination("alert", alert_id),
+                        .destination("event", alert_id),
                     )
 
                     for fact in chain:
@@ -133,7 +133,7 @@ def handle_argus_event_ip(
 
         # Fact: uri -> alert
         handle_fact(
-            actapi.fact("observedIn", "alert").source("uri", uri).destination("alert", alert_id),
+            actapi.fact("observedIn", "event").source("uri", uri).destination("event", alert_id),
             output_format=output_format)
 
 
@@ -153,13 +153,13 @@ def handle_argus_event(actapi: act.api.Act, event: Dict, output_format: Text) ->
     if event["associatedCase"]:
         case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
         handle_fact(
-            actapi.fact("observedIn", "incident").source("alert", alert_id).destination("incident", case_id),
+            actapi.fact("observedIn", "incident").source("event", alert_id).destination("incident", case_id),
             output_format=output_format)
 
     # Fact: fqdn -> alert
     if event["domain"]:
         handle_fact(
-            actapi.fact("observedIn", "alert").source("fqdn", event["domain"]["fqdn"]).destination("alert", alert_id),
+            actapi.fact("observedIn", "event").source("fqdn", event["domain"]["fqdn"]).destination("event", alert_id),
             output_format=output_format)
 
     # Facts: hash/content -> alert
@@ -170,14 +170,14 @@ def handle_argus_event(actapi: act.api.Act, event: Dict, output_format: Text) ->
 
     # Fact: signature -> alert
     handle_fact(
-        actapi.fact("trigger", "alert").source("signature", signature).destination("alert", alert_id),
+        actapi.fact("detects", "event").source("signature", signature).destination("event", alert_id),
         output_format=output_format)
 
     # Fact: uri -> alert
     if event["uri"]:
         handle_uri(actapi, event["uri"], output_format=output_format)
         handle_fact(
-            actapi.fact("observedIn", "alert").source("uri", event["uri"]).destination("alert", alert_id),
+            actapi.fact("observedIn", "event").source("uri", event["uri"]).destination("event", alert_id),
             output_format=output_format)
 
 
