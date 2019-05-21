@@ -65,6 +65,7 @@ def handle_argus_event_hash(
         output_format: Text) -> None:
     """ Handle file/process hash properties in events """
 
+    # For all hash values that represents a content object (typically sha256)
     for prop in HASH_CONTENT_PROPS:
         if properties[prop]:
             # Properties can be aggregated (separated by newlines)
@@ -80,6 +81,7 @@ def handle_argus_event_hash(
                     output_format=output_format
                 )
 
+    # For all hash values that needs a placeholder (unknown content/sha256)
     for prop in HASH_REPRESENTS_PROPS:
         if properties[prop]:
             for value in properties[prop].split("\n"):
@@ -133,7 +135,7 @@ def handle_argus_event_ip(
 
         uri = "{}://{}".format(scheme, address)
 
-        # Facts, uri components
+        # Facts: uri components
         handle_uri(actapi, uri, output_format=output_format)
 
         # Fact: uri -> event
@@ -205,7 +207,6 @@ def handle_argus_event(actapi: act.api.Act, event: Dict, output_format: Text) ->
         # Is normally more correct (e.g. scheme and path will be more correctly specified)
         # Facts: uri fqdn -> uri ->  event
         handle_argus_event_fqdn(actapi, event, event_id, output_format)
-
 
 
 def batch_query(

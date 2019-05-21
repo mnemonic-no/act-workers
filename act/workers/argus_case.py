@@ -8,8 +8,8 @@ import socket
 import sys
 import time
 import traceback
-from logging import error, info, warning
-from typing import Any, Dict, Generator, Optional, Text
+from logging import debug, error, info
+from typing import Any, Dict, Generator, Optional, Text, cast
 
 import requests
 import urllib3
@@ -80,6 +80,36 @@ def event_case_query(
         error("Timeout ({0.__class__.__name__})".format(err))
 
 
+def get_last_update() -> int:
+    "Get last update from disk (~/.cache/<worker_name>/last_update)"
+    cache_filename: Text = os.path.join(
+        worker.get_cache_dir(worker.worker_name(), create=True),
+        "last_update")
+
+    if os.path.isfile(cache_filename):
+        # Read last_update from last recorded succsfully recieved event
+        with open(cache_filename) as f:
+            last_update = int(f.read().strip())
+            debug("last update starting at {}".format(last_update))
+    else:
+        # last_update not specified, set to now-1w
+        last_update = int((time.time() - 3600 * 24 * 7) * 1000)
+        info("last update not specified, autoconfigured as {}".format(last_update))
+
+    return last_update
+
+
+def update_last_update(last_update: int) -> None:
+    "Write last update from disk (~/.cache/<worker_name>/last_update)"
+    cache_filename: Text = os.path.join(
+        worker.get_cache_dir(worker.worker_name(), create=True),
+        "last_update")
+
+    # Write last update timestamp to disk
+    with open(cache_filename, "w") as f:
+        f.write(str(last_update))
+
+
 # pylint: disable=too-many-arguments
 def process(
         api: act.api.Act,
@@ -92,25 +122,28 @@ def process(
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
-    cache_filename: Text = os.path.join(worker.get_cache_dir('argus_case', create=True), "last_update")
-
     if not last_update:
-        if os.path.isfile(cache_filename):
-            # Read last_update from last recorded succsfully recieved event
-            with open(cache_filename) as f:
-                last_update = int(f.read().strip())
-        else:
-            # last_update not specified, set to now-1w
-            last_update = int((time.time() - 3600 * 24 * 7) * 1000)
-            info("last update not specified, autoconfigured as {}".format(last_update))
+        last_update = get_last_update()
 
-    for event in event_case_query(argus_baseurl, apikey, last_update, timeout=timeout, proxy_string=proxy_string):
-        last_update = event["lastUpdatedTimestamp"]
+    for counter, event in enumerate(event_case_query(
+            argus_baseurl,
+            apikey,
+            last_update,
+            timeout=timeout, proxy_string=proxy_string)):
+
+        # Result is sorted by lastUpdateTimestamp, so we update
+        # lastUpdateTimestamp to the value from the event
+        last_update = cast(int, event["lastUpdatedTimestamp"])
+
+        # Handle facts from event
         argus.handle_argus_event(api, event, output_format)
 
-    # Write last update timestamp
-    with open(cache_filename, "w") as f:
-        f.write(str(last_update))
+        # For every Nth event, update last updated event
+        if (counter % 1000) == 0:
+            info("Offset: {}, last_update: {}".format(counter, last_update))
+            update_last_update(last_update)
+
+    update_last_update(last_update)
 
 
 def main() -> None:
