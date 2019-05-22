@@ -41,7 +41,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
     sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
 
     fact_assertions = [
-        api.fact("observedIn", "incident").source("event", event_id).destination("incident", incident_id),
+        api.fact("attributedTo", "incident").source("event", event_id).destination("incident", incident_id),
         api.fact("observedIn", "event").source("content", sha256).destination("event", event_id),
         api.fact("detects", "event").source("signature", signature).destination("event", event_id),
         api.fact("observedIn", "event").source("uri", uri).destination("event", event_id),

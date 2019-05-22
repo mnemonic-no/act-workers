@@ -182,7 +182,7 @@ def handle_argus_event(actapi: act.api.Act, event: Dict, output_format: Text) ->
     if event["associatedCase"]:
         case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
         handle_fact(
-            actapi.fact("observedIn", "incident").source("event", event_id).destination("incident", case_id),
+            actapi.fact("attributedTo", "incident").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
 
     # Facts: hash/content -> event
