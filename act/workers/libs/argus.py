@@ -133,6 +133,11 @@ def handle_argus_event_ip(
         if not is_public_ip(address):
             continue
 
+        # Check if the flag <direction>_IS_CUSTOMERNET is set
+        if "{}_IS_CUSTOMERNET".format(direction.upper()) in event["flags"]:
+            debug("Address is customernet: {}, event={}".format(address, event))
+            continue
+
         uri = "{}://{}".format(scheme, address)
 
         # Facts: uri components
