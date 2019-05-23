@@ -204,6 +204,7 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
     return notify
 
 
+
 def add_software(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
     """
         extract objects/facts related to ATT&CK Software
