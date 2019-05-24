@@ -3,4 +3,3 @@ virustotal-api
 act-api
 RashlyOutlaid
 stix2
-requests-mock
