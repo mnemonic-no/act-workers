@@ -50,9 +50,8 @@ def event_case_query(
     # Batch size
     limit = 2000
 
-    # Use start time 1w prior to lastUpdate timestamp
-    # Events can have "old" starttime if they are delayed
-    # into argus.
+    # Use start time 1w prior to lastUpdated timestamp
+    # Events can have "old" startTimestamp if they are delayed into argus.
     # lastUpdateTimstamp = timestamp when event is added to Argus
     # startTimeTimstamp = original timestamp of the event
     start_time = last_update - 3600 * 24 * 7 * 1000
@@ -64,7 +63,8 @@ def event_case_query(
             "sortBy": ["lastUpdated"],
             "includeFlags": ["NOTIFIED"],
             "limit": limit,
-            "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"]  # Do include events that are associted to incident by streaming filter
+            # Do not include events that are associated to incidents from streaming filter
+            "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"]
         }
 
         headers = {
