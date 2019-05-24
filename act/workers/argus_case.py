@@ -40,14 +40,21 @@ def event_case_query(
         last_update: int,
         timeout: int,
         proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
-    """Query the passivedns result of an address.
-    argus_baseurl - the url to the passivedns api (https://api.mnemonic.no)
-    apikey - Argus API key with the passivedns role (minimum)
+    """Query the argus for events associated to cases.
+    argus_baseurl - the url to the ARGUS api (https://api.mnemonic.no)
+    apikey - Argus API key
     timeout - timeout towards API
+    proxy_string - proxy string for the request
     """
 
+    # Batch size
     limit = 2000
 
+    # Use start time 1w prior to lastUpdate timestamp
+    # Events can have "old" starttime if they are delayed
+    # into argus.
+    # lastUpdateTimstamp = timestamp when event is added to Argus
+    # startTimeTimstamp = original timestamp of the event
     start_time = last_update - 3600 * 24 * 7 * 1000
 
     try:
@@ -60,15 +67,14 @@ def event_case_query(
             "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"]  # Do include events that are associted to incident by streaming filter
         }
 
-        argus_url = "{}/events/v1/aggregated/search".format(argus_baseurl.rstrip("/"))
-
         headers = {
             "Argus-API-Key": apikey
         }
 
+        # Do query in batches and yield events
         yield from argus.batch_query(
             "POST",
-            argus_url,
+            "{}/events/v1/aggregated/search".format(argus_baseurl.rstrip("/")),
             headers=headers,
             timeout=timeout,
             json_params=criteria,
@@ -116,15 +122,16 @@ def process(
         argus_baseurl: Text,
         apikey: Text,
         last_update: Optional[int],
-        timeout: int = 299,
+        timeout: int = 300,
         proxy_string: Optional[Text] = None,
         output_format: Text = "json") -> None:
-    """Read queries from stdin, resolve each one through passivedns
-    printing generic_uploader data to stdout"""
+    """ Get events associated to cases since last update """
 
+    # Last update is not specified, get last_update from file (cache)
     if not last_update:
         last_update = get_last_update()
 
+    # Get events
     for counter, event in enumerate(event_case_query(
             argus_baseurl,
             apikey,
@@ -132,10 +139,10 @@ def process(
             timeout=timeout, proxy_string=proxy_string)):
 
         # Result is sorted by lastUpdateTimestamp, so we update
-        # lastUpdateTimestamp to the value from the event
+        # last_update from the event
         last_update = cast(int, event["lastUpdatedTimestamp"])
 
-        # Handle facts from event
+        # Create facts from event
         argus.handle_argus_event(api, event, output_format)
 
         # For every Nth event, update last updated event
@@ -145,14 +152,17 @@ def process(
                 time.asctime(time.localtime(last_update / 1000))))
             update_last_update(last_update)
 
+    # Make sure last_update is updated
     update_last_update(last_update)
 
 
 def main() -> None:
     " main function "
 
-    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # Look for default ini file in "/etc/actworkers.ini" and
+    # ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
+
     args = worker.handle_args(parseargs())
 
     if not args.argus_apikey:
