@@ -13,7 +13,12 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
 
     api = act.api.Act("", None, "error")
 
-    argus.handle_argus_event(api, event, output_format="str")
+    argus.handle_argus_event(
+        api,
+        event,
+        content_props=["file.sha256", "process.sha256"],
+        hash_props=["file.md5", "process.md5", "file.sha1", "process.sha1", "file.sha512", "process.sha512"],
+        output_format="str")
 
     captured = capsys.readouterr()
     facts = set(captured.out.split("\n"))

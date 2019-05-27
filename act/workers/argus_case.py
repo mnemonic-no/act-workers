@@ -9,13 +9,13 @@ import sys
 import time
 import traceback
 from logging import debug, error, info
-from typing import Any, Dict, Generator, Optional, Text, cast
+from typing import Any, Dict, Generator, Optional, Text, cast, List
 
 import requests
 import urllib3
 
 import act.api
-from act.workers.libs import argus, worker
+from act.workers.libs import argus, mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -27,6 +27,10 @@ def parseargs() -> argparse.ArgumentParser:
                         default="https://api.mnemonic.no/", help="Argus API host")
     parser.add_argument('--argus-timeout', dest='timeout', type=int,
                         default=300, help="Timeout")
+    parser.add_argument('--content-props',
+                        default="file.sha256,process.sha256", help="Comma separated list of properties that represents a content object")
+    parser.add_argument('--hash-props',
+                        default="file.md5,process.md5,file.sha1,process.sha1,file.sha512,process.sha512", help="Comma separated list of properties that represents a hash")
     parser.add_argument('--last-update', type=int, help="Last updated timestamp (epoc, seconds). Default - use now-1w first time, and start on last retrieved event at next run.")
     parser.add_argument('--argus-apikey', dest='argus_apikey',
                         help="Argus API key")
@@ -72,7 +76,7 @@ def event_case_query(
         }
 
         # Do query in batches and yield events
-        yield from argus.batch_query(
+        yield from mnemonic.batch_query(
             "POST",
             "{}/events/v1/aggregated/search".format(argus_baseurl.rstrip("/")),
             headers=headers,
@@ -117,15 +121,12 @@ def update_last_update(last_update: int) -> None:
 
 
 # pylint: disable=too-many-arguments
-def process(
-        api: act.api.Act,
-        argus_baseurl: Text,
-        apikey: Text,
-        last_update: Optional[int],
-        timeout: int = 300,
-        proxy_string: Optional[Text] = None,
-        output_format: Text = "json") -> None:
+def process(api: act.api.Act) -> None:
     """ Get events associated to cases since last update """
+
+    last_update: Optional[int] = args.last_update
+    content_props: List[Text] = [prop.strip() for prop in args.content_props.split(",")]
+    hash_props: List[Text] = [prop.strip() for prop in args.hash_props.split(",")]
 
     # Last update is not specified, get last_update from file (cache)
     if not last_update:
@@ -133,17 +134,17 @@ def process(
 
     # Get events
     for counter, event in enumerate(event_case_query(
-            argus_baseurl,
-            apikey,
+            args.argus_baseurl,
+            args.apikey,
             last_update,
-            timeout=timeout, proxy_string=proxy_string)):
+            timeout=args.timeout, proxy_string=args.proxy_string)):
 
         # Result is sorted by lastUpdateTimestamp, so we update
         # last_update from the event
         last_update = cast(int, event["lastUpdatedTimestamp"])
 
         # Create facts from event
-        argus.handle_argus_event(api, event, output_format)
+        argus.handle_argus_event(api, event, content_props, hash_props, args.output_format)
 
         # For every Nth event, update last updated event
         if (counter % 1000) == 0:
@@ -170,16 +171,7 @@ def main() -> None:
         sys.exit(1)
 
     actapi = worker.init_act(args)
-
-    process(
-        actapi,
-        args.argus_baseurl,
-        args.argus_apikey,
-        args.last_update,
-        args.timeout,
-        args.proxy_string,
-        args.output_format)
-
+    process(actapi, args)
 
 def main_log_error() -> None:
     "Main function. Log all exceptions to error"

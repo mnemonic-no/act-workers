@@ -15,7 +15,7 @@ import requests
 import urllib3
 
 import act.api
-from act.workers.libs import argus, worker
+from act.workers.libs import mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -45,11 +45,11 @@ def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('PDNS enrichment')
     parser.add_argument('--pdns-baseurl', dest='pdns_baseurl',
-                        default="https://api.mnemonic.no/", help="Argus API host")
+                        default="https://api.mnemonic.no/", help="PassiveDNS API host")
     parser.add_argument('--pdns-timeout', dest='timeout', type=int,
                         default=299, help="Timeout")
     parser.add_argument('--pdns-apikey', dest='apikey',
-                        help="Argus API key")
+                        help="PassiveDNS API key")
 
     return parser
 
@@ -62,7 +62,7 @@ def pdns_query(
         proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
-    apikey - Argus API key with the passivedns role (minimum)
+    apikey - PassiveDNS API key with the passivedns role (minimum)
     query - string fqdn or ipv4/6
     timeout - default 299 seconds.
     """
@@ -80,7 +80,7 @@ def pdns_query(
         else:
             headers = {}
 
-        yield from argus.batch_query(
+        yield from mnemonic.batch_query(
             "GET",
             pdns_url,
             headers=headers,
