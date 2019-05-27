@@ -14,10 +14,6 @@ HASH_SHA1_RE = re.compile(r'^[0-9a-fA-F]{40}$')
 HASH_SHA256_RE = re.compile(r'^[0-9a-fA-F]{64}$')
 HASH_SHA5112_RE = re.compile(r'^[0-9a-fA-F]{128}$')
 
-HASH_CONTENT_PROPS = ["file.sha256", "process.sha256"]
-HASH_REPRESENTS_PROPS = ["file.md5", "process.md5", "file.sha1", "process.sha1", "file.sha512", "process.sha512"]
-
-
 def is_public_ip(ip_str: Text) -> bool:
     """ Return True if IP (str) is a valid, public IP """
     try:
