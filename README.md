@@ -16,14 +16,15 @@ sudo pip3 install act-workers
 
 This will install scripts for all workers:
 
+* act-argus-case
 * act-attack
 * act-country-regions
 * act-misp-feeds
 * act-mnemonic-pdns
 * act-scio
 * act-shadowserver-asn
-* act-vt
 * act-uploader
+* act-vt
 
 # Usage
 
