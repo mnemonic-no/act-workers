@@ -1,4 +1,4 @@
-""" Argus module to do authenticated requests towards the API and retrive all results """
+""" Common functions towards mnemonic API """
 
 from logging import debug
 from typing import Any, Dict, Generator, Optional, Text
