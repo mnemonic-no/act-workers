@@ -163,10 +163,13 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
                 client.fact("classifiedAs")
                 .source("content", "*")
                 .destination("tool", tool.name.lower()),
-                client.fact("observedIn", "incident")
+                client.fact("observedIn", "event")
                 .source("content", "*")
+                .destination("event", "*"),
+                client.fact("attributedTo", "incident")
+                .source("event", "*")
                 .destination("incident", "*"),
-                client.fact("attributedTo")
+                client.fact("attributedTo", "threatActor")
                 .source("incident", "*")
                 .destination("threatActor", group.name)
             )
@@ -184,8 +187,11 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
                 continue
 
             chain = act.api.fact.fact_chain(
-                client.fact("observedIn", "incident")
-                .source("technique", technique.name)
+                client.fact("classifiedAs", "technique")
+                .source("event", "*")
+                .destination("technique", technique.name),
+                client.fact("attributedTo", "incident")
+                .source("event", "*")
                 .destination("incident", "*"),
                 client.fact("attributedTo")
                 .source("incident", "*")
@@ -211,6 +217,14 @@ def add_software(client, attack: MemoryStore, output_format: Text = "json") -> L
     notify = []
 
     for software in attack.query([Filter("type", "in", ["tool", "malware"])]):
+        tool_name = software.name.lower()
+
+        # Tool category
+        handle_fact(
+            client.fact("category", software.type).source("tool", tool_name),
+            output_format=output_format
+        )
+
         if getattr(software, "revoked", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(software)
@@ -221,10 +235,15 @@ def add_software(client, attack: MemoryStore, output_format: Text = "json") -> L
             notify.append(software)
 
         for alias in getattr(software, "x_mitre_aliases", []):
-            if software.name.lower() != alias.lower():
+            if tool_name != alias.lower():
+                # Tool category (alias)
+                handle_fact(
+                    client.fact("category", software.type).source("tool", alias.lower()),
+                    output_format=output_format
+                )
                 handle_fact(
                     client.fact("alias")
-                    .bidirectional("tool", software.name.lower(), "tool", alias.lower()),
+                    .bidirectional("tool", tool_name, "tool", alias.lower()),
                     output_format=output_format
                 )
 
