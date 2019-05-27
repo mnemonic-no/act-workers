@@ -208,7 +208,13 @@ def get_default(action: argparse.Action, section: Dict, key: Text) -> Any:
     if action.nargs in (argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE):
         default = default.split()
 
-    if action.type is not None:
+    # If argument type is set and default is not None, enforce type
+    # Eg, for this argument specification
+    # parser.add_argument('--int-arg', type=int)
+    # --int-arg 2
+    # will give you int(2)
+    # If --int-arg is omitted, it will use None
+    if action.type is not None and default is not None:
         default = action.type(default)
 
     return default
