@@ -49,6 +49,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         api.fact("attributedTo", "incident").source("event", event_id).destination("incident", incident_id),
         api.fact("observedIn", "event").source("content", sha256).destination("event", event_id),
         api.fact("detects", "event").source("signature", signature).destination("event", event_id),
+        api.fact("name", "Infected host").source("incident", incident_id),
         api.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
         api.fact("componentOf").source("fqdn", "test-domain.com").destination("uri", uri),
         api.fact("componentOf").source("path", "/path.cgi").destination("uri", uri),

@@ -180,6 +180,9 @@ def handle_argus_event(
         handle_fact(
             actapi.fact("attributedTo", "incident").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
+        handle_fact(
+            actapi.fact("name", event["associatedCase"]["description"]).source("incident", case_id),
+            output_format=output_format)
 
     # Facts: hash/content -> event
     handle_argus_event_hash(actapi, properties, event_id, content_props, hash_props, output_format)
