@@ -121,7 +121,7 @@ def update_last_update(last_update: int) -> None:
 
 
 # pylint: disable=too-many-arguments
-def process(api: act.api.Act) -> None:
+def process(api: act.api.Act, args: argparse.Namespace) -> None:
     """ Get events associated to cases since last update """
 
     last_update: Optional[int] = args.last_update
@@ -135,7 +135,7 @@ def process(api: act.api.Act) -> None:
     # Get events
     for counter, event in enumerate(event_case_query(
             args.argus_baseurl,
-            args.apikey,
+            args.argus_apikey,
             last_update,
             timeout=args.timeout, proxy_string=args.proxy_string)):
 
