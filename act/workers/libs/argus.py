@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, warning
-from typing import Dict, Text, cast, List
+from typing import Dict, List, Text, cast
 
 import act.api
 import act.api.helpers
@@ -13,6 +13,7 @@ HASH_MD5_RE = re.compile(r'^[0-9a-fA-F]{32}$')
 HASH_SHA1_RE = re.compile(r'^[0-9a-fA-F]{40}$')
 HASH_SHA256_RE = re.compile(r'^[0-9a-fA-F]{64}$')
 HASH_SHA5112_RE = re.compile(r'^[0-9a-fA-F]{128}$')
+
 
 def is_public_ip(ip_str: Text) -> bool:
     """ Return True if IP (str) is a valid, public IP """
@@ -64,6 +65,14 @@ def handle_argus_event_hash(
                     actapi.fact("observedIn", "event")
                     .source("content", value)
                     .destination("event", event_id),
+                    output_format=output_format
+                )
+
+                # A SHA256 hash is represented by itself
+                handle_fact(
+                    actapi.fact("represents")
+                    .source("hash", value)
+                    .destination("content", value),
                     output_format=output_format
                 )
 
