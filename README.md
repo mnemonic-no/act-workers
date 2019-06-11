@@ -24,6 +24,7 @@ This will install scripts for all workers:
 * act-scio
 * act-shadowserver-asn
 * act-uploader
+* act-url-shorter-unpack
 * act-vt
 
 # Usage
