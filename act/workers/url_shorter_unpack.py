@@ -83,8 +83,8 @@ def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
             act.api.helpers.handle_uri(api, redirect, output_format=output_format)
             act.api.helpers.handle_fact(
                 api.fact("redirectsTo")
-                .source("url", query)
-                .destination("url", redirect), output_format=output_format)
+                .source("uri", query)
+                .destination("uri", redirect), output_format=output_format)
 
             query = redirect
 
