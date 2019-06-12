@@ -23,7 +23,7 @@ from logging import error
 import urllib3
 
 from act.workers.libs import worker
-from typing import Text, List
+from typing import Text, List, Dict
 from urllib.parse import urlparse
 import act
 import act.api
@@ -38,7 +38,7 @@ MAX_RECURSIVE = 10  # max number of redirects to attempt to follow (failsafe)
 
 
 def check_redirect(url: Text, url_shorteners: List[Text], user_agent: Text,
-                   timeout: int = 30) -> Text:
+                   proxies: Dict[Text, Text], timeout: int = 30) -> Text:
     """Take a url. Attempt to make it a http:// url and check if it is to one
     of the known url shortening services. If it is.. find the first redirect"""
 
@@ -54,7 +54,7 @@ def check_redirect(url: Text, url_shorteners: List[Text], user_agent: Text,
     if p.hostname not in url_shorteners:
         return org_url
 
-    r = requests.get(url, allow_redirects=False, timeout=timeout, headers=headers)
+    r = requests.get(url, allow_redirects=False, timeout=timeout, headers=headers, proxies=proxies)
     if r.is_redirect:
         return str(r.next.url)  # type: ignore
 
@@ -62,6 +62,7 @@ def check_redirect(url: Text, url_shorteners: List[Text], user_agent: Text,
 
 
 def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
+            proxies: Dict[Text, Text],
             output_format: Text = "json") -> None:
     """Read queries from stdin, resolve each one through passivedns printing
     generic_uploader data to stdout"""
@@ -73,7 +74,7 @@ def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
 
         n = 0
         while True:
-            redirect = check_redirect(query, shorteners, user_agent)
+            redirect = check_redirect(query, shorteners, user_agent, proxies)
             if redirect == query or n > MAX_RECURSIVE:
                 break
             n += 1
@@ -116,7 +117,12 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    process(actapi, shorteners, args.user_agent, args.output_format)
+    proxies = {
+        'http': args.proxy_string,
+        'https': args.proxy_string
+    } if args.proxy_string else None
+
+    process(actapi, shorteners, args.user_agent, proxies, args.output_format)
 
 
 def main_log_error() -> None:
