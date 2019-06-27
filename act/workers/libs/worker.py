@@ -132,6 +132,22 @@ Return path to cache_directory
     return cache_dir
 
 
+class AttrDict(dict):
+    "Dict like object that supports setattr() getattr()"
+
+    def __init__(self, **kwargs: Any) -> None:
+        super(AttrDict, self).__init__(kwargs)
+
+    def __setattr__(self, key: Any, value: Any) -> None:
+        self[key] = value
+
+    def __getattr__(self, key: Any) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
+
+
 def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
     """Fetch remote URL as JSON
     url (string):                    URL to fetch

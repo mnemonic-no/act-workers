@@ -1,0 +1,411 @@
+#!/usr/bin/env python3
+
+'''Veris worker for the ACT platform
+
+Copyright 2019 the ACT project <opensource@mnemonic.no>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+'''
+
+import argparse
+import csv
+import hashlib
+import io
+import json
+import os
+import re
+import sqlite3
+import sys
+import time
+import traceback
+import zipfile
+from logging import error, info, warning
+from typing import Any, Dict, Optional, Text, Tuple, Union, cast
+
+import requests
+
+import act.api
+from act.api.helpers import handle_fact
+from act.workers.libs import worker
+
+CACHE_DIR = worker.get_cache_dir("veris-worker", create=True)
+VERSION = "0.1"
+ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
+    "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
+
+
+def get_cn_map(filename: Text) -> Dict:
+    """
+    Read file with county information (ISO 3166 from filename)
+    return map with country code (e.g. "NO") as key, and Country
+    Name (e.g. "Norway" as value)
+    """
+    cn_map = {}
+
+    for c_map in json.loads(open(filename, "r", encoding="utf8").read()):
+        cn_map[c_map["alpha-2"]] = c_map["name"]
+
+    return cn_map
+
+
+def parseargs() -> argparse.ArgumentParser:
+    """ Parse arguments """
+    parser = worker.parseargs('Shadowserver ASN enrichment')
+    parser.add_argument(
+        '--country-codes',
+        help="Should point to file downloaded from {}".format(ISO_3166_FILE))
+    parser.add_argument('--veris-campaign', help='Read mapping of veris campaign from (CSV) file')
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--veris-url', help='Read veris incidents from URL.')
+    group.add_argument('--veris-file', help='Read veris incidents from File.')
+    group.add_argument('--hash-url-matching', help='Download and hash references matching regular expression', default=r'^(.*pdf)$')
+    group.add_argument('--stdin', action='store_true', help='query ip on stdin')
+    return parser
+
+
+def get_db_cache(cache_dir: str) -> sqlite3.Connection:
+    """
+    Open cache and return sqlite3 connection
+    Table is created if it does not exists
+    """
+    cache_file = os.path.join(cache_dir, "cache.sqlite3")
+    conn = sqlite3.connect(cache_file)
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS report_hash (
+        url string,
+        sha256 string,
+        added int)
+    """)
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS report_url on report_hash(url)")
+
+    return conn
+
+
+def query_cache(cache: sqlite3.Connection, url: Text) -> Tuple[Optional[Text]]:
+    """ Query cache for a specific url """
+    cursor = cache.cursor()
+
+    res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
+
+    if res:
+        return res[0]
+
+    return None
+
+
+def add_to_cache(cache: sqlite3.Connection, url: Text, report_hash: Text) -> None:
+    """ Add url/hash to cache """
+    cursor = cache.cursor()
+
+    info("{} -> {}".format(url, report_hash))
+
+    cursor.execute("INSERT INTO report_hash VALUES (?,?,?)", [url, report_hash, int(time.time())])
+    cache.commit()
+
+
+def url_sha256(config: Dict[Text, Any], url: Text) -> Optional[Text]:
+    "Retrieve URL and return sha256 of content. Returns None if request fails."
+
+    try:
+        req = requests.get(url, proxies=config.proxies, timeout=config.http_timeout)
+    except requests.exceptions.ReadTimeout:
+        info("Timeout downloading {}".format(url))
+        return None
+    except Exception as err:
+        info("Unknown exception downloading {}: {}".format(url, err))
+        return None
+
+    if req.status_code == 200:
+        return hashlib.sha256(req.content).hexdigest()
+
+    info("Failed downloading {}: {}".format(url, req.status_code))
+    return None
+
+
+def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+    """
+    Extract all references in incident. For each (URL-)reference, check whether we should
+    download the content and creaa a sha256 hash digest of it (must match config.hash_url_matching).
+    The sha256 hash is also cached locally.
+
+    """
+
+    # Split references by ";"
+    references = [ref.strip() for ref in incident.get("reference", "").split(";") if ref.strip()]
+
+    if references:
+        for ref in references:
+            if not re.search(config.hash_url_matching, ref):
+                continue
+
+            url_hash = query_cache(config.db_cache, ref)
+
+            if url_hash:
+                report_hash = url_hash[1]
+
+            else:
+                report_hash = url_sha256(config, ref)
+
+                add_to_cache(config.db_cache, ref, url_hash)
+
+            if report_hash:
+                handle_fact(
+                    config.actapi.fact("mentions", "incident")
+                    .source("report", report_hash)
+                    .destination("incident", incident_id),
+                    output_format=config.output_format
+                )
+
+
+def handle_organizations(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+    """
+
+    TODO
+
+    """
+    # victim_country_code = incident.get("victim", {}).get("country", [])
+    victim = incident.get("victim", {}).get("victim_id")
+
+    if not victim:
+        return
+
+    handle_fact(
+        config.actapi.fact("targets")
+        .source("incident", incident_id)
+        .destination("organization", victim),
+        output_format=config.output_format
+    )
+
+    for country_code in incident.get("victim", {}).get("country", []):
+        country = config.cn_map.get(country_code)
+
+        if country:
+            handle_fact(
+                config.actapi.fact("locatedIn")
+                .source("organization", victim)
+                .destination("country", country),
+                output_format=config.output_format
+            )
+
+
+def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+    """
+
+    TODO
+
+    """
+
+    # TODO - move to config?
+    include_variety = ["Activist", "Organized crime", "Nation-state"]
+
+    external_actor = incident.get("actor", {}).get("external", {})
+
+    # Varieties are "tags" on actors and we do not want to include all type of actors
+    # Make sure at least one of the varieties are in the list of the configured varieties to include
+    if any([variety in include_variety for variety in external_actor.get("variety", [])]):
+        threat_actors = [ta.strip() for ta in incident.get("actor", {}).get("external", {}).get("name", [])]
+
+        for ta in threat_actors:
+            handle_fact(
+                config.actapi.fact("attributedTo", "threatActor")
+                .source("incident", incident_id)
+                .destination("threatActor", ta),
+                output_format=config.output_format
+            )
+
+
+
+def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+    """
+
+    TODO
+
+    """
+
+    tools = [
+        malware.strip().lower()
+        for malware in incident.get("action", {}).get("malware", {}).get("name", "").split(";")
+        if malware and not "," in malware]
+
+    # TODO remove ","
+
+    for tool in tools:
+        chain = act.api.fact.fact_chain(
+            config.actapi.fact("classifiedAs")
+            .source("content", "*")
+            .destination("tool", tool),
+            config.actapi.fact("observedIn", "event")
+            .source("content", "*")
+            .destination("event", "*"),
+            config.actapi.fact("attributedTo", "incident")
+            .source("event", "*")
+            .destination("incident", incident_id),
+        )
+
+        for fact in chain:
+            handle_fact(fact, output_format=config.output_format)
+
+
+def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+    """
+    TODO
+    """
+
+    campaign = "VCDB-{}".format(incident["campaign_id"]) if incident.get("campaign_id") else None
+
+    if not campaign:
+        return
+
+    handle_fact(
+        config.actapi.fact("attributedTo", "campaign")
+        .source("incident", incident_id)
+        .destination("campaign", campaign),
+        output_format=config.output_format
+    )
+
+    name = config.campaign_map.get(format(campaign))
+
+    if name:
+        handle_fact(
+            config.actapi.fact("name", name)
+            .source("incident", incident_id),
+            output_format=config.output_format
+        )
+
+    else:
+        warning("No name found for campaign {}. Make sure veris-campaign is provided and the ID is included in csv fiel (without CSDB-prefix".format(campaign))
+
+
+def handle_incident(config: Dict[Text, Any], incident: Dict[Text, Any]) -> None:
+    """ handle veris incidents
+    """
+
+    incident_id = "VCDB-{}".format(incident["incident_id"])
+
+    handle_reports(config, incident, incident_id)
+    handle_organizations(config, incident, incident_id)
+    handle_tool(config, incident, incident_id)
+    handle_threat_actor(config, incident, incident_id)
+    handle_campaign(config, incident, incident_id)
+
+
+def handle_zip_file(config: Dict[Text, Any], zfile: Union[Text, io.BytesIO]) -> None:
+    "Read incident form all (json) files in zip file"
+
+    # ZipFile accepts both file names (str) and file like objects
+    zf = zipfile.ZipFile(zfile, "r")
+
+    for fileinfo in zf.infolist():
+        for incident in json.loads(zf.read(fileinfo).decode('utf-8')):
+            handle_incident(config, incident)
+
+
+def process(config: Dict[Text, Any]) -> None:
+    "Process inicdent from stdin, url or file. URL and File supports zipped files in zip-format."
+
+    # Read incident from stdin
+    if config.stdin:
+        for incident in sys.stdin.read().split("\n"):
+            handle_incident(config, json.loads(incident))
+
+    # Download incidents from URL
+    elif config.veris_url:
+        req = requests.get(config.veris_url, proxies=config.proxies, timeout=config.timeout)
+
+        if config.veris_url.endswith(".zip"):
+            handle_zip_file(config, io.BytesIO(req.content))
+
+        else:
+            for incident in req.json():
+                handle_incident(config, cast(Dict, incident))
+
+    # Read incidents from file
+    elif config.veris_file:
+        if config.veris_file.endswith(".zip"):
+            handle_zip_file(config, config.veris_file)
+
+        else:
+            with open(config.veris_file) as f:
+                for incident in json.loads(f.read()):
+                    handle_incident(config, cast(Dict, incident))
+
+    else:
+        error("Must specifiy either --stdin, --veris-url or --veris-file")
+
+
+def get_campaigns(filename: Optional[Text]) -> Optional[Dict[Text, Text]]:
+    """
+    TODO
+    """
+    if not filename:
+        return {}
+
+    with open(filename) as csvfile:
+        return {"VCDB-{}".format(row[0]): row[1] for row in csv.reader(csvfile, delimiter=',')}
+
+
+def main() -> None:
+    """main function"""
+
+    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # (or replace .config with $XDG_CONFIG_DIR if set)
+    args = worker.handle_args(parseargs())
+
+    if not args.country_codes:
+        sys.stderr.write("You must specify --country-codes on command line or in config file\n")
+        sys.exit(1)
+
+    if not os.path.isfile(args.country_codes):
+        sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
+        sys.exit(2)
+
+    # Configuration object that will be passed around to functions
+    config = worker.AttrDict(**{
+        # act API
+        "actapi": worker.init_act(args),
+
+        # Map of CC -> Country Name
+        "cn_map": get_cn_map(args.country_codes),
+
+        # Map of CC -> Country Name
+        "campaign_map": get_campaigns(args.veris_campaign),
+
+        # Cache of url > sha256
+        "db_cache": get_db_cache(CACHE_DIR),
+
+        "proxies": {
+            'http': args.proxy_string,
+            'https': args.proxy_string
+        } if args.proxy_string else None,
+
+    })
+
+    # Add all arguments from args to config
+    for key, val in vars(args).items():
+        config[key] = val
+
+    process(config)
+
+
+def main_log_error() -> None:
+    "Main function. Log all exceptions to error"
+    try:
+        main()
+    except Exception:
+        error("Unhandled exception: {}".format(traceback.format_exc()))
+        raise
+
+
+if __name__ == '__main__':
+    main_log_error()
