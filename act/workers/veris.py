@@ -67,6 +67,7 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--veris-campaign', help='Read mapping of veris campaign from (CSV) file')
     parser.add_argument('--threat-actor-variety', help='Varieties to use as Threat Actors', default="Activist, Organized crime, Nation-state")
     parser.add_argument('--hash-url-matching', help='Download and hash references matching regular expression', default=r'^(.*pdf)$')
+    parser.add_argument('--veris-prefix', help='Prefix for incidents and campaign IDs. E.g use "VCDB" for Veris Community Database"')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--veris-url', help='Read veris incidents from URL.')
@@ -84,7 +85,8 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     conn = sqlite3.connect(cache_file)
     cursor = conn.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS report_hash (
-        url string,
+        url string primary key,
+        status_code int,
         sha256 string,
         added int)
     """)
@@ -93,45 +95,56 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     return conn
 
 
-def query_cache(cache: sqlite3.Connection, url: Text) -> Optional[Tuple]:
+def query_cache(cache: sqlite3.Connection, url: Text) -> Tuple[Optional[int], Optional[Text], int]:
     """ Query cache for a specific url """
     cursor = cache.cursor()
 
     res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
 
-    if res:
-        return cast(Tuple, res[0])
+    if not res:
+        return (None, None, 0)
 
-    return None
+    return (res[0][1], res[0][2], res[0][3])
 
 
-def add_to_cache(cache: sqlite3.Connection, url: Text, report_hash: Text) -> None:
+def update_cache(cache: sqlite3.Connection, url: Text, status_code: Optional[int], report_hash: Optional[Text]) -> None:
     """ Add url/hash to cache """
     cursor = cache.cursor()
 
-    info("{} -> {}".format(url, report_hash))
+    # Check if url exists
+    res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
 
-    cursor.execute("INSERT INTO report_hash VALUES (?,?,?)", [url, report_hash, int(time.time())])
+    if res:
+        info("Update cache {}, {}, {}".format(url, status_code, report_hash))
+        cursor.execute(
+            "UPDATE report_hash set status_code = ?, report_hash = ?, added = ? where url = ?",
+            [status_code, report_hash, int(time.time()), url])
+    else:
+        info("Insert cache {} -> {}".format(url, report_hash))
+        cursor.execute("INSERT INTO report_hash VALUES (?,?,?,?)", [url, status_code, report_hash, int(time.time())])
+
     cache.commit()
 
 
-def url_sha256(config: Dict[Text, Any], url: Text) -> Optional[Text]:
+def url_sha256(config: Dict[Text, Any], url: Text) -> Tuple[Optional[int], Optional[Text]]:
     "Retrieve URL and return sha256 of content. Returns None if request fails."
+
+    sha256 = None
+    status_code = None
 
     try:
         req = requests.get(url, proxies=config["proxies"], timeout=config["http_timeout"])
+        status_code = req.status_code
+        if req.status_code == 200:
+            sha256 = hashlib.sha256(req.content).hexdigest()
+        else:
+            info("Failed downloading {}: {}".format(url, req.status_code))
     except requests.exceptions.ReadTimeout:
         info("Timeout downloading {}".format(url))
-        return None
     except Exception as err:  # pylint: disable=broad-except
         info("Unknown exception downloading {}: {}".format(url, err))
-        return None
 
-    if req.status_code == 200:
-        return hashlib.sha256(req.content).hexdigest()
-
-    info("Failed downloading {}: {}".format(url, req.status_code))
-    return None
+    return (status_code, sha256)
 
 
 def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
@@ -149,15 +162,22 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
             if not re.search(config["hash_url_matching"], ref):
                 continue
 
-            url_hash = query_cache(config["db_cache"], ref)
+            (status_code, report_hash, added) = query_cache(config["db_cache"], ref)
 
-            if url_hash:
-                report_hash = url_hash[1]
-
+            if report_hash and added > (time.time() - 3600 * 24 * 7):
+                # We haev an existing hash - recalculate after 1 week
+                info("URL in cache (with hash found): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
+            elif status_code == 404 and added > (time.time() - 3600 * 24 * 7):
+                # File was not found last time, try again after 1 week
+                info("URL in cache (last status was 404): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
+            elif added > (time.time() - 3600 * 24 * 2):
+                # Unknown error - try again after 2 days
+                info("URL in cache (Unknown status): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
             else:
-                report_hash = url_sha256(config, ref)
+                # Download report and get hash of content
+                (status_code, report_hash) = url_sha256(config, ref)
 
-                add_to_cache(config["db_cache"], ref, report_hash)
+                update_cache(config["db_cache"], ref, status_code, report_hash)
 
             if report_hash:
                 handle_fact(
@@ -206,6 +226,9 @@ def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], inci
 
     external_actor = incident.get("actor", {}).get("external", {})
 
+    if not external_actor:
+        return  # No threat actors
+
     # Varieties are "tags" on actors and we do not want to include all type of actors
     # Make sure at least one of the varieties are in the list of the configured varieties to include
     if any([variety in config["threat_actor_variety"] for variety in external_actor.get("variety", [])]):
@@ -253,7 +276,9 @@ def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident
     If we have a mapping from campaign (UUID) to name, a campaign -name-> will also be created
     """
 
-    campaign = "VCDB-{}".format(incident["campaign_id"]) if incident.get("campaign_id") else None
+    campaign = "{}-{}".format(
+        config["veris_prefix"],
+        incident["campaign_id"]) if incident.get("campaign_id") else None
 
     if not campaign:
         return
@@ -275,14 +300,14 @@ def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident
         )
 
     else:
-        warning("No name found for campaign {}. Make sure veris-campaign is provided and the ID is included in csv field (without CSDB-prefix".format(campaign))
+        warning("No name found for campaign {}. Make sure veris-campaign is provided and the ID is included in csv field (without prefix)".format(campaign))
 
 
 def handle_incident(config: Dict[Text, Any], incident: Dict[Text, Any]) -> None:
     """ handle veris incidents
     """
 
-    incident_id = "VCDB-{}".format(incident["incident_id"])
+    incident_id = "{}-{}".format(config["veris_prefix"], incident["incident_id"])
 
     handle_reports(config, incident, incident_id)
     handle_organizations(config, incident, incident_id)
@@ -310,37 +335,37 @@ def process(config: Dict[Text, Any]) -> None:
         for incident in sys.stdin.read().split("\n"):
             handle_incident(config, json.loads(incident))
 
-    # Download incidents from URL
-    elif config["veris_url"]:
-        req = requests.get(config["veris_url"], proxies=config["proxies"], timeout=config["timeout"])
+        return
 
+    # Download incidents from URL
+    if config["veris_url"]:
+        req = requests.get(config["veris_url"], proxies=config["proxies"], timeout=config["timeout"])
         if config["veris_url"].endswith(".zip"):
             handle_zip_file(config, io.BytesIO(req.content))
-
         else:
             for incident in req.json():
                 handle_incident(config, cast(Dict, incident))
+        return
 
     # Read incidents from file
-    elif config["veris_file"]:
+    if config["veris_file"]:
         if config["veris_file"].endswith(".zip"):
             handle_zip_file(config, config["veris_file"])
-
         else:
             with open(config["veris_file"]) as f:
                 for incident in json.loads(f.read()):
                     handle_incident(config, cast(Dict, incident))
+        return
 
-    else:
-        error("Must specifiy either --stdin, --veris-url or --veris-file")
+    error("Must specifiy either --stdin, --veris-url or --veris-file")
 
 
-def get_campaigns(filename: Text) -> Optional[Dict[Text, Text]]:
+def get_campaigns(veris_prefix: Text, filename: Text) -> Optional[Dict[Text, Text]]:
     """
     Get mapping from campaign (UUID) to name
     """
     with open(filename) as csvfile:
-        return {"VCDB-{}".format(row[0]): row[1] for row in csv.reader(csvfile, delimiter=',')}
+        return {"{}-{}".format(veris_prefix, row[0]): row[1] for row in csv.reader(csvfile, delimiter=',')}
 
 
 def main() -> None:
@@ -353,6 +378,12 @@ def main() -> None:
     if not args.country_codes:
         sys.stderr.write("You must specify --country-codes on command line or in config file\n")
         sys.exit(1)
+
+    if not args.veris_prefix:
+        sys.stderr.write("You must specify --veris-prefix\n")
+        sys.exit(1)
+
+    args.veris_prefix = args.veris_prefix.upper()
 
     if not os.path.isfile(args.country_codes):
         sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
@@ -369,7 +400,7 @@ def main() -> None:
         "cn_map": get_cn_map(args.country_codes),
 
         # Map of CC -> Country Name
-        "campaign_map": get_campaigns(args.veris_campaign) if args.veris_campaign else {},
+        "campaign_map": get_campaigns(args.veris_prefix, args.veris_campaign) if args.veris_campaign else {},
 
         # Cache of url > sha256
         "db_cache": get_db_cache(CACHE_DIR),
