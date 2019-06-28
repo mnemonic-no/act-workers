@@ -66,12 +66,12 @@ def parseargs() -> argparse.ArgumentParser:
         help="Should point to file downloaded from {}".format(ISO_3166_FILE))
     parser.add_argument('--veris-campaign', help='Read mapping of veris campaign from (CSV) file')
     parser.add_argument('--threat-actor-variety', help='Varieties to use as Threat Actors', default="Activist, Organized crime, Nation-state")
+    parser.add_argument('--hash-url-matching', help='Download and hash references matching regular expression', default=r'^(.*pdf)$')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--veris-url', help='Read veris incidents from URL.')
     group.add_argument('--veris-file', help='Read veris incidents from File.')
-    group.add_argument('--hash-url-matching', help='Download and hash references matching regular expression', default=r'^(.*pdf)$')
-    group.add_argument('--stdin', action='store_true', help='query ip on stdin')
+    group.add_argument('--stdin', action='store_true', help='Read veris incidents on stdin.')
     return parser
 
 
