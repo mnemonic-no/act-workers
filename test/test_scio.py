@@ -33,7 +33,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
         api.fact("componentOf").source("path", "/tlp.").destination("uri", uri),
         api.fact("scheme", "http").source("uri", uri),
         api.fact("mentions", "tool").source("report", report_id).destination("tool", "kore"),
-        api.fact("mentions", "email").source("report", report_id).destination("email", "redhat@gmail.com"),
+        api.fact("mentions", "uri").source("report", report_id).destination("uri", "email://redhat@gmail.com"),
         api.fact("mentions", "ipv4Network").source("report", report_id).destination("ipv4Network", "192.168.0.0/16"),
         api.fact("represents").source("hash", sha256).destination("content", sha256)
     ]

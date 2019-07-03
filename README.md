@@ -25,6 +25,7 @@ This will install scripts for all workers:
 * act-shadowserver-asn
 * act-uploader
 * act-url-shorter-unpack
+* act-veris
 * act-vt
 
 # Usage

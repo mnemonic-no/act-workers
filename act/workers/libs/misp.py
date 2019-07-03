@@ -199,7 +199,7 @@ def campaign_f(x: Text) -> Tuple[Text, Text]:
 
 
 def email_f(x: Text) -> Tuple[Text, Text]:
-    return "email", x.lower()
+    return "uri", "email://{}".format(x.lower())
 
 
 def person_f(x: Text) -> Tuple[Text, Text]:
