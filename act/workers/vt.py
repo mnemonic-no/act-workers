@@ -378,11 +378,11 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
 
+    actapi = worker.init_act(args)
+
     if not args.apikey:
         sys.stderr.write("You must specify --apikey on command line or in config file\n")
         sys.exit(1)
-
-    actapi = worker.init_act(args)
 
     in_data = sys.stdin.read().strip()
 
