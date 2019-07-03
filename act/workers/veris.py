@@ -374,6 +374,7 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
+    actapi = worker.init_act(args)
 
     if not args.country_codes:
         sys.stderr.write("You must specify --country-codes on command line or in config file\n")
@@ -394,7 +395,7 @@ def main() -> None:
     # Configuration object that will be passed around to functions
     config = {
         # act API
-        "actapi": worker.init_act(args),
+        "actapi": actapi,
 
         # Map of CC -> Country Name
         "cn_map": get_cn_map(args.country_codes),
