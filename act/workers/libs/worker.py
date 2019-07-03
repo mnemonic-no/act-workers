@@ -5,8 +5,9 @@ import inspect
 import os
 import smtplib
 import socket
+import sys
 from email.mime.text import MIMEText
-from logging import error
+from logging import error, warning
 from typing import Any, Optional, Text
 
 import requests
@@ -69,6 +70,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Output format for fact (default=json)")
     parser.add_argument('--http-user', dest='http_user', help="ACT HTTP Basic Auth user")
     parser.add_argument('--http-password', dest='http_password', help="ACT HTTP Basic Auth password")
+    parser.add_argument('--disabled', dest='disabled', action="store_true", help="Worker is disabled (exit immediately)")
     return parser
 
 
@@ -99,13 +101,20 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
     if args.cert_file:
         requests_kwargs["verify"] = args.cert_file
 
-    return act.api.Act(
+    api = act.api.Act(
         args.act_baseurl,
         args.user_id,
         args.loglevel,
         args.logfile,
         worker_name(),
         requests_common_kwargs=requests_kwargs)
+
+    # This check is done here to make sure logging is set up
+    if args.disabled:
+        warning("Worker is disabled")
+        sys.exit(0)
+
+    return api
 
 
 def get_cache_dir(cache_id: str, create: bool = False) -> str:
