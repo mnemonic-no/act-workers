@@ -19,7 +19,7 @@ EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
 
 
 EXTRACT_INDICATORS = ["md5", "sha1", "sha256",
-                      "fqdn", "ipv4", "ipv6", "email",
+                      "fqdn", "ipv4", "ipv6",
                       "msid", "cve", "uri", "ipv4net"]
 
 SCIO_GEONAMES_ACT_MAP = {
@@ -103,6 +103,21 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
             .destination("content", sha256),
             output_format
         )
+
+    # Add emails as URI components
+    for email in list(set(indicators.get("email", []))):
+        try:
+            email_uri = "email://{}".format(email)
+            handle_uri(actapi, email_uri, output_format=output_format)
+
+            handle_fact(
+                actapi.fact("mentions", "uri")
+                .source("report", report_id)
+                .destination("uri", email_uri),
+                output_format
+            )
+        except act.api.schema.MissingField:
+            error("Unable to create facts from uri: {}".format(email_uri))
 
     # Add all URI components
     for uri in list(set(indicators.get("uri", []))):
