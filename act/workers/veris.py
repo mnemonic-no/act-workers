@@ -19,6 +19,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 import argparse
 import csv
+import datetime
 import hashlib
 import io
 import json
@@ -95,16 +96,16 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     return conn
 
 
-def query_cache(cache: sqlite3.Connection, url: Text) -> Tuple[Optional[int], Optional[Text], int]:
+def query_cache(cache: sqlite3.Connection, url: Text) -> Tuple[Optional[int], Optional[Text], datetime.datetime]:
     """ Query cache for a specific url """
     cursor = cache.cursor()
 
     res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
 
     if not res:
-        return (None, None, 0)
+        return (None, None, datetime.datetime.utcfromtimestamp(0))
 
-    return (res[0][1], res[0][2], res[0][3])
+    return (res[0][1], res[0][2], datetime.datetime.utcfromtimestamp(res[0][3]))
 
 
 def update_cache(cache: sqlite3.Connection, url: Text, status_code: Optional[int], report_hash: Optional[Text]) -> None:
@@ -117,11 +118,11 @@ def update_cache(cache: sqlite3.Connection, url: Text, status_code: Optional[int
     if res:
         info("Update cache {}, {}, {}".format(url, status_code, report_hash))
         cursor.execute(
-            "UPDATE report_hash set status_code = ?, report_hash = ?, added = ? where url = ?",
+            "UPDATE report_hash set status_code = ?, sha256 = ?, added = ? where url = ?",
             [status_code, report_hash, int(time.time()), url])
     else:
         info("Insert cache {} -> {}".format(url, report_hash))
-        cursor.execute("INSERT INTO report_hash VALUES (?,?,?,?)", [url, status_code, report_hash, int(time.time())])
+        cursor.execute("INSERT INTO report_hash VALUES (?,?,?,?)", [url, status_code, report_hash, time.time()])
 
     cache.commit()
 
@@ -164,14 +165,13 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
 
             (status_code, report_hash, added) = query_cache(config["db_cache"], ref)
 
-            if report_hash and added > (time.time() - 3600 * 24 * 7):
-                # We haev an existing hash - recalculate after 1 week
+            now = datetime.datetime.now()
+
+            if report_hash and added > now - datetime.timedelta(days=7):
                 info("URL in cache (with hash found): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
-            elif status_code == 404 and added > (time.time() - 3600 * 24 * 7):
-                # File was not found last time, try again after 1 week
+            elif status_code == 404 and added > now - datetime.timedelta(days=7):
                 info("URL in cache (last status was 404): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
-            elif added > (time.time() - 3600 * 24 * 2):
-                # Unknown error - try again after 2 days
+            elif added > now - datetime.timedelta(days=2):
                 info("URL in cache (Unknown status): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
             else:
                 # Download report and get hash of content
