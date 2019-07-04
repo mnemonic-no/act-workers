@@ -1,6 +1,6 @@
 """ Common functions towards mnemonic API """
 
-from logging import debug
+from logging import debug, error
 from typing import Any, Dict, Generator, Optional, Text
 
 import requests
@@ -44,11 +44,20 @@ def batch_query(
         debug("Executing search: {}, json={}, options={}".format(url, json_params, options))
         req = requests.request(method, url, json=json_params, **options)  # type:ignore
 
-        if not req.status_code == 200:
-            errmsg = "status_code: {0.status_code}: {0.content}"
-            raise worker.UnknownResult(errmsg.format(req))
+        try:
+            res = req.json()
+        except ValueError:
+            raise worker.UnknownResult("Illegal JSON, {}, {}".format(req, req.content))
 
-        res = req.json()
+        if req.status_code == 402:
+            if any([msg.get("message") == "Resource limit exceeded" for msg in res.get("messages")]):
+                error("Resource limit exceeded: {}".format(res))
+                return
+            raise worker.UnknownResult("Unknown 402: {}".format(req.content))
+
+        if not req.status_code == 200:
+            raise worker.UnknownResult("Unknown error: {}, {}".format(req, req.content))
+
         data = res["data"]
         count = res.get("count", 0)
 
