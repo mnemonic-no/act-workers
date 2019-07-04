@@ -46,7 +46,7 @@ def batch_query(
 
         try:
             res = req.json()
-        except Exception:
+        except ValueError:
             raise worker.UnknownResult("Illegal JSON, {}, {}".format(req, req.content))
 
         if req.status_code == 402:
