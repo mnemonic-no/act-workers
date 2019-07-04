@@ -112,8 +112,7 @@ def main() -> None:
     try:
         shorteners = [x.strip() for x in args.url_shorteners.split(",")]
     except AttributeError:
-        sys.stderr.write("Empty list of shorteners?\n")
-        sys.exit(1)
+        worker.fatal("Empty list of shorteners?")
 
     actapi = worker.init_act(args)
 

@@ -167,8 +167,7 @@ def main() -> None:
     args = worker.handle_args(parseargs())
 
     if not args.argus_apikey:
-        sys.stderr.write("You must specify --apikey on command line or in config file\n")
-        sys.exit(1)
+        worker.fatal("You must specify --apikey on command line or in config file")
 
     actapi = worker.init_act(args)
     process(actapi, args)

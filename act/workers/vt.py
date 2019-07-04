@@ -292,7 +292,7 @@ Return: The URI added
                                         output_format=output_format)
 
     except act.api.base.ResponseError as e:
-        sys.stderr.write(str(e))
+        error(str(e))
 
     return my_uri
 
@@ -381,8 +381,7 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not args.apikey:
-        sys.stderr.write("You must specify --apikey on command line or in config file\n")
-        sys.exit(1)
+        worker.fatal("You must specify --apikey on command line or in config file")
 
     in_data = sys.stdin.read().strip()
 
