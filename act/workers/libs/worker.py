@@ -141,6 +141,13 @@ Return path to cache_directory
     return cache_dir
 
 
+def fatal(message: Text, exit_code: int = 1) -> None:
+    "Send error to error() and stderr() and exit with exit_code"
+    sys.stderr.write(message.strip() + "\n")
+    error(message.strip())
+    sys.exit(exit_code)
+
+
 def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
     """Fetch remote URL as JSON
     url (string):                    URL to fetch
