@@ -384,6 +384,7 @@ def main() -> None:
 
     if not (args.veris_url or args.veris_file or args.stdin):
         sys.stderr.write("You must specify --veris-url, --veris-file or --stdin\n")
+        sys.exit(1)
 
     args.veris_prefix = args.veris_prefix.upper()
 
