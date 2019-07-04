@@ -375,22 +375,18 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not args.country_codes:
-        sys.stderr.write("You must specify --country-codes on command line or in config file\n")
-        sys.exit(1)
+        worker.fatal("You must specify --country-codes on command line or in config file")
 
     if not args.veris_prefix:
-        sys.stderr.write("You must specify --veris-prefix\n")
-        sys.exit(1)
+        worker.fatal("You must specify --veris-prefix")
 
     if not (args.veris_url or args.veris_file or args.stdin):
-        sys.stderr.write("You must specify --veris-url, --veris-file or --stdin\n")
-        sys.exit(1)
+        worker.fatal("You must specify --veris-url, --veris-file or --stdin")
 
     args.veris_prefix = args.veris_prefix.upper()
 
     if not os.path.isfile(args.country_codes):
-        sys.stderr.write("Country/region file not found at specified location: {}\n".format(args.country_codes))
-        sys.exit(2)
+        worker.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
 
     args.threat_actor_variety = [variety.strip() for variety in args.threat_actor_variety.split(",")]
 
