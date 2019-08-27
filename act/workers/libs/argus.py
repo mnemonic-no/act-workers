@@ -23,6 +23,16 @@ def is_public_ip(ip_str: Text) -> bool:
         return False
 
 
+def refang_uri(uri: Text) -> Text:
+    """ Return refanged uri, e.g. hxxp://www[.]mnemonic[.]no -> http://www.mnemonic.no """
+
+    return re.sub(r"^hxxp", "http", uri, flags=re.I) \
+        .replace("[.]", ".") \
+        .replace("(.)", ".") \
+        .replace("{.}", ".") \
+        .replace("%2f", "/")
+
+
 def handle_fact(fact: act.api.fact.Fact, output_format: Text) -> None:
     """ wrap act.helpers.handle_fact and log all errors (and continue) """
     try:
@@ -206,13 +216,23 @@ def handle_argus_event(
         actapi.fact("detects", "event").source("signature", signature).destination("event", event_id),
         output_format=output_format)
 
-    # Fact: uri -> event
+    uris = set()
+
     if event["uri"]:
-        handle_uri(actapi, event["uri"], output_format=output_format)
+        uris.add(refang_uri(event["uri"]))
+
+    if properties["request.uri"]:
+        for uri in properties["request.uri"].split("\n"):
+            uris.add(refang_uri(uri))
+
+    # Fact: uri -> event. uri can be either in top level field "uri" or property "request.uri"
+    for uri in uris:
+        handle_uri(actapi, uri, output_format=output_format)
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", event["uri"]).destination("event", event_id),
+            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
             output_format=output_format)
-    else:
+
+    if not uris:
         # Only construct URI from fqdn if we do not have an uri on the event. The URI
         # Is normally more correct (e.g. scheme and path will be more correctly specified)
         # Facts: uri fqdn -> uri ->  event
