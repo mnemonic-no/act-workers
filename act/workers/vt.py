@@ -164,7 +164,7 @@ def handle_hexdigest(
 
         # toolType may be None (as not all nameing schemes include toolType)
         if toolType:
-            act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'v')
+            act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
                                         .source('tool', name)
                                         .destination('toolType', toolType),
                                         output_format=output_format)
