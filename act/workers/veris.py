@@ -293,7 +293,7 @@ def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident
     if name:
         handle_fact(
             config["actapi"].fact("name", name)
-            .source("incident", incident_id),
+            .source("campaign", campaign),
             output_format=config["output_format"]
         )
 
