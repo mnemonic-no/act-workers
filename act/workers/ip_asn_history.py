@@ -36,8 +36,8 @@ def lookup_ip(ip: Text, proxy: Optional[Text] = None) -> List[Tuple[Text, Text]]
     """Lookup historc ASN registration for an IP against the CIRCL online ASN database"""
 
     proxies = {
-        'http_proxy': proxy,
-        'https_proxy': proxy} if proxy else None
+        'http': proxy,
+        'https': proxy} if proxy else None
 
     r = requests.get('https://bgpranking-ng.circl.lu/ipasn_history/?ip={}'.format(ip), proxies=proxies)
 
