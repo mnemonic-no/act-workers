@@ -75,6 +75,9 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         # This fact should not exist, since we only add IPs with public addresses
         api.fact("observedIn", "event").source("uri", "tcp://192.168.1.1").destination("event", event_id),
 
+        # This fact should not exist, since it does not have scheme
+        api.fact("observedIn", "event").source("uri", "illegal-url.com").destination("event", event_id),
+
         # We have URI, so this should not be constructed from the fqdn
         api.fact("observedIn", "event").source("uri", "tcp://test-domain.com").destination("event", event_id),
 

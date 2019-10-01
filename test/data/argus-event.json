@@ -60,7 +60,7 @@
     "device.product": "http",
     "file.sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b\nbogus",
     "file.md5": "68b329da9893e34099c7d8ad5cb9c940",
-    "request.uri": "hXXp://test-domain2[.]com/path.cgi\nhttp://test-domain3.com/abc"
+    "request.uri": "hXXp://test-domain2[.]com/path.cgi\nhttp://test-domain3.com/abc\nillegal-url.com"
   },
   "protocol": "tcp",
   "severity": "medium",

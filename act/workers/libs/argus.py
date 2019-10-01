@@ -3,7 +3,7 @@
 import re
 from collections import defaultdict
 from ipaddress import AddressValueError, IPv4Address
-from logging import debug, error, warning
+from logging import debug, error, info, warning
 from typing import Dict, List, Text, cast
 
 import act.api
@@ -43,14 +43,21 @@ def handle_fact(fact: act.api.fact.Fact, output_format: Text) -> None:
         error("Error adding fact (missing field): {}".format(fact, exc_info=True))
 
 
-def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> None:
-    """ wrap act.helpers.handle_uri and log all errors (and continue) """
+def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> bool:
+    """ wrap act.helpers.handle_uri and log all errors. Return True on success and False on failure """
     try:
         act.api.helpers.handle_uri(actapi, uri, output_format)
+    except act.api.base.ValidationError:
+        info("Error adding uri (ValidationError): {}".format(uri, exc_info=True))
+        return False
     except act.api.base.ResponseError:
         error("Error adding uri (ResponseError): {}".format(uri, exc_info=True))
+        return False
     except act.api.schema.MissingField:
         warning("Error adding uri (missing field): {}".format(uri, exc_info=True))
+        return False
+
+    return True
 
 
 def handle_argus_event_hash(
@@ -148,7 +155,8 @@ def handle_argus_event_ip(
         uri = "{}://{}".format(scheme, address)
 
         # Facts: uri components
-        handle_uri(actapi, uri, output_format=output_format)
+        if not handle_uri(actapi, uri, output_format=output_format):
+            continue
 
         # Fact: uri -> event
         handle_fact(
@@ -170,7 +178,8 @@ def handle_argus_event_fqdn(
         uri = "{}://{}".format(scheme, event["domain"]["fqdn"])
 
         # Facts, uri components
-        handle_uri(actapi, uri, output_format=output_format)
+        if not handle_uri(actapi, uri, output_format=output_format):
+            return
 
         # Fact: uri -> event
         handle_fact(
@@ -227,7 +236,9 @@ def handle_argus_event(
 
     # Fact: uri -> event. uri can be either in top level field "uri" or property "request.uri"
     for uri in uris:
-        handle_uri(actapi, uri, output_format=output_format)
+        if not handle_uri(actapi, uri, output_format=output_format):
+            continue
+
         handle_fact(
             actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
             output_format=output_format)
