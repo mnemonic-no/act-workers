@@ -4,7 +4,6 @@
 
 import argparse
 import json
-import os
 import sys
 import traceback
 from logging import error, warning
@@ -116,6 +115,8 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
                 .destination("uri", email_uri),
                 output_format
             )
+        except act.api.base.ValidationError as err:
+            warning("Creating fact from {} failes du to URI validation {}".format(email_uri, err))
         except act.api.schema.MissingField:
             warning("Unable to create facts from uri: {}".format(email_uri))
 
@@ -123,6 +124,8 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     for uri in list(set(indicators.get("uri", []))):
         try:
             handle_uri(actapi, uri, output_format=output_format)
+        except act.api.base.ValidationError as err:
+            warning("Creating fact from {} failes du to URI validation {}".format(email_uri, err))
         except act.api.schema.MissingField:
             warning("Unable to create facts from uri: {}".format(uri))
 

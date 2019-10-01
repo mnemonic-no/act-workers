@@ -18,7 +18,7 @@ PERFORMANCE OF THIS SOFTWARE.
 """
 
 
-from logging import error
+from logging import error, warning
 
 import urllib3
 
@@ -79,8 +79,18 @@ def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
                 break
             n += 1
 
-            act.api.helpers.handle_uri(api, query, output_format=output_format)
-            act.api.helpers.handle_uri(api, redirect, output_format=output_format)
+            try:
+                act.api.helpers.handle_uri(api, query, output_format=output_format)
+            except act.api.base.ValidationError as err:
+                warning("Unable to add {0} [{1}]".format(query, err))
+                break
+
+            try:
+                act.api.helpers.handle_uri(api, redirect, output_format=output_format)
+            except act.api.base.ValidationError as err:
+                warning("Unable to add {0} [{1}]".format(redirect, err))
+                break
+
             act.api.helpers.handle_fact(
                 api.fact("redirectsTo")
                 .source("uri", query)
