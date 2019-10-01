@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import traceback
-from logging import error
+from logging import error, warning
 
 import act.api
 from act.workers.libs import worker
@@ -24,6 +24,8 @@ def main(actapi: act.api.Act) -> None:
         fact = actapi.fact(**data)
         try:
             fact.add()
+        except act.api.base.ValidationError as err:
+            warning("ValidationError while storing objects: %s" % err)
         except act.api.base.ResponseError as err:
             error("ResponseError while storing objects: %s" % err)
 

@@ -89,7 +89,7 @@ def pdns_query(
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
+        warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
 def process(

@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import traceback
-from logging import error
+from logging import error, warning
 from typing import Dict, List, Text, cast
 
 import act.api
@@ -117,14 +117,14 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
                 output_format
             )
         except act.api.schema.MissingField:
-            error("Unable to create facts from uri: {}".format(email_uri))
+            warning("Unable to create facts from uri: {}".format(email_uri))
 
     # Add all URI components
     for uri in list(set(indicators.get("uri", []))):
         try:
             handle_uri(actapi, uri, output_format=output_format)
         except act.api.schema.MissingField:
-            error("Unable to create facts from uri: {}".format(uri))
+            warning("Unable to create facts from uri: {}".format(uri))
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:

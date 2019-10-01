@@ -50,7 +50,7 @@ def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> None:
     except act.api.base.ResponseError:
         error("Error adding uri (ResponseError): {}".format(uri, exc_info=True))
     except act.api.schema.MissingField:
-        error("Error adding uri (missing field): {}".format(uri, exc_info=True))
+        warning("Error adding uri (missing field): {}".format(uri, exc_info=True))
 
 
 def handle_argus_event_hash(
