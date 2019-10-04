@@ -61,6 +61,10 @@ def batch_query(
         data = res["data"]
         count = res.get("count", 0)
 
+        if type(data) != type([]):
+            yield data
+            break
+
         yield from data
 
         debug("count={}".format(count))
@@ -69,3 +73,18 @@ def batch_query(
 
         if offset >= count:
             break
+
+
+def single_query(
+        method: Text,
+        url: Text,
+        headers: Optional[Dict] = None,
+        timeout: int = 299,
+        json_params: Optional[Dict] = None,
+        proxy_string: Optional[Text] = None) -> Dict[Text, Any]:
+    """ Execute query for single result, returns result """
+
+    for res in batch_query(method, url, headers, timeout, json_params, proxy_string):
+        return res
+
+    raise worker.UnknownResult("no data")
