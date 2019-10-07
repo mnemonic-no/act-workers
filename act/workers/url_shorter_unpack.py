@@ -103,7 +103,7 @@ def parseargs() -> argparse.Namespace:
     parser = worker.parseargs("URL unshortener worker")
 
     parser.add_argument("--url-shorteners", dest="url_shorteners",
-                        default="adf.ly, bit.ly, bitly.com, evassmat.com, goo.gl, is.gd, lnkd.in, www.t2m.io, tiny.cc, tinyurl.com, x.co",
+                        default="adf.ly, bit.ly, bitly.com, cc.uz, evassmat.com, goo.gl, is.gd, lnkd.in, smarturl.it, www.t2m.io, tiny.cc, tinyurl.com, x.co",
                         help="Comma separated list of shortener-domains")
     parser.add_argument("--user-agent", dest="user_agent",
                         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
