@@ -84,7 +84,11 @@ def single_query(
         proxy_string: Optional[Text] = None) -> Dict[Text, Any]:
     """ Execute query for single result, returns result """
 
-    for res in batch_query(method, url, headers, timeout, json_params, proxy_string):
-        return res
+    try:
+        for res in batch_query(method, url, headers, timeout, json_params, proxy_string):
+            return res
+    except worker.UnknownResult as e:
+        if not str(e).startswith("Unknown error: 404"):
+            raise
 
-    raise worker.UnknownResult("no data")
+    raise worker.NoResult()
