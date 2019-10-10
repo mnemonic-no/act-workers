@@ -78,6 +78,8 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     parser.add_argument('--http-user', dest='http_user', help="ACT HTTP Basic Auth user")
     parser.add_argument('--http-password', dest='http_password', help="ACT HTTP Basic Auth password")
     parser.add_argument('--disabled', dest='disabled', action="store_true", help="Worker is disabled (exit immediately)")
+    parser.add_argument('--origin-name', dest='origin_name', help="Origin name. This name must be defined in the platform")
+    parser.add_argument('--origin-id', dest='origin_id', help="Origin id. This must be the UUID of the origin in the platform")
     return parser
 
 
@@ -114,7 +116,9 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
         args.loglevel,
         args.logfile,
         worker_name(),
-        requests_common_kwargs=requests_kwargs)
+        requests_common_kwargs=requests_kwargs,
+        origin_name=args.origin_name,
+        origin_id=args.origin_id)
 
     # This check is done here to make sure logging is set up
     if args.disabled:
