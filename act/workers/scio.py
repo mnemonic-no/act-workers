@@ -125,7 +125,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         try:
             handle_uri(actapi, uri, output_format=output_format)
         except act.api.base.ValidationError as err:
-            warning("Creating fact from {} failes du to URI validation {}".format(email_uri, err))
+            warning("Creating fact from {} failes du to URI validation {}".format(uri, err))
         except act.api.schema.MissingField:
             warning("Unable to create facts from uri: {}".format(uri))
 
