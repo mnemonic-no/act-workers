@@ -163,13 +163,13 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
                 client.fact("classifiedAs")
                 .source("content", "*")
                 .destination("tool", tool.name.lower()),
-                client.fact("observedIn", "event")
+                client.fact("observedIn")
                 .source("content", "*")
                 .destination("event", "*"),
-                client.fact("attributedTo", "incident")
+                client.fact("attributedTo")
                 .source("event", "*")
                 .destination("incident", "*"),
-                client.fact("attributedTo", "threatActor")
+                client.fact("attributedTo")
                 .source("incident", "*")
                 .destination("threatActor", group.name)
             )
@@ -187,10 +187,10 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
                 continue
 
             chain = act.api.fact.fact_chain(
-                client.fact("classifiedAs", "technique")
+                client.fact("classifiedAs")
                 .source("event", "*")
                 .destination("technique", technique.name),
-                client.fact("attributedTo", "incident")
+                client.fact("attributedTo")
                 .source("event", "*")
                 .destination("incident", "*"),
                 client.fact("attributedTo")

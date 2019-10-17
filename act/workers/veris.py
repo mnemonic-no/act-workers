@@ -179,7 +179,7 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
 
             if report_hash:
                 handle_fact(
-                    config["actapi"].fact("mentions", "incident")
+                    config["actapi"].fact("mentions")
                     .source("report", report_hash)
                     .destination("incident", incident_id),
                     output_format=config["output_format"]
@@ -234,7 +234,7 @@ def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], inci
 
         for ta in threat_actors:
             handle_fact(
-                config["actapi"].fact("attributedTo", "threatActor")
+                config["actapi"].fact("attributedTo")
                 .source("incident", incident_id)
                 .destination("threatActor", ta),
                 output_format=config["output_format"]
@@ -256,10 +256,10 @@ def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id:
             config["actapi"].fact("classifiedAs")
             .source("content", "*")
             .destination("tool", tool),
-            config["actapi"].fact("observedIn", "event")
+            config["actapi"].fact("observedIn")
             .source("content", "*")
             .destination("event", "*"),
-            config["actapi"].fact("attributedTo", "incident")
+            config["actapi"].fact("attributedTo")
             .source("event", "*")
             .destination("incident", incident_id),
         )
@@ -282,7 +282,7 @@ def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident
         return
 
     handle_fact(
-        config["actapi"].fact("attributedTo", "campaign")
+        config["actapi"].fact("attributedTo")
         .source("incident", incident_id)
         .destination("campaign", campaign),
         output_format=config["output_format"]

@@ -56,7 +56,7 @@ def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: 
     for value in list(set(object_values)):
         try:
             handle_fact(
-                actapi.fact("mentions", object_type)
+                actapi.fact("mentions")
                 .source("report", report_id)
                 .destination(object_type, value),
                 output_format
@@ -110,7 +110,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
             handle_uri(actapi, email_uri, output_format=output_format)
 
             handle_fact(
-                actapi.fact("mentions", "uri")
+                actapi.fact("mentions")
                 .source("report", report_id)
                 .destination("uri", email_uri),
                 output_format

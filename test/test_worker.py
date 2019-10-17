@@ -17,7 +17,7 @@ def test_args_origin_name(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
 
     assert actapi.config.origin_name == origin_name
 
-    fact = actapi.fact("mentions", "fqdn") \
+    fact = actapi.fact("mentions") \
         .source("report", "xyz")\
         .destination("fqdn", "test.com")
 
@@ -36,7 +36,7 @@ def test_args_origin_id(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
 
     assert actapi.config.origin_id == origin_id
 
-    fact = actapi.fact("mentions", "fqdn") \
+    fact = actapi.fact("mentions") \
         .source("report", "xyz")\
         .destination("fqdn", "test.com")
 

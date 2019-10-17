@@ -222,13 +222,13 @@ def handle_ip(
     for (ip, res) in asn_query(ip_query, cache):
         # Remove everything after first occurence of "," in isp name
         handle_fact(
-            actapi.fact("memberOf", "ipv4Network")
+            actapi.fact("memberOf")
             .source("ipv4", ip)
             .destination("ipv4Network", res.prefix),
             output_format=output_format
         )
         handle_fact(
-            actapi.fact("memberOf", "asn")
+            actapi.fact("memberOf")
             .source("ipv4Network", res.prefix)
             .destination("asn", res.asn),
             output_format=output_format

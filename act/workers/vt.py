@@ -151,20 +151,20 @@ def handle_hexdigest(
     results = response['results']
     content_id = results['sha256']
     for hash in ['sha1', 'sha256', 'md5']:
-        act.api.helpers.handle_fact(actapi.fact('represents', 'vt')
+        act.api.helpers.handle_fact(actapi.fact('represents')
                                     .source('hash', results[hash])
                                     .destination('content', content_id),
                                     output_format=output_format)
 
     for name, toolType in names:
-        act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
+        act.api.helpers.handle_fact(actapi.fact('classifiedAs')
                                     .source('content', content_id)
                                     .destination('tool', name),
                                     output_format=output_format)
 
         # toolType may be None (as not all nameing schemes include toolType)
         if toolType:
-            act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
+            act.api.helpers.handle_fact(actapi.fact('classifiedAs')
                                         .source('tool', name)
                                         .destination('toolType', toolType),
                                         output_format=output_format)
@@ -172,14 +172,14 @@ def handle_hexdigest(
     if 'detected_urls' in results:
         for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
             my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
-            act.api.helpers.handle_fact(actapi.fact('at', 'vt')
+            act.api.helpers.handle_fact(actapi.fact('at')
                                         .source('content', content_id)
                                         .destination('uri', my_uri),
                                         output_format=output_format)
     if 'undetected_urls' in results:
         for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
             my_uri = add_uri(actapi, 'fqdn', u.netloc, list(u))
-            act.api.helpers.handle_fact(actapi.fact('at', 'vt')
+            act.api.helpers.handle_fact(actapi.fact('at')
                                         .source('content', content_id)
                                         .destination('uri', my_uri),
                                         output_format=output_format)
@@ -259,7 +259,7 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format
         for sample in results['detected_communicating_samples']:
             my_uri = add_uri(actapi, ip_type, ip, ['network', ip, '', '', '', ''])
 
-            act.api.helpers.handle_fact(actapi.fact('connectsTo', ip_type)
+            act.api.helpers.handle_fact(actapi.fact('connectsTo')
                                         .source('content', sample['sha256'])
                                         .destination('uri', my_uri),
                                         output_format=output_format)

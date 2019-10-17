@@ -80,7 +80,7 @@ def handle_argus_event_hash(
                     continue
 
                 handle_fact(
-                    actapi.fact("observedIn", "event")
+                    actapi.fact("observedIn")
                     .source("content", value)
                     .destination("event", event_id),
                     output_format=output_format
@@ -108,7 +108,7 @@ def handle_argus_event_hash(
                         actapi.fact("represents")
                         .source("hash", value)
                         .destination("content", "*"),
-                        actapi.fact("observedIn", "event")
+                        actapi.fact("observedIn")
                         .source("content", "*")
                         .destination("event", event_id),
                     )
@@ -160,7 +160,7 @@ def handle_argus_event_ip(
 
         # Fact: uri -> event
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
             output_format=output_format)
 
 
@@ -183,7 +183,7 @@ def handle_argus_event_fqdn(
 
         # Fact: uri -> event
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
             output_format=output_format)
 
 
@@ -208,7 +208,7 @@ def handle_argus_event(
     if event["associatedCase"]:
         case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
         handle_fact(
-            actapi.fact("attributedTo", "incident").source("event", event_id).destination("incident", case_id),
+            actapi.fact("attributedTo").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
         handle_fact(
             actapi.fact("name", event["associatedCase"]["description"]).source("incident", case_id),
@@ -222,7 +222,7 @@ def handle_argus_event(
 
     # Fact: signature -> event
     handle_fact(
-        actapi.fact("detects", "event").source("signature", signature).destination("event", event_id),
+        actapi.fact("detects").source("signature", signature).destination("event", event_id),
         output_format=output_format)
 
     uris = set()
@@ -240,7 +240,7 @@ def handle_argus_event(
             continue
 
         handle_fact(
-            actapi.fact("observedIn", "event").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
             output_format=output_format)
 
     if not uris:

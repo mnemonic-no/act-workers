@@ -57,12 +57,12 @@ def process(api: act.api.Act, proxy=None, output_format: Text = "json") -> None:
 
         for asn, network in lookup_ip(query, proxy):
             act.api.helpers.handle_fact(
-                api.fact('memberOf', 'ipv4Network')
+                api.fact('memberOf')
                 .source('ipv4', query)
                 .destination('ipv4Network', network), output_format=output_format)
 
             act.api.helpers.handle_fact(
-                api.fact('memberOf', 'asn')
+                api.fact('memberOf')
                 .source('ipv4Network', network)
                 .destination('asn', asn), output_format=output_format)
 
