@@ -21,6 +21,7 @@ This will install scripts for all workers:
 * act-country-regions
 * act-misp-feeds
 * act-mnemonic-pdns
+* act-origin
 * act-scio
 * act-shadowserver-asn
 * act-uploader
@@ -28,7 +29,40 @@ This will install scripts for all workers:
 * act-veris
 * act-vt
 
-# Usage
+# Origins
+
+All workers support the optional arguments --origin-name and --origin-id. If they are not specified, facts will be added with the origin of the user performing the upload to the platform.
+
+For managing origins, use the tool `act-origin` which can list, add and delete origins.
+
+## Add origin
+
+```bash
+$ act-origin --act-baseurl <BASEURL> --user-id <USERID> --add
+Origin name: myorigin
+Origin description: My Test Origin
+Origin trust (float 0.0-1.0. Default=0.8):
+Origin organization (UUID):
+[2019-11-11 10:46:22] app=origin-client level=INFO msg=Created origin: myorigin
+Origin added:
+Origin(name='myorigin', id='e5a9792e-78c7-4190-9275-27616be47ca8', organization=Organization(), description='My Test Origin', trust=0.8)
+```
+
+## List origins
+
+```bash
+$ act-origin --act-baseurl <BASEURL> --user-id <USERID> --list
+Origin(name='Test origin', id='5da8b157-5129-4f2f-9b90-6d624d62eebe', organization=Organization(), description='My test origin', trust=0.5)
+```
+
+## Delete origin
+
+```bash
+$ act-origin --act-baseurl <BASEURL> --user-id <USERID> --delete --origin-id e5a9792e-78c7-4190-9275-27616be47ca8
+Origin deleted: e5a9792e-78c7-4190-9275-27616be47ca8
+```
+
+# Worker usage
 
 To print facts to stdout:
 
