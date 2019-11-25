@@ -35,7 +35,7 @@ import traceback
 import urllib.parse
 import warnings
 from functools import partialmethod
-from logging import error
+from logging import error, info
 from typing import Generator, List, Optional, Text, Tuple, Set
 
 import requests
@@ -45,6 +45,8 @@ from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
 
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
+
+HASH_RE = re.compile(r'^([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}|[0-9a-f]{128})$')
 
 # Type:Platform/Family.Variant!Suffixes
 MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
@@ -64,12 +66,21 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--apikey', metavar='KEY',
                         help='VirusTotal API key')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--hexdigest', action='store_true',
-                       default=False, help='query hexdigestsum on stdin')
-    group.add_argument('--ip', action='store_true',
-                       default=False, help='query ip on stdin')
-    group.add_argument('--domain', action='store_true',
-                       default=False, help='query domain on stdin')
+    group.add_argument(
+        '--hexdigest',
+        action='store_true',
+        default=False,
+        help='Skip autodetection of type and force lookup as hexdigest')
+    group.add_argument(
+        '--ip',
+        action='store_true',
+        default=False,
+        help='Skip autodetection of type and force lookup as IP address')
+    group.add_argument(
+        '--domain',
+        action='store_true',
+        default=False,
+        help='Skip autodetection of type and force lookup as domain')
 
     return parser
 
@@ -396,6 +407,32 @@ def handle_domain(
             handle_hexdigest(actapi, vtapi, sample['sha256'], output_format=output_format)
 
 
+def handle_ioc(actapi: act.api.Act,
+        vtapi: VirusTotalApi,
+        ioc: Text,
+        output_format: Text = "json") -> None:
+    "Autodetect IOC type and send to correct handler"
+
+    # Attempt to parse ioc AS IP address
+    try:
+        ipaddress.ip_address(ioc)
+        info("Autodetected IOC as IP address: {}".format(ioc))
+        handle_ip(actapi, vtapi, ioc, output_format=output_format)
+        return
+    except ValueError:  # Not IP, continue to next
+        pass
+
+    # md5, sha1 or sha256 or sha512 hash?
+    if HASH_RE.search(ioc):
+        info("Autodetected IOC as hash: {}".format(ioc))
+        handle_hexdigest(actapi, vtapi, ioc, output_format=output_format)
+        return
+
+    # Assume domain
+    info("Autodetection assumes IOC is domain: {}".format(ioc))
+    handle_domain(actapi, vtapi, ioc, output_format=output_format)
+
+
 def main() -> None:
     """main function"""
 
@@ -420,11 +457,15 @@ def main() -> None:
     if args.hexdigest:
         handle_hexdigest(actapi, vtapi, in_data, output_format=args.output_format)
 
-    if args.ip:
+    elif args.ip:
         handle_ip(actapi, vtapi, in_data, output_format=args.output_format)
 
-    if args.domain:
+    elif args.domain:
         handle_domain(actapi, vtapi, in_data, output_format=args.output_format)
+
+    else:  # Type not specified, autodetect
+        handle_ioc(actapi, vtapi, in_data, output_format=args.output_format)
+
 
 
 @contextlib.contextmanager
