@@ -22,19 +22,16 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 RRTYPE_M = {
     "a": {
         "fact_t": "resolvesTo",
-        "fact_v": "A",
         "source_t": "fqdn",
         "dest_t": "ipv4"
     },
     "aaaa": {
         "fact_t": "resolvesTo",
-        "fact_v": "AAAA",
         "source_t": "fqdn",
         "dest_t": "ipv6"
     },
     "cname": {
         "fact_t": "resolvesTo",
-        "fact_v": "CNAME",
         "source_t": "fqdn",
         "dest_t": "fqdn"
     }
@@ -112,8 +109,7 @@ def process(
 
             if rrtype in RRTYPE_M:
                 act.api.helpers.handle_fact(
-                    api.fact(RRTYPE_M[rrtype]["fact_t"],
-                             RRTYPE_M[rrtype]["fact_v"])
+                    api.fact(RRTYPE_M[rrtype]["fact_t"])
                     .source(RRTYPE_M[rrtype]["source_t"], row["query"])
                     .destination(RRTYPE_M[rrtype]["dest_t"], row["answer"]), output_format=output_format)
 
