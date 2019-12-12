@@ -23,6 +23,7 @@ This will install scripts for all workers:
 * act-mnemonic-pdns
 * act-origin
 * act-scio
+* act-search-graph
 * act-shadowserver-asn
 * act-uploader
 * act-url-shorter-unpack
@@ -153,4 +154,10 @@ In repository, run:
 
 ```bash
 pip3 install --user -e .
+```
+# search
+A worker to run graph queries is also included. A sample search config is inscluded in `etc/searc_jobs.ini`:
+
+```bash
+act-search-graph etc/search_jobs.ini
 ```

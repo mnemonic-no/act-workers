@@ -34,6 +34,13 @@ class NoResult(Exception):
         Exception.__init__(self, *args)
 
 
+class UnknownFormat(Exception):
+    """UnknownFormat is used on unknown parsing formats"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(
