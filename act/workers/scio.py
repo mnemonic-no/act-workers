@@ -7,7 +7,7 @@ import json
 import sys
 import traceback
 from logging import error, warning
-from typing import Dict, List, Text, cast
+from typing import Callable, Dict, Set, Text, cast
 
 import act.api
 from act.api.helpers import handle_fact, handle_uri
@@ -38,6 +38,10 @@ SCIO_INDICATOR_ACT_MAP = {
     "msid": "vulnerability",
 }
 
+ACT_FN_MAP: Dict[Text, Callable] = {
+    "vulnerability": lambda x: x.lower()
+}
+
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -51,9 +55,9 @@ def get_scio_report() -> Dict:
     return cast(Dict, json.load(sys.stdin))
 
 
-def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: List[Text], report_id: Text, output_format: Text) -> None:
+def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: Set[Text], report_id: Text, output_format: Text) -> None:
     """Add mentions fact to report"""
-    for value in list(set(object_values)):
+    for value in set(object_values):
         try:
             handle_fact(
                 actapi.fact("mentions")
@@ -87,15 +91,22 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         # Get object type from ACT (default to object type in SCIO)
         act_indicator_type = SCIO_INDICATOR_ACT_MAP.get(scio_indicator_type,
                                                         scio_indicator_type)
+
+        value_fn = ACT_FN_MAP.get(act_indicator_type, lambda x: x)
+
+        values = {
+            value_fn(value) for value in indicators.get(scio_indicator_type, [])
+        }
+
         report_mentions_fact(
             actapi,
             act_indicator_type,
-            indicators.get(scio_indicator_type, []),
+            values,
             report_id,
             output_format)
 
     # For SHA256, create content object
-    for sha256 in list(set(indicators.get("sha256", []))):
+    for sha256 in set(indicators.get("sha256", [])):
         handle_fact(
             actapi.fact("represents")
             .source("hash", sha256)
@@ -104,7 +115,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         )
 
     # Add emails as URI components
-    for email in list(set(indicators.get("email", []))):
+    for email in set(indicators.get("email", [])):
         try:
             email_uri = "email://{}".format(email)
             handle_uri(actapi, email_uri, output_format=output_format)
@@ -121,7 +132,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
             warning("Unable to create facts from uri: {}".format(email_uri))
 
     # Add all URI components
-    for uri in list(set(indicators.get("uri", []))):
+    for uri in set(indicators.get("uri", [])):
         try:
             handle_uri(actapi, uri, output_format=output_format)
         except act.api.base.ValidationError as err:

@@ -35,7 +35,9 @@ def test_scio_facts(capsys) -> None:  # type: ignore
         api.fact("mentions").source("report", report_id).destination("tool", "kore"),
         api.fact("mentions").source("report", report_id).destination("uri", "email://redhat@gmail.com"),
         api.fact("mentions").source("report", report_id).destination("ipv4Network", "192.168.0.0/16"),
-        api.fact("represents").source("hash", sha256).destination("content", sha256)
+        api.fact("represents").source("hash", sha256).destination("content", sha256),
+        api.fact("mentions").source("report", report_id).destination("vulnerability", "cve-2019-222"),
+        api.fact("mentions").source("report", report_id).destination("vulnerability", "ms16-034"),
     ]
 
     for fact_assertion in fact_assertions:

@@ -28,8 +28,12 @@
       "e86c2f4fc88918246bf697b6a404c3ea",
       "4731cbaee7aca37b596e38690160a749"
     ],
-    "cve": [],
-    "msid": [],
+    "cve": [
+        "CVE-2019-222"
+    ],
+    "msid": [
+        "MS16-034"
+    ],
     "fqdn": [
       "www.us-cert.gov",
       "www.us-cert.gov",
