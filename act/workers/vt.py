@@ -54,6 +54,9 @@ MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
 # [Prefix:]Behaviour.Platform.Name[.Variant]
 KASPERSKY_RE = re.compile(r"((.+?):)?(.+?)\.(.+?)\.([^.]+)(\.(.+))?")
 
+# Extract CVE
+CVE_RE = re.compile(r"(CVE-\d+-\d+)")
+
 # <Threat Type>.<Platform>.<Malware Family>.<Variant>.<Other info*>
 # *Optional
 TREND_RE = re.compile(r"(.+?)\.(.+?)\.(.+?)\.(.+?)(\.(.+))?")
@@ -114,6 +117,12 @@ def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[T
     return None
 
 
+def cve_extraction(body: dict) -> Set[Text]:
+    """Extract any CVE names"""
+
+    return {cve.lower() for cve in CVE_RE.findall(body['result'])}
+
+
 def is_adware(text: Text) -> bool:
     """Test for adware signature using heuristics in ADWARE_OVERRIDES"""
 
@@ -138,6 +147,7 @@ def handle_hexdigest(
     cache['hexdigest'] = True
 
     names: Set[Tuple[Text, Optional[Text]]] = set()
+    cves: Set[Text] = set()
 
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
@@ -150,6 +160,8 @@ def handle_hexdigest(
         if not body['detected']:
             continue
 
+        cves.update(cve_extraction(body))
+
         ext_res = name_extraction(engine, body)
         if ext_res:
             names.add((ext_res[0], ext_res[1]))
@@ -161,10 +173,16 @@ def handle_hexdigest(
 
     results = response['results']
     content_id = results['sha256']
-    for hash in ['sha1', 'sha256', 'md5']:
+    for myhash in ['sha1', 'sha256', 'md5']:
         act.api.helpers.handle_fact(actapi.fact('represents')
-                                    .source('hash', results[hash])
+                                    .source('hash', results[myhash])
                                     .destination('content', content_id),
+                                    output_format=output_format)
+
+    for cve in cves:
+        act.api.helpers.handle_fact(actapi.fact('exploits')
+                                    .source('content', content_id)
+                                    .destination('vulnerability', cve),
                                     output_format=output_format)
 
     for name, toolType in names:
