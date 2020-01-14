@@ -25,6 +25,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
     fact_assertions = [
         api.fact("name", "TA18-149A.stix.xml").source("report", report_id),
         api.fact("mentions").source("report", report_id).destination("ipv4", "187.127.112.60"),
+        api.fact("mentions").source("report", report_id).destination("ipv6", "0000:0000:0000:0000:0000:0000:0000:0001"),
         api.fact("mentions").source("report", report_id).destination("hash", "4613f51087f01715bf9132c704aea2c2"),
         api.fact("mentions").source("report", report_id).destination("hash", sha256),
         api.fact("mentions").source("report", report_id).destination("country", "Colombia"),

@@ -19,24 +19,6 @@ from act.workers.libs import mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-RRTYPE_M = {
-    "a": {
-        "fact_t": "resolvesTo",
-        "source_t": "fqdn",
-        "dest_t": "ipv4"
-    },
-    "aaaa": {
-        "fact_t": "resolvesTo",
-        "source_t": "fqdn",
-        "dest_t": "ipv6"
-    },
-    "cname": {
-        "fact_t": "resolvesTo",
-        "source_t": "fqdn",
-        "dest_t": "fqdn"
-    }
-}
-
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -107,11 +89,19 @@ def process(
         for row in pdns_query(pdns_baseurl, apikey, timeout=timeout, query=query, proxy_string=proxy_string):
             rrtype = row["rrtype"]
 
-            if rrtype in RRTYPE_M:
+            if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
-                    api.fact(RRTYPE_M[rrtype]["fact_t"])
-                    .source(RRTYPE_M[rrtype]["source_t"], row["query"])
-                    .destination(RRTYPE_M[rrtype]["dest_t"], row["answer"]), output_format=output_format)
+                    api.fact("resolvesTo")
+                    .source("fqdn", row["query"])
+                    .destination(*act.api.helpers.ip_obj(row["answer"])),
+                    output_format=output_format)
+
+            elif rrtype == "cname":
+                act.api.helpers.handle_fact(
+                    api.fact("resolvesTo")
+                    .source("fqdn", row["query"])
+                    .destination("fqdn", row["answer"]),
+                    output_format=output_format)
 
             elif rrtype == "ptr":
                 pass  # We do not insert ptr to act

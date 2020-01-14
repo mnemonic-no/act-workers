@@ -18,8 +18,7 @@ EXTRACT_GEONAMES = ["countries", "regions", "regions-derived",
 
 
 EXTRACT_INDICATORS = ["md5", "sha1", "sha256",
-                      "fqdn", "ipv4", "ipv6",
-                      "msid", "cve", "uri", "ipv4net"]
+                      "fqdn", "msid", "cve", "uri", "ipv4net"]
 
 SCIO_GEONAMES_ACT_MAP = {
     "countries": "country",
@@ -104,6 +103,19 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
             values,
             report_id,
             output_format)
+
+    # For IPv4+IPv6 addresses, create mention facts
+    # Use ip_obj to return exploded, normalized IPv4 and IPv6 address
+    for ip in set(indicators.get("ipv4", []) + indicators.get("ipv6", [])):
+        try:
+            handle_fact(
+                actapi.fact("mentions")
+                .source("report", report_id)
+                .destination(*act.api.helpers.ip_obj(ip)),
+                output_format
+            )
+        except ValueError as err:
+            warning("Creating fact to {} fails on IP validation {}".format(ip, err))
 
     # For SHA256, create content object
     for sha256 in set(indicators.get("sha256", [])):

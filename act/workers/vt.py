@@ -222,16 +222,9 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format
     # parse the string and test for instance type as the platform distinguishes
     # between IPv4 and IPv6 addresses.
     try:
-        ip_address = ipaddress.ip_address(ip)
+        (ip_type, ip) = act.api.helpers.ip_obj(ip)
     except ValueError:
         return  # invalid address
-
-    if isinstance(ip_address, ipaddress.IPv4Address):
-        ip_type = 'ipv4'
-    elif isinstance(ip_address, ipaddress.IPv6Address):
-        ip_type = 'ipv6'
-    else:
-        return  # if it is an unknown type, abort early. No query will happen.
 
     with no_ssl_verification():
         response = vtapi.get_ip_report(ip)
@@ -382,21 +375,12 @@ def handle_domain(
             # parse the string and test for instance type as the platform distinguishes
             # between IPv4 and IPv6 addresses.
             try:
-                ip_address = ipaddress.ip_address(ip)
+                act.api.helpers.handle_fact(actapi.fact('resolvesTo')
+                                            .source('fqdn', domain)
+                                            .destination(*act.api.helpers.ip_obj(ip)),
+                                            output_format=output_format)
             except ValueError:
                 continue  # invalid address
-
-            if isinstance(ip_address, ipaddress.IPv4Address):
-                ip_type = 'ipv4'
-            elif isinstance(ip_address, ipaddress.IPv6Address):
-                ip_type = 'ipv6'
-            else:
-                continue  # if it is an unknown type, abort early. No query will happen.
-
-            act.api.helpers.handle_fact(actapi.fact('resolvesTo')
-                                        .source('fqdn', domain)
-                                        .destination(ip_type, ip),
-                                        output_format=output_format)
 
     if 'detected_downloaded_samples' in results:
         for sample in results['detected_downloaded_samples']:
