@@ -28,6 +28,7 @@ def main(actapi: act.api.Act) -> None:
             warning("ValidationError while storing objects: %s" % err)
         except act.api.base.ResponseError as err:
             error("ResponseError while storing objects: %s" % err)
+            sys.exit(1)
 
 
 def main_log_error() -> None:
