@@ -8,7 +8,7 @@ import socket
 import sys
 from email.mime.text import MIMEText
 from logging import error, warning
-from typing import Any, Optional, Text
+from typing import Any, Optional, Text, Dict
 
 import requests
 import urllib3
@@ -71,6 +71,7 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     parser.add_argument('--http-timeout', dest='http_timeout', type=int,
                         default=120, help="Timeout")
     parser.add_argument('--proxy-string', dest='proxy_string', help="Proxy to use for external queries")
+    parser.add_argument('--proxy-platform', dest='proxy_platform', action="store_true", help="Use proxy-string towards the ACT platform")
     parser.add_argument('--cert-file', dest='cert_file', help="Cerfiticate to add if you are behind a SSL/TLS interception proxy.")
     parser.add_argument('--user-id', dest='user_id',
                         help="User ID")
@@ -110,9 +111,15 @@ def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
 
 def init_act(args: argparse.Namespace) -> act.api.Act:
     """ Initialize act api from arguments """
-    requests_kwargs = {}
+    requests_kwargs: Dict[Text, Any] = {}
     if args.http_user:
         requests_kwargs["auth"] = (args.http_user, args.http_password)
+
+    if args.proxy_string and args.proxy_platform:
+        requests_kwargs["proxies"] = {
+            "http": args.proxy_string,
+            "https": args.proxy_string
+        }
 
     if args.cert_file:
         requests_kwargs["verify"] = args.cert_file

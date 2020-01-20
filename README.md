@@ -146,6 +146,15 @@ All workers requires python version >= 3.5 and the act-api library:
 
 In addition some of the libraries might have additional requirements. See requirements.txt for a full list of all requirements.
 
+# Proxy configuration
+
+Workers will honor the `proxy-string` option on the command line when connecting to external APIs. However, if you need to
+use the proxy to connect to the ACT platform (--act-baseurl), you will need to add the "--proxy-platform" switch:
+
+```bash
+echo -n www.mnemonic.no | act-vt --proxy-string <PROXY> --user-id <USER-ID> --act-baseurl <ACT-HOST> --proxy-platform
+```
+
 # Local development
 
 Use pip to install in [local development mode](https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs). act-workers (and act-api) uses namespacing, so it is not compatible with using `setup.py install` or `setup.py develop`.
