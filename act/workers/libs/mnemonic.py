@@ -14,7 +14,8 @@ def batch_query(
         headers: Optional[Dict] = None,
         timeout: int = 299,
         json_params: Optional[Dict] = None,
-        proxy_string: Optional[Text] = None) -> Generator[Dict[Text, Any], None, None]:
+        proxy_string: Optional[Text] = None,
+        batch_size: int = 1000) -> Generator[Dict[Text, Any], None, None]:
     """ Execute query until we have all results """
 
     offset = 0
@@ -38,8 +39,10 @@ def batch_query(
 
         if method == "POST" and json_params:
             json_params["offset"] = offset
+            json_params["limit"] = batch_size
         elif method == "GET":
             options["params"]["offset"] = offset  # type: ignore
+            options["params"]["limit"] = batch_size
 
         debug("Executing search: {}, json={}, options={}".format(url, json_params, options))
         req = requests.request(method, url, json=json_params, **options)  # type:ignore

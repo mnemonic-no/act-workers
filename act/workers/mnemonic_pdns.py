@@ -27,6 +27,8 @@ def parseargs() -> argparse.ArgumentParser:
                         default="https://api.mnemonic.no/", help="PassiveDNS API host")
     parser.add_argument('--pdns-timeout', dest='timeout', type=int,
                         default=299, help="Timeout")
+    parser.add_argument('--pdns-batch-size', dest='pdns_batch_size', type=int,
+                        default=1000, help="Batch size of pdns queries")
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="PassiveDNS API key")
 
@@ -38,7 +40,8 @@ def pdns_query(
         apikey: str,
         query: str,
         timeout: int,
-        proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
+        proxy_string: Optional[Text] = None,
+        batch_size: int = 1000) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - PassiveDNS API key with the passivedns role (minimum)
@@ -63,7 +66,9 @@ def pdns_query(
             "GET",
             pdns_url,
             headers=headers,
-            timeout=timeout, proxy_string=proxy_string)
+            timeout=timeout,
+            proxy_string=proxy_string,
+            batch_size=batch_size)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
@@ -77,7 +82,8 @@ def process(
         apikey: str,
         timeout: int = 299,
         proxy_string: Optional[Text] = None,
-        output_format: Text = "json") -> None:
+        output_format: Text = "json",
+        batch_size: int = 1000) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -86,7 +92,13 @@ def process(
         if not query:
             continue
 
-        for row in pdns_query(pdns_baseurl, apikey, timeout=timeout, query=query, proxy_string=proxy_string):
+        for row in pdns_query(
+                pdns_baseurl,
+                apikey,
+                timeout=timeout,
+                query=query,
+                proxy_string=proxy_string,
+                batch_size=batch_size):
             rrtype = row["rrtype"]
 
             if rrtype in ("a", "aaaa"):
@@ -115,7 +127,13 @@ def main() -> None:
     args = worker.handle_args(parseargs())
     actapi = worker.init_act(args)
 
-    process(actapi, args.pdns_baseurl, args.apikey, args.timeout, args.proxy_string, args.output_format)
+    process(actapi,
+            args.pdns_baseurl,
+            args.apikey,
+            args.timeout,
+            args.proxy_string,
+            args.output_format,
+            args.pdns_batch_size)
 
 
 def main_log_error() -> None:
