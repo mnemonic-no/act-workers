@@ -19,27 +19,22 @@ PERFORMANCE OF THIS SOFTWARE.
 
 import argparse
 import csv
-import datetime
-import hashlib
 import io
 import json
 import os
 import re
-import sqlite3
 import sys
-import time
 import traceback
 import zipfile
-from logging import error, info, warning
-from typing import Any, Dict, Optional, Text, Tuple, Union, cast
+from logging import error, warning
+from typing import Any, Dict, Optional, Text, Union, cast
 
 import requests
 
 import act.api
 from act.api.helpers import handle_fact
-from act.workers.libs import worker
+from act.workers.libs import urlcache, worker
 
-CACHE_DIR = worker.get_cache_dir("veris-worker", create=True)
 VERSION = "0.1"
 ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
     "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
@@ -75,77 +70,6 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def get_db_cache(cache_dir: str) -> sqlite3.Connection:
-    """
-    Open cache and return sqlite3 connection
-    Table is created if it does not exists
-    """
-    cache_file = os.path.join(cache_dir, "cache.sqlite3")
-    conn = sqlite3.connect(cache_file)
-    cursor = conn.cursor()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS report_hash (
-        url string primary key,
-        status_code int,
-        sha256 string,
-        added int)
-    """)
-    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS report_url on report_hash(url)")
-
-    return conn
-
-
-def query_cache(cache: sqlite3.Connection, url: Text) -> Tuple[Optional[int], Optional[Text], datetime.datetime]:
-    """ Query cache for a specific url """
-    cursor = cache.cursor()
-
-    res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
-
-    if not res:
-        return (None, None, datetime.datetime.utcfromtimestamp(0))
-
-    return (res[0][1], res[0][2], datetime.datetime.utcfromtimestamp(res[0][3]))
-
-
-def update_cache(cache: sqlite3.Connection, url: Text, status_code: Optional[int], report_hash: Optional[Text]) -> None:
-    """ Add url/hash to cache """
-    cursor = cache.cursor()
-
-    # Check if url exists
-    res = cursor.execute("SELECT * FROM report_hash WHERE url = ?", [url.strip()]).fetchall()
-
-    if res:
-        info("Update cache {}, {}, {}".format(url, status_code, report_hash))
-        cursor.execute(
-            "UPDATE report_hash set status_code = ?, sha256 = ?, added = ? where url = ?",
-            [status_code, report_hash, int(time.time()), url])
-    else:
-        info("Insert cache {} -> {}".format(url, report_hash))
-        cursor.execute("INSERT INTO report_hash VALUES (?,?,?,?)", [url, status_code, report_hash, time.time()])
-
-    cache.commit()
-
-
-def url_sha256(config: Dict[Text, Any], url: Text) -> Tuple[Optional[int], Optional[Text]]:
-    "Retrieve URL and return sha256 of content. Returns None if request fails."
-
-    sha256 = None
-    status_code = None
-
-    try:
-        req = requests.get(url, proxies=config["proxies"], timeout=config["http_timeout"])
-        status_code = req.status_code
-        if req.status_code == 200:
-            sha256 = hashlib.sha256(req.content).hexdigest()
-        else:
-            info("Failed downloading {}: {}".format(url, req.status_code))
-    except requests.exceptions.ReadTimeout:
-        info("Timeout downloading {}".format(url))
-    except Exception as err:  # pylint: disable=broad-except
-        info("Unknown exception downloading {}: {}".format(url, err))
-
-    return (status_code, sha256)
-
-
 def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
     """
     Extract all references in incident. For each (URL-)reference, check whether we should
@@ -161,21 +85,7 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
             if not re.search(config["hash_url_matching"], ref):
                 continue
 
-            (status_code, report_hash, added) = query_cache(config["db_cache"], ref)
-
-            now = datetime.datetime.now()
-
-            if report_hash and added > now - datetime.timedelta(days=7):
-                info("URL in cache (with hash found): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
-            elif status_code == 404 and added > now - datetime.timedelta(days=7):
-                info("URL in cache (last status was 404): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
-            elif added > now - datetime.timedelta(days=2):
-                info("URL in cache (Unknown status): {}, {}, {}, {}".format(ref, report_hash, status_code, time.time()))
-            else:
-                # Download report and get hash of content
-                (status_code, report_hash) = url_sha256(config, ref)
-
-                update_cache(config["db_cache"], ref, status_code, report_hash)
+            report_hash = config["db_cache"].query_download_update(ref)
 
             if report_hash:
                 handle_fact(
@@ -402,7 +312,14 @@ def main() -> None:
         "campaign_map": get_campaigns(args.veris_prefix, args.veris_campaign) if args.veris_campaign else {},
 
         # Cache of url > sha256
-        "db_cache": get_db_cache(CACHE_DIR),
+        "db_cache": urlcache.URLCache(
+            requests_common_kwargs={
+                "proxies": {
+                    'http': args.proxy_string,
+                    'https': args.proxy_string
+                },
+                "timeout": args.http_timeout
+            }),
 
         "proxies": {
             'http': args.proxy_string,
