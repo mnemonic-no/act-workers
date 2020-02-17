@@ -59,6 +59,42 @@ def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> bool:
 
     return True
 
+def handle_argus_event_technique(
+        actapi: act.api.Act,
+        properties: defaultdict,
+        event_id: Text,
+        output_format: Text) -> None:
+    """ Handle MITRE ATT&CK technique in events """
+
+    for technique in properties["mitreAttack.technique"].split("\n"):
+        handle_fact(
+            actapi.fact("classifiedAs")
+            .source("event", event_id)
+            .destination("technique", technique.strip()),
+            output_format=output_format
+        )
+
+
+def handle_argus_event_tactic(
+        actapi: act.api.Act,
+        properties: defaultdict,
+        event_id: Text,
+        output_format: Text) -> None:
+    """ Handle MITRE ATT&CK tactic in events """
+
+    for tactic in properties["mitreAttack.tactic"].split("\n"):
+        chain = act.api.fact.fact_chain(
+            actapi.fact("classifiedAs")
+            .source("event", event_id)
+            .destination("technique", "*"),
+            actapi.fact("implements")
+            .source("technique", "*")
+            .destination("tactic", tactic.strip()),
+        )
+
+        for fact in chain:
+            handle_fact(fact, output_format=output_format)
+
 
 def handle_argus_event_hash(
         actapi: act.api.Act,
@@ -213,6 +249,13 @@ def handle_argus_event(
         handle_fact(
             actapi.fact("name", event["associatedCase"]["description"]).source("incident", case_id),
             output_format=output_format)
+
+    if properties["mitreAttack.technique"]:
+        # If we have technique -> we have an implicit connection to tactic (through technique)
+        handle_argus_event_technique(actapi, properties, event_id, output_format)
+    elif properties["mitreAttack.tactic"]:
+        # If we have tactic (but not technique) we must go through placeholder technique
+        handle_argus_event_tactic(actapi, properties, event_id, output_format)
 
     # Facts: hash/content -> event
     handle_argus_event_hash(actapi, properties, event_id, content_props, hash_props, output_format)
