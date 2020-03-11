@@ -11,6 +11,7 @@ import traceback
 from logging import error, info
 from typing import Dict, Generator, Optional, Text
 
+import caep
 import requests
 
 import act
@@ -27,7 +28,7 @@ def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Get MISP feeds from MISP sharing directories')
 
-    parser.add_argument('--manifest-dir', default=worker.get_cache_dir('misp_manifest'),
+    parser.add_argument('--manifest-dir', default=caep.get_cache_dir('misp_manifest'),
                         help='The directory to store latest manifests')
 
     return parser

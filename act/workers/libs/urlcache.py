@@ -8,6 +8,7 @@ import time
 from logging import info
 from typing import Dict, NamedTuple, Optional, Text
 
+import caep
 import requests
 
 from act.workers.libs import worker
@@ -59,7 +60,7 @@ class URLCache:
         self.requests_common_kwargs = \
             requests_common_kwargs if requests_common_kwargs else {}
 
-        cache_dir = worker.get_cache_dir(cache_prefix, create=True)
+        cache_dir = caep.get_cache_dir(cache_prefix, create=True)
         self.cache: sqlite3.Connection = get_db_cache(cache_dir)
 
     def query_cache(self, url: Text) -> CacheResponse:

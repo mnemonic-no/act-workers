@@ -10,11 +10,12 @@ from email.mime.text import MIMEText
 from logging import error, warning
 from typing import Any, Optional, Text, Dict
 
+import caep
+
 import requests
 import urllib3
 
 import act.api
-from act.workers.libs import config
 
 CONFIG_ID = "actworkers"
 CONFIG_NAME = "actworkers.ini"
@@ -105,8 +106,8 @@ def worker_name() -> Text:
 
 
 def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
-    """ Wrapper for config.handle_args where we set config_id and config_name """
-    return config.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
+    """ Wrapper for caep.handle_args where we set config_id and config_name """
+    return caep.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
 
 
 def init_act(args: argparse.Namespace) -> act.api.Act:
@@ -140,30 +141,6 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
         sys.exit(0)
 
     return api
-
-
-def get_cache_dir(cache_id: str, create: bool = False) -> str:
-    """
-    Get cache dir.
-
-    Honors $XDG_CACHE_HOME, but fallbacks to $HOME/.cache
-
-Args:
-    cache_id [str]: directory under CACHE that will be used
-    create [bool]: create directory if not exists
-
-Return path to cache_directory
-    """
-
-    home = os.environ["HOME"]
-
-    cache_home = os.environ.get("XDG_CACHE_HOME", os.path.join(home, ".cache"))
-    cache_dir = os.path.join(cache_home, cache_id)
-
-    if create and not os.path.isdir(cache_dir):
-        os.makedirs(cache_dir)
-
-    return cache_dir
 
 
 def fatal(message: Text, exit_code: int = 1) -> None:

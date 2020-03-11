@@ -2,7 +2,7 @@
 import argparse
 import os
 
-from act.workers.libs import config
+import caep
 
 INI_TEST_FILE = os.path.join(os.path.dirname(__file__), "data/config_testdata.ini")
 
@@ -23,7 +23,7 @@ def test_argparse_only():
 
     commandline = "--str-arg test".split()
 
-    args = config.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
+    args = caep.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
 
     assert args.number == 1
     assert args.str_arg == "test"
@@ -36,7 +36,7 @@ def test_argparse_ini():
 
     commandline = "--config {}".format(INI_TEST_FILE).split()
 
-    args = config.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
+    args = caep.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
 
     assert args.number == 3
     assert args.str_arg == "from ini"
@@ -56,7 +56,7 @@ def test_argparse_env():
     for key, value in env.items():
         os.environ[key] = str(value)
 
-    args = config.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=[])
+    args = caep.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=[])
 
     assert args.number == 4
     assert args.str_arg == "from env"
@@ -85,7 +85,7 @@ def test_argparse_env_ini():
 
     commandline = "--config {} --str-arg cmdline".format(INI_TEST_FILE).split()
 
-    args = config.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
+    args = caep.handle_args(parser, "actworkers", "actworkers.ini", "test", opts=commandline)
 
     assert args.number == 4
     assert args.str_arg == "cmdline"

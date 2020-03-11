@@ -32,11 +32,13 @@ from typing import Dict, Generator, List, Text, Tuple, Union
 
 from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
 
+import caep
+
 import act.api
 from act.api.helpers import handle_fact
 from act.workers.libs import worker
 
-CACHE_DIR = worker.get_cache_dir("shadowserver-asn-worker", create=True)
+CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
 VERSION = "0.1"
 ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
     "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"

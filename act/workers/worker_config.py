@@ -8,7 +8,9 @@ from typing import Text
 
 from pkg_resources import resource_string
 
-from act.workers.libs import config, worker
+import caep
+
+from act.workers.libs import worker
 
 
 def parseargs() -> argparse.Namespace:
@@ -21,7 +23,7 @@ def parseargs() -> argparse.Namespace:
 
     system - Copy default config to /etc/{1}
 
-""".format(config.get_config_dir(worker.CONFIG_ID), worker.CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
+""".format(caep.get_config_dir(worker.CONFIG_ID), worker.CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('action', nargs=1, choices=["show", "user", "system"])
 
@@ -57,7 +59,7 @@ def main() -> None:
         print(default_ini())
 
     if "user" in args.action:
-        config_dir = config.get_config_dir(worker.CONFIG_ID, create=True)
+        config_dir = caep.get_config_dir(worker.CONFIG_ID, create=True)
         save_config(os.path.join(config_dir, worker.CONFIG_NAME))
 
     if "system" in args.action:

@@ -11,6 +11,7 @@ import traceback
 from logging import debug, error, info
 from typing import Any, Dict, Generator, Optional, Text, cast, List
 
+import caep
 import requests
 import urllib3
 
@@ -93,7 +94,7 @@ def event_case_query(
 def get_last_update() -> int:
     "Get last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        worker.get_cache_dir(worker.worker_name(), create=True),
+        caep.get_cache_dir(worker.worker_name(), create=True),
         "last_update")
 
     if os.path.isfile(cache_filename):
@@ -112,7 +113,7 @@ def get_last_update() -> int:
 def update_last_update(last_update: int) -> None:
     "Write last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        worker.get_cache_dir(worker.worker_name(), create=True),
+        caep.get_cache_dir(worker.worker_name(), create=True),
         "last_update")
 
     # Write last update timestamp to disk
