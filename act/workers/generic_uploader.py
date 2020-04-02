@@ -4,7 +4,6 @@
 from the stdin, uploading accordingly"""
 
 import json
-import os
 import sys
 import traceback
 from logging import error, warning
@@ -23,7 +22,7 @@ def main(actapi: act.api.Act) -> None:
 
         fact = actapi.fact(**data)
         try:
-            fact.add()
+            act.api.helpers.handle_fact(fact)
         except act.api.base.ValidationError as err:
             warning("ValidationError while storing objects: %s" % err)
         except act.api.base.ResponseError as err:
