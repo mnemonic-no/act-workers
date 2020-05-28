@@ -3,3 +3,5 @@ virustotal-api
 act-api
 RashlyOutlaid
 stix2
+dateparser
+caep
