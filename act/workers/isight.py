@@ -22,27 +22,22 @@ requirements:
 
 
 from functools import partialmethod
-from logging import error, info
-from typing import Generator, List, Optional, Text, Tuple, Set
+from logging import error
+from typing import Generator, Text, Dict
 
 import argparse
-import collections
 import contextlib
 import datetime
 import email
 import hashlib
 import hmac
-import ipaddress
 import json
 import logging
 import os
-import re
 import requests
 import socket
-import sys
 import time
 import traceback
-import urllib.parse
 import warnings
 
 import act.api
@@ -72,7 +67,7 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def is_valid_ipv4_address(address):
+def is_valid_ipv4_address(address: Text) -> bool:
     try:
         socket.inet_pton(socket.AF_INET, address)
     except socket.error:  # not a valid address
@@ -80,7 +75,7 @@ def is_valid_ipv4_address(address):
     return True
 
 
-def is_valid_ipv6_address(address):
+def is_valid_ipv6_address(address: Text) -> bool:
     try:
         socket.inet_pton(socket.AF_INET6, address)
     except socket.error:  # not a valid address
@@ -122,7 +117,7 @@ def main() -> None:
     } if args.proxy_string else None
 
     iSightHandler = ISightAPIRequestHandler(args.root, args.privatekey, args.publickey)
-    data = iSightHandler.indicators(args.days)
+    data = iSightHandler.indicators(days=args.days, proxies=proxies)
 
     if 'success' not in data or not data['success']:
         logging.error("Unable to download from isight API [%s]", data['message'] if 'message' in data else "NA")
@@ -286,12 +281,11 @@ def main() -> None:
 ## -----------------------------------------
 
 
-
 class ISightAPIRequestHandler(object):
 
     INDICATORS = '/view/indicators'
 
-    def __init__(self, root, private_key, public_key):
+    def __init__(self, root: Text, private_key: Text, public_key: Text) -> None:
         """Create a new iSight api handler with api root and keys"""
 
         self.URL = root
@@ -299,7 +293,7 @@ class ISightAPIRequestHandler(object):
         self.private_key = private_key
         self.accept_version = '2.6'
 
-    def indicators(self, days = 1) -> None:
+    def indicators(self, days: int = 1, proxies: Dict = None) -> Dict:
         """Download indicators last X days"""
 
         toTS = int(datetime.datetime.now().timestamp())
@@ -322,7 +316,7 @@ class ISightAPIRequestHandler(object):
             'Date': time_stamp,
         }
 
-        r = requests.get(self.URL + ENDPOINT, headers=headers)
+        r = requests.get(self.URL + ENDPOINT, headers=headers, proxies=proxies)
         status_code = r.status_code
 
         if status_code == 200:
