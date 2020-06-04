@@ -139,7 +139,7 @@ def main() -> None:
                 factType = OBJECT_MAP[obj](dp[obj])  # translate to ACT fact type
                 handle_fact(actapi.fact('mentions')  # and create fact from field
                             .source('report', reportID)
-                            .destination(factType, dp[obj]))
+                            .destination(factType, dp[obj].lower()))
         if dp['url']:
             handle_fact(actapi.fact('mentions')
                         .source('report', reportID)

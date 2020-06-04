@@ -246,9 +246,12 @@ def handle_argus_event(
         handle_fact(
             actapi.fact("attributedTo").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
-        handle_fact(
-            actapi.fact("name", event["associatedCase"]["description"]).source("incident", case_id),
-            output_format=output_format)
+
+        description = event["associatedCase"]["description"]
+        if description:
+            handle_fact(
+                actapi.fact("name", description).source("incident", case_id),
+                output_format=output_format)
 
     if properties["mitreAttack.technique"]:
         # If we have technique -> we have an implicit connection to tactic (through technique)
