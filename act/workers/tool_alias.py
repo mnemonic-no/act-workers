@@ -31,10 +31,6 @@ def parseargs() -> argparse.ArgumentParser:
         '--exclude_tools',
         default="^\[placeholder\[[a-f0-9]{64}\]\]$",
         help="Tool patterns to exclude")
-    parser.add_argument(
-        '--read_file',
-        default=False,
-        help="Use data from previous run")
     return parser
 
 
@@ -90,18 +86,13 @@ def main() -> None:
     """Main function"""
     args = worker.handle_args(parseargs())
     actapi = worker.init_act(args)
-    if args.read_file:
-        with open("data/tools.json", "r") as f:
-            tools = json.load(f)
-        with open("data/aliases.json", "r") as f:
-            aliases = defaultdict(list, json.load(f))
-    else:
-        tools = search_tools(actapi, args.exclude_tools)
-        with open("data/tools.json", "w") as f:
-            json.dump(tools, f)
-        aliases = get_aliases(actapi, list(tools.keys()))
-        with open("data/aliases.json", "w") as f:
-            json.dump(aliases, f)
+
+    if not (args.act_baseurl and args.user_id):
+        error("Worker must be configured with --act-baseurl and --userid")
+        sys.exit(1)
+
+    tools = search_tools(actapi, args.exclude_tools)
+    aliases = get_aliases(actapi, list(tools.keys()))
 
     for tool1, tool2 in process(tools, aliases, args.threshold):
         handle_alias(actapi, tool1, tool2, args.submit, args.output_format)
