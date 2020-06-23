@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="1.0.26",
+    version="1.0.27",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -38,6 +38,7 @@ setup(
             'act-worker-config = act.workers.worker_config:main',
             'act-origin = act.workers.origin_client:main',
             'act-search-graph = act.workers.search_graph:main_log_error',
+            'act-tool-alias = act.workers.tool_alias:main_log_error'
         ]
     },
 
