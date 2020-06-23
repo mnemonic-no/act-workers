@@ -39,8 +39,8 @@ def verify_manifest_dir(manifest_dir: Text) -> None:
     always a feed file (Even empty)"""
 
     # Manifest is at default location - create directory if it does not exists
-    if manifest_dir == worker.get_cache_dir('misp_manifest'):
-        worker.get_cache_dir('misp_manifest', create=True)
+    if manifest_dir == caep.get_cache_dir('misp_manifest'):
+        caep.get_cache_dir('misp_manifest', create=True)
 
     # If there is specified a manifest directory in the .ini file we
     # verify that it exists (or fail hard). If no such directory
