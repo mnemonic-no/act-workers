@@ -247,10 +247,10 @@ def handle_argus_event(
             actapi.fact("attributedTo").source("event", event_id).destination("incident", case_id),
             output_format=output_format)
 
-        description = event["associatedCase"]["description"]
-        if description:
+        subject = event["associatedCase"]["subject"]
+        if subject:
             handle_fact(
-                actapi.fact("name", description).source("incident", case_id),
+                actapi.fact("name", subject).source("incident", case_id),
                 output_format=output_format)
 
     if properties["mitreAttack.technique"]:
