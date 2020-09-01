@@ -16,8 +16,9 @@ import act.api
 
 EXTRACT_GEONAMES = ["countries"]
 
-EXTRACT_INDICATORS = ["md5", "sha1", "sha256",
-                      "fqdn", "msid", "cve", "uri", "ipv4net"]
+EXTRACT_INDICATORS = ["md5", "sha1", "sha256", "fqdn", "uri", "ipv4net"]
+
+EXTRACT_VULNERABILITIES = ["cve", "msid"]
 
 SCIO_GEONAMES_ACT_MAP = {
     "countries": "country",
@@ -163,6 +164,27 @@ def add_locations_to_act(actapi: act.api.Act,
             output_format)
 
 
+def add_vulnerabilities_to_act(actapi: act.api.Act,
+                               vulnerabilities: Dict,
+                               report_id: Text,
+                               output_format: Text) -> None:
+    """Create facts from vulnerabilities map"""
+
+    # Locations (countries, regions, sub regions)
+    for vuln_type in EXTRACT_VULNERABILITIES:
+        value_fn = ACT_FN_MAP.get("vulnerability", lambda x: x)
+
+        values = {value_fn(value) for value
+                  in vulnerabilities.get(vuln_type, [])}
+
+        report_mentions_fact(
+            actapi,
+            "vulnerability",
+            values,
+            report_id,
+            output_format)
+
+
 def add_to_act(actapi: act.api.Act,
                doc: Dict,
                output_format: Text = "json") -> None:
@@ -173,6 +195,7 @@ def add_to_act(actapi: act.api.Act,
     title: Text = doc.get("title", filename)
 
     indicators: Dict = doc.get("indicators", {})
+    vulnerabilities: Dict = doc.get("vulnerabilities", {})
     locations: Dict = doc.get("locations", {})
 
     try:
@@ -186,6 +209,7 @@ def add_to_act(actapi: act.api.Act,
         error("Unable to create fact: %s" % e)
 
     add_indicators_to_act(actapi, indicators, report_id, output_format)
+    add_vulnerabilities_to_act(actapi, vulnerabilities, report_id, output_format)
     add_locations_to_act(actapi, locations, report_id, output_format)
 
     # Threat actor

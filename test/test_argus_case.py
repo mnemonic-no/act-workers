@@ -22,6 +22,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         event = json.loads(argus_event.read())
 
     api = act.api.Act("", None, "error")
+    act.api.helpers.handle_fact.cache_clear()
 
     argus.handle_argus_event(
         api,

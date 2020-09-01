@@ -2,26 +2,27 @@
 import json
 
 import act.api
-from act.workers import scio
+from act.workers import scio2
 
 
-def test_scio_facts(capsys) -> None:  # type: ignore
-    """ Test for scio facts, by comparing to captue of stdout """
-    with open("test/scio-doc.json") as scio_doc:
+def test_scio2_facts(capsys) -> None:  # type: ignore
+    """ Test for scio2 facts, by comparing to captue of stdout """
+    with open("test/scio2-doc.json") as scio_doc:
         doc = json.loads(scio_doc.read())
 
     api = act.api.Act("", None, "error")
     act.api.helpers.handle_fact.cache_clear()
 
-    scio.add_to_act(api, doc, output_format="str")
+    scio2.add_to_act(api, doc, output_format="str")
 
     captured = capsys.readouterr()
+
     facts = set(captured.out.split("\n"))
 
     report_id = doc["hexdigest"]
 
     sha256 = doc["indicators"]["sha256"][0]
-    uri = doc["indicators"]["uri"][0] # "http://www.us-cert.gov/tlp."
+    uri = doc["indicators"]["uri"][0]  # "http://www.us-cert.gov/tlp."
 
     fact_assertions = [
         api.fact("name", "TA18-149A.stix.xml").source("report", report_id),
@@ -34,7 +35,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
         api.fact("componentOf").source("fqdn", "www.us-cert.gov").destination("uri", uri),
         api.fact("componentOf").source("path", "/tlp.").destination("uri", uri),
         api.fact("scheme", "http").source("uri", uri),
-        api.fact("mentions").source("report", report_id).destination("tool", "kore"),
+        api.fact("mentions").source("report", report_id).destination("tool", "cobra"),
         api.fact("mentions").source("report", report_id).destination("uri", "email://redhat@gmail.com"),
         api.fact("mentions").source("report", report_id).destination("ipv4Network", "192.168.0.0/16"),
         api.fact("represents").source("hash", sha256).destination("content", sha256),
