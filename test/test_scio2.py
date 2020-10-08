@@ -32,6 +32,8 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
         api.fact("mentions").source("report", report_id).destination("hash", sha256),
         api.fact("mentions").source("report", report_id).destination("country", "Colombia"),
         api.fact("mentions").source("report", report_id).destination("uri", uri),
+        api.fact("represents").source("report", report_id).destination("content", report_id),
+        api.fact("at").source("content", report_id).destination("uri", doc["uri"]),
         api.fact("componentOf").source("fqdn", "www.us-cert.gov").destination("uri", uri),
         api.fact("componentOf").source("path", "/tlp.").destination("uri", uri),
         api.fact("scheme", "http").source("uri", uri),

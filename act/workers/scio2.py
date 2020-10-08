@@ -208,6 +208,25 @@ def add_to_act(actapi: act.api.Act,
     except act.api.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
 
+    try:
+        if doc["uri"]:
+            # URI reference
+            handle_fact(
+                actapi.fact("represents")
+                .source("report", report_id)
+                .destination("content", report_id),
+                output_format
+            )
+            # URI reference
+            handle_fact(
+                actapi.fact("at")
+                .source("content", report_id)
+                .destination("uri", doc["uri"]),
+                output_format
+            )
+    except act.api.base.ResponseError as e:
+        error("Unable to create fact: %s" % e)
+
     add_indicators_to_act(actapi, indicators, report_id, output_format)
     add_vulnerabilities_to_act(actapi, vulnerabilities, report_id, output_format)
     add_locations_to_act(actapi, locations, report_id, output_format)
