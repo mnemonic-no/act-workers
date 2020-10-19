@@ -209,7 +209,7 @@ def add_to_act(actapi: act.api.Act,
         error("Unable to create fact: %s" % e)
 
     try:
-        if doc["uri"]:
+        if "uri" in doc:
             # URI reference
             handle_fact(
                 actapi.fact("represents")
