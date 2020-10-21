@@ -19,6 +19,7 @@ This will install scripts for all workers:
 * act-argus-case
 * act-attack
 * act-country-regions
+* act-ip-filter
 * act-misp-feeds
 * act-mnemonic-pdns
 * act-origin
