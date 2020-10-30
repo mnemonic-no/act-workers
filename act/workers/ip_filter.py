@@ -34,7 +34,9 @@ Filter out all lines if parsed as IP address and IP is
 import ipaddress
 import sys
 import traceback
-from logging import error
+from logging import debug, error
+
+from act.workers.libs import worker
 
 
 def process() -> None:
@@ -84,13 +86,13 @@ def process() -> None:
         output_rows += 1
 
     if not output_rows:
-        # No output rows
-        sys.exit(1)
+        debug("All rows are filtered out")
 
 
 def main() -> None:
     """Main function"""
-
+    args = worker.handle_args(worker.parseargs("IP Filter"))
+    worker.init_act(args)
     process()
 
 
