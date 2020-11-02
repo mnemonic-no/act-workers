@@ -30,6 +30,7 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
     be the on the form accepted by the ACT Rest API fact API."""
 
     handle_fact_time = []
+    origins = set()
 
     for line in sys.stdin:
         data = json.loads(line)
@@ -38,6 +39,9 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
         try:
             started = time.time()
             act.api.helpers.handle_fact(fact)
+
+            if fact.origin:
+                origins.add(fact.origin.name)
 
             time_spent = time.time() - started
             handle_fact_time.append(time_spent)
@@ -51,12 +55,13 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
 
     if timing:
         warning(
-            "Total time (count:%s,total:%s,mean:%s,min:%s,max:%s)",
+            "Total time (count:%s,total:%s,mean:%s,min:%s,max:%s,origins:%s)",
             len(handle_fact_time),
             round(sum(handle_fact_time), 2),
             round(sum(handle_fact_time)/len(handle_fact_time), 2),
             round(min(handle_fact_time), 2),
             round(max(handle_fact_time), 2),
+            "+".join(origins)
         )
 
 
