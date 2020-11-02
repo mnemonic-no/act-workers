@@ -15,7 +15,8 @@ def batch_query(
         timeout: int = 299,
         json_params: Optional[Dict] = None,
         proxy_string: Optional[Text] = None,
-        batch_size: int = 1000) -> Generator[Dict[Text, Any], None, None]:
+        batch_size: int = 1000,
+        limit: int = 0) -> Generator[Dict[Text, Any], None, None]:
     """ Execute query until we have all results """
 
     offset = 0
@@ -25,6 +26,9 @@ def batch_query(
         'http': proxy_string,
         'https': proxy_string
     }
+
+    if limit and batch_size > limit:
+        batch_size = limit
 
     options = {
         "headers": headers,
@@ -73,6 +77,10 @@ def batch_query(
         debug("count={}".format(count))
 
         offset += len(data)
+
+        # if we have defined a limit, stop processing on reaching limit
+        if limit and offset >= limit:
+            break
 
         if offset >= count:
             break
