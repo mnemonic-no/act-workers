@@ -221,6 +221,9 @@ def handle_ip(
     ip_query = []
 
     for ip in ip_list:
+        ip = ip.strip()
+        if not ip:
+            continue
         try:
             ip_str = str(IPv4Address(ip))
         except AddressValueError:
