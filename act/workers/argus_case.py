@@ -35,6 +35,7 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--last-update', type=int, help="Last updated timestamp (epoc, seconds). Default - use now-1w first time, and start on last retrieved event at next run.")
     parser.add_argument('--argus-apikey', dest='argus_apikey',
                         help="Argus API key")
+    parser.add_argument('--organization-from-argus', action="store_true", help="Apply organization from argus event")
 
     return parser
 
@@ -143,6 +144,15 @@ def process(api: act.api.Act, args: argparse.Namespace) -> None:
         # Result is sorted by lastUpdateTimestamp, so we update
         # last_update from the event
         last_update = cast(int, event["lastUpdatedTimestamp"])
+
+        if args.organization_from_argus:
+            shortName = event.get("customerInfo", {}).get("shortName")
+
+            if shortName:
+                api.config.organization = shortName
+            else:
+                error(f"Unable to get organization from event: {event}")
+                continue
 
         # Create facts from event
         argus.handle_argus_event(api, event, content_props, hash_props, args.output_format)

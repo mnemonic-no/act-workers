@@ -64,6 +64,20 @@ $ act-origin --act-baseurl <BASEURL> --user-id <USERID> --delete --origin-id e5a
 Origin deleted: e5a9792e-78c7-4190-9275-27616be47ca8
 ```
 
+# Access mode
+By default, all facts will have access-mode "RoleBased", which means that the user needs access to the organization specified when creating the facts.
+
+The access mode can be explicit set with `--access-mode`, e.g. like this, to set all facts to Public access mode:
+
+```
+--access-mode Public
+```
+
+# Organization
+
+All workers support the optional arguments `--organization` If they are not specified, facts will be added with the organization of the origin or the user performing the upload to the platform (if not set by the origin.
+
+
 # Worker usage
 
 To print facts to stdout:
