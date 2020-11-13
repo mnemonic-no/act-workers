@@ -53,16 +53,12 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
             error("ResponseError while storing objects: %s" % err)
             sys.exit(1)
 
-    if timing:
-        if handle_fact_time:
-            mean = round(sum(handle_fact_time)/len(handle_fact_time), 2)
-        else:
-            mean = "N/A"
+    if timing and handle_fact_time:
         warning(
             "Total time (count:%s,total:%s,mean:%s,min:%s,max:%s,origins:%s)",
             len(handle_fact_time),
             round(sum(handle_fact_time), 2),
-            mean,
+            round(sum(handle_fact_time)/len(handle_fact_time), 2),
             round(min(handle_fact_time), 2),
             round(max(handle_fact_time), 2),
             "+".join(origins)
