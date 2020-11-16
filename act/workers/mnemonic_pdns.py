@@ -8,6 +8,7 @@ import argparse
 import socket
 import sys
 import traceback
+import ipaddress
 from logging import error, warning
 from typing import Any, Dict, Generator, Optional, Text
 
@@ -19,6 +20,10 @@ from act.workers.libs import mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+IPv4 = "IPv4"
+IPv6 = "IPv6"
+FQDN = "fqdn"
+
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -28,9 +33,11 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--pdns-timeout', dest='timeout', type=int,
                         default=299, help="Timeout")
     parser.add_argument('--pdns-batch-size', dest='pdns_batch_size', type=int,
-                        default=1000, help="Batch size of pdns queries")
+                        default=100, help="Batch size of pdns queries")
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="PassiveDNS API key")
+    parser.add_argument('--limit', dest='limit', type=int, default=100,
+                        help="Maximum number of records to return from pdns")
 
     return parser
 
@@ -41,7 +48,8 @@ def pdns_query(
         query: str,
         timeout: int,
         proxy_string: Optional[Text] = None,
-        batch_size: int = 1000) -> Generator[Dict[str, Any], None, None]:
+        batch_size: int = 1000,
+        limit: int = 0) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - PassiveDNS API key with the passivedns role (minimum)
@@ -68,12 +76,28 @@ def pdns_query(
             headers=headers,
             timeout=timeout,
             proxy_string=proxy_string,
-            batch_size=batch_size)
+            batch_size=batch_size,
+            limit=limit)
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
         warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
+
+
+
+def kind(s: Text):
+    try:
+        ipaddress.IPv4Address(s)
+        return IPv4
+    except ipaddress.AddressValueError:
+        pass
+    try:
+        ipaddress.IPv6Address(s)
+        return IPv6
+    except ipaddress.AddressValueError:
+        pass
+    return FQDN
 
 
 def process(
@@ -83,7 +107,8 @@ def process(
         timeout: int = 299,
         proxy_string: Optional[Text] = None,
         output_format: Text = "json",
-        batch_size: int = 1000) -> None:
+        batch_size: int = 1000,
+        limit: int = 0) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -92,14 +117,29 @@ def process(
         if not query:
             continue
 
+        i = 0
         for row in pdns_query(
-                pdns_baseurl,
-                apikey,
-                timeout=timeout,
-                query=query,
-                proxy_string=proxy_string,
-                batch_size=batch_size):
+            pdns_baseurl,
+            apikey,
+            timeout=timeout,
+            query=query,
+            proxy_string=proxy_string,
+            batch_size=batch_size,
+            limit=limit):
             rrtype = row["rrtype"]
+
+            i += 1
+            if limit == i:
+                if kind(query) in (IPv4, IPv6):
+                    act.api.helpers.handle_fact(
+                        api.fact("excessive", "resolvesTo")
+                        .source(*act.api.helpers.ip_obj(row["answer"])),
+                        output_format=output_format)
+                else:
+                    act.api.helpers.handle_fact(
+                        api.fact("excessive", "resolvesTo")
+                        .source("fqdn", query),
+                        output_format=output_format)
 
             if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
@@ -133,7 +173,8 @@ def main() -> None:
             args.timeout,
             args.proxy_string,
             args.output_format,
-            args.pdns_batch_size)
+            args.pdns_batch_size,
+            args.limit)
 
 
 def main_log_error() -> None:

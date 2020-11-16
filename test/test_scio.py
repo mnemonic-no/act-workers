@@ -11,6 +11,7 @@ def test_scio_facts(capsys) -> None:  # type: ignore
         doc = json.loads(scio_doc.read())
 
     api = act.api.Act("", None, "error")
+    act.api.helpers.handle_fact.cache_clear()
 
     scio.add_to_act(api, doc, output_format="str")
 

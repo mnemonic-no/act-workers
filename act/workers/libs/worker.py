@@ -3,12 +3,13 @@
 import argparse
 import inspect
 import os
+import re
 import smtplib
 import socket
 import sys
 from email.mime.text import MIMEText
-from logging import error, warning
-from typing import Any, Optional, Text, Dict
+from logging import debug, error, warning
+from typing import Any, Optional, Text, Dict, cast
 
 import caep
 
@@ -84,6 +85,11 @@ def parseargs(description: str) -> argparse.ArgumentParser:
                         help="Loglevel (default = info)")
     parser.add_argument("--output-format", dest="output_format", choices=["str", "json"], default="json",
                         help="Output format for fact (default=json)")
+    parser.add_argument('--access-mode', default=act.api.DEFAULT_ACCESS_MODE,
+                        choices=act.api.ACCESS_MODES,
+                        help="Specify default access mode used for all facts.")
+    parser.add_argument('--organization', help="Specify default organization applied to all facts.")
+    parser.add_argument('--http-header', help="Comma separated list of HTTP headers, e.g. 'HeaderA: val1, HeaderB:comma\,val2")
     parser.add_argument('--http-user', dest='http_user', help="ACT HTTP Basic Auth user")
     parser.add_argument('--http-password', dest='http_password', help="ACT HTTP Basic Auth password")
     parser.add_argument('--disabled', dest='disabled', action="store_true", help="Worker is disabled (exit immediately)")
@@ -107,12 +113,32 @@ def worker_name() -> Text:
 
 def handle_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     """ Wrapper for caep.handle_args where we set config_id and config_name """
-    return caep.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
+    args = caep.handle_args(parser, CONFIG_ID, CONFIG_NAME, worker_name())
+
+    if args.http_header:
+        # Convert comma separated list of http headers to dictionary
+        headers = {}
+
+        # Split on comma, unless they are escaped
+        for header in re.split(r'(?<!\\),', args.http_header):
+            if ":" not in header:
+                raise act.api.base.ArgumentError(f"No ':' in header, http header: {header}")
+            header_key, header_val = header.split(":", 1)
+            header_key = header_key.strip().replace("\\,", ",")
+            header_val = header_val.strip().replace("\\,", ",")
+            headers[header_key] = header_val
+        args.http_header = headers
+
+    return cast(argparse.Namespace, args)
 
 
 def init_act(args: argparse.Namespace) -> act.api.Act:
     """ Initialize act api from arguments """
     requests_kwargs: Dict[Text, Any] = {}
+
+    if args.http_header:
+        requests_kwargs["headers"] = args.http_header
+
     if args.http_user:
         requests_kwargs["auth"] = (args.http_user, args.http_password)
 
@@ -133,7 +159,15 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
         worker_name(),
         requests_common_kwargs=requests_kwargs,
         origin_name=args.origin_name,
-        origin_id=args.origin_id)
+        origin_id=args.origin_id,
+        access_mode=args.access_mode,
+        organization=args.organization
+    )
+
+    if args.http_header:
+        # Debug output of HTTP headers (must wait until act.api.Act() is initialized
+        # so we have setup logging)
+        debug("HTTP headers: %s", args.http_header)
 
     # This check is done here to make sure logging is set up
     if args.disabled:
