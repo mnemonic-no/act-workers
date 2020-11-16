@@ -138,13 +138,13 @@ def main() -> None:
     """Main function"""
     args = worker.handle_args(parseargs())
     actapi = worker.init_act(args)
-    ta_cards = worker.fetch_json(args.thaicert_url, args.proxy_string, args.http_timeout, verify_https=False)
+    ta_cards = worker.fetch_json(args.thaicert_url, args.proxy_string, args.http_timeout)
     process(actapi, ta_cards["values"])
 
-    vocab = worker.fetch_json(STIX_VOCAB, args.proxy_string, args.http_timeout, verify_https=False)
+    vocab = worker.fetch_json(STIX_VOCAB, args.proxy_string, args.http_timeout)
     add_sectors(actapi, ta_cards["values"], vocab)
 
-    countries = worker.fetch_json(COUNTRY_REGIONS, args.proxy_string, args.http_timeout, verify_https=False)
+    countries = worker.fetch_json(COUNTRY_REGIONS, args.proxy_string, args.http_timeout)
     countries = [country["name"].lower() for country in countries]
     add_countries(actapi, ta_cards["values"], countries)
 
