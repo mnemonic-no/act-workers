@@ -79,11 +79,13 @@ def pdns_query(
             batch_size=batch_size,
             limit=limit)
 
+    except worker.ResourceLimitExceeded as err:
+        error("Resource limits exceeded ({0.__class__.__name__})".format(err))
+
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
         warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
-
 
 
 def kind(s: Text):

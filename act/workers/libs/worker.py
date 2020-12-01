@@ -43,6 +43,21 @@ class UnknownFormat(Exception):
         Exception.__init__(self, *args)
 
 
+class ResourceLimitExceeded(Exception):
+    """ Resource Limits Exceeded"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
+class ServiceTimeout(Exception):
+    """ Internal service timeouts """
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
+
 def parseargs(description: str) -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = argparse.ArgumentParser(

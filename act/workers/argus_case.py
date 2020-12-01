@@ -8,7 +8,7 @@ import socket
 import sys
 import time
 import traceback
-from logging import debug, error, info
+from logging import debug, error, info, warning
 from typing import Any, Dict, Generator, Optional, Text, cast, List
 
 import caep
@@ -85,6 +85,9 @@ def event_case_query(
             timeout=timeout,
             json_params=criteria,
             proxy_string=proxy_string)
+
+    except worker.ServiceTimeout as err:
+        warning("Service timeout: {}".format(err))
 
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
@@ -182,6 +185,7 @@ def main() -> None:
 
     actapi = worker.init_act(args)
     process(actapi, args)
+
 
 def main_log_error() -> None:
     "Main function. Log all exceptions to error"
