@@ -33,7 +33,11 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
     origins = set()
 
     for line in sys.stdin:
-        data = json.loads(line)
+        try:
+            data = json.loads(line)
+        except json.decoder.JSONDecodeError:
+            error("Error decoding json: %s" % line)
+            continue
 
         fact = actapi.fact(**data)
         try:
