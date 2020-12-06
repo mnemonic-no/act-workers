@@ -259,7 +259,6 @@ def main() -> None:
         elif dp['fileType'] and dp['sha256']:
             for digest in ['sha1', 'md5', 'sha256']:
                 if dp[digest]:
-                    print("DEBUG!!!")
                     handle_fact(actapi.fact('represents')
                                 .source('hash', dp[digest])
                                 .destination('content', dp['sha256']))
