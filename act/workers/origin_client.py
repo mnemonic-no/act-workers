@@ -62,7 +62,7 @@ def add_origin(actapi: act.api.Act, default_trust: Text) -> None:
     }
 
     if organization:
-        if not re.search(act.api.RE_UUID_MATCH, organization):
+        if not re.search(act.api.re.UUID_MATCH, organization):
             fatal("Organization must be a valid UUID")
 
         params["organization"] = organization
