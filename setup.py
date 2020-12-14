@@ -41,7 +41,6 @@ setup(
             'act-origin = act.workers.origin_client:main',
             'act-search-graph = act.workers.search_graph:main_log_error',
             'act-tool-alias = act.workers.tool_alias:main_log_error',
-            'act-tool-alias = act.workers.tool_alias:main_log_error',
             'act-thaicert = act.workers.thaicert:main_log_error'
         ]
     },
