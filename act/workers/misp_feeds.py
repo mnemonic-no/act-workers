@@ -98,18 +98,21 @@ def handle_feed(manifest_dir: Text,
 
     feed_sha1 = hashlib.sha1(feed_url.encode("utf-8")).hexdigest()
 
-    try:
-        with open(os.path.join(manifest_dir, feed_sha1)) as infile:
-            old_manifest = json.load(infile)
-    except IOError:
-        old_manifest = {}
+    old_manifest = {}
+    if manifest_dir != "NODIR":
+        try:
+            with open(os.path.join(manifest_dir, feed_sha1)) as infile:
+                old_manifest = json.load(infile)
+        except IOError:
+            pass
 
     for uuid in manifest:
         if uuid not in old_manifest:
             yield handle_event_file(feed_url, uuid, proxy_string, cert_file)
 
-    with open(os.path.join(manifest_dir, feed_sha1), "wb") as outfile:
-        outfile.write(json.dumps(manifest).encode("utf-8"))
+    if manifest_dir != "NODIR":
+        with open(os.path.join(manifest_dir, feed_sha1), "wb") as outfile:
+            outfile.write(json.dumps(manifest).encode("utf-8"))
 
 
 def main() -> None:
@@ -150,7 +153,7 @@ def main() -> None:
                     n += 1
                 except act.api.base.ResponseError as err:
                     e += 1
-                    error("Error adding fact to platform", exc_info=True)
+                    error("misp_feeds, main unable to add fact to platform, error calling actapi: %s" % err, exc_info=True)
 
                 for attribute in event.attributes:
                     if not attribute.act_type:
@@ -164,7 +167,7 @@ def main() -> None:
                         n += 1
                     except act.api.base.ResponseError as err:
                         e += 1
-                        error("Error adding fact to platform", exc_info=True)
+                        error("misp_feeds: main unable to add attribute fact to platform, error calling actapi: %s" % err, exc_info=True)
                 info("{0} facts. {1} errors.".format(n, e))
 
 
