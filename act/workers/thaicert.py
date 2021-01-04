@@ -161,7 +161,7 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
                         error("ResponseError while storing objects: %s" % err)
 
     for values in tools:
-        aliases = [tool["name"] for tool in values["names"]] + [values["tool"]]
+        aliases = set([tool["name"].strip() for tool in values["names"]] + [values["tool"]])
         for tool1, tool2 in combinations(aliases, 2):
             fact = client.fact("alias") \
                                 .bidirectional("tool", tool1, "tool", tool2)
