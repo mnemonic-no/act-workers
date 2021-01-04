@@ -39,7 +39,6 @@ from act.api.helpers import handle_fact
 from act.workers.libs import worker
 
 CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
-VERSION = "0.1"
 ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
     "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
 
@@ -179,7 +178,7 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
                 try:
                     asn_record = asnwhois.result[ip]
                     success = True
-                except socket.gaierror:
+                except (socket.gaierror, ConnectionResetError):
                     if retry >= 8:
                         raise
                     # Sleep 1, 2, 4, 8, ... 128 seconds
@@ -302,12 +301,12 @@ def main() -> None:
 
     # Read IPs from stdin
     if args.stdin:
-        in_data = [ip for ip in sys.stdin.read().split("\n")]
+        in_data = sys.stdin.read().split("\n")
         handle_ip(actapi, cn_map, in_data, db_cache, args.output_format)
 
     # Bulk lookup
     elif args.bulk:
-        all_ips = [ip for ip in open(args.bulk, "r")]
+        all_ips = open(args.bulk, "r").readlines()
         batch_size = 50
         i = 0
         while i < len(all_ips):
@@ -319,6 +318,7 @@ def main() -> None:
 
 
 def main_log_error() -> None:
+    """main entry point with logging of all un-cought exceptions"""
     try:
         main()
     except Exception:
