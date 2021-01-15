@@ -57,7 +57,7 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                         .destination("campaign", operation["activity"].split("\n")[0]),
                         client.fact("attributedTo")
                         .source("incident", "*")
-                        .destination("threatActor", actor["actor"])
+                        .destination("threatActor", actor["actor"].split(",")[0])
                     )
 
             for fact in chain:
