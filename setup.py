@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="1.0.53",
+    version="1.0.54",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -54,7 +54,7 @@ setup(
     # __path__ = __import__('pkgutil').extend_path(__path__, __name__)
     namespace_packages=['act'],
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api>=1.0.29,<1.1.0', 'caep', 'requests', 'RashlyOutlaid', 'virustotal-api', 'stix2', 'dateparser'],
+    install_requires=['act-api>=1.0.29,<1.1.0', 'caep', 'requests', 'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
         "Development Status :: 4 - Beta",

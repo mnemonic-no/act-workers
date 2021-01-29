@@ -30,7 +30,8 @@ from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
 from typing import Dict, Generator, List, Text, Tuple, Union
 
-from RashlyOutlaid.libwhois import ASNRecord, ASNWhois, QueryError
+from RashlyOutlaid.libwhois import QueryError
+import RashlyOutlaid.api as shadowserver
 
 import caep
 
@@ -96,7 +97,7 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def blacklisted(value: Union[ASNRecord, str], blacklist_type: str) -> bool:
+def blacklisted(value: Union[shadowserver.ASNRecord, str], blacklist_type: str) -> bool:
     """ Return true if value is blacklisted for the specified type """
     return any([b(value) for b in BLACKLIST[blacklist_type]])  # type: ignore
 
@@ -124,7 +125,7 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     return conn
 
 
-def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tuple[str, ASNRecord], None, None]:
+def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
     """ Query cache for all IPs in list """
     cursor = cache.cursor()
 
@@ -133,10 +134,10 @@ def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tupl
     for res in cursor.execute("SELECT * FROM asn WHERE ip in ({})".format(in_list)).fetchall():
         asn_tuple = list(res[1:7])
         asn_tuple[5] = str(asn_tuple[5]).split(",")  # Split peers into list
-        yield (res[0], ASNRecord(*asn_tuple))
+        yield (res[0], shadowserver.ASNRecord(*asn_tuple))
 
 
-def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> None:
+def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: shadowserver.ASNRecord) -> None:
     """ ADD IP/ASNRecord to cache """
     cursor = cache.cursor()
 
@@ -145,11 +146,13 @@ def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: ASNRecord) -> N
     asn_flattened[5] = ",".join(asn_record.peers)
 
     cursor.execute("INSERT INTO asn VALUES (?,?,?,?,?,?,?,?)",
-                   ([ip] + list(asn_flattened) + [int(time.time())]))
+                   ([ip] + list(asn_flattened) + [str(int(time.time()))]))
     cache.commit()
 
 
-def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[str, ASNRecord], None, None]:
+def asn_query(ip_list: List[str],
+              cache: sqlite3.Connection,
+              proxy_string: Text) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
     """
     Query shadowserver ASN usingi IP
     Return cached result if the IP is in the cace
@@ -165,10 +168,6 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
         # Do not query IP, since we found it in cache
         query_ip.remove(ip)
 
-    asnwhois = ASNWhois()
-    asnwhois.query = list(query_ip)
-    asnwhois.peers = True
-
     for ip in query_ip:
         try:
             # Retry if we have DNS issues towards asn.shadowserver.org
@@ -176,7 +175,11 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
             success = False
             while not success:
                 try:
-                    asn_record = asnwhois.result[ip]
+                    if proxy_string:
+                        asn_records = shadowserver.peer([ip], proxies={'http': proxy_string,
+                                                                       'https': proxy_string})
+                    else:
+                        asn_records = shadowserver.peer([ip])
                     success = True
                 except (socket.gaierror, ConnectionResetError):
                     if retry >= 8:
@@ -194,15 +197,16 @@ def asn_query(ip_list: List[str], cache: sqlite3.Connection) -> Generator[Tuple[
             error("Socket timeout query shadowserver asn: {} ({}".format(ip, query_ip))
             break  # This will also lead to timeout on all other IPs in this bulk query
 
-        if not asn_record.asn:
-            warning("No ASN found for ip {}".format(ip))
-            continue
+        for asn_record in asn_records:
+            if not asn_record.asn:
+                warning("No ASN found for ip {}".format(ip))
+                continue
 
-        info("Result from query: {}".format(asn_record))
+            info("Result from query: {}".format(asn_record))
 
-        add_to_cache(cache, ip, asn_record)
+            add_to_cache(cache, ip, asn_record)
 
-        yield (ip, asn_record)
+            yield (ip, asn_record)
 
 
 def handle_ip(
@@ -210,6 +214,7 @@ def handle_ip(
         cn_map: Dict[str, str],
         ip_list: List[str],
         cache: sqlite3.Connection,
+        proxy_string: Text,
         output_format: Text = "json") -> None:
     """
     Read ip from stdin and query shadowserver - asn.
@@ -235,7 +240,7 @@ def handle_ip(
         else:
             ip_query.append(ip_str)
 
-    for (ip, res) in asn_query(ip_query, cache):
+    for (ip, res) in asn_query(ip_query, cache, proxy_string):
         # Remove everything after first occurence of "," in isp name
         handle_fact(
             actapi.fact("memberOf")
@@ -302,7 +307,12 @@ def main() -> None:
     # Read IPs from stdin
     if args.stdin:
         in_data = sys.stdin.read().split("\n")
-        handle_ip(actapi, cn_map, in_data, db_cache, args.output_format)
+        handle_ip(actapi,
+                  cn_map,
+                  in_data,
+                  db_cache,
+                  args.proxy_string,
+                  args.output_format)
 
     # Bulk lookup
     elif args.bulk:
@@ -310,7 +320,12 @@ def main() -> None:
         batch_size = 50
         i = 0
         while i < len(all_ips):
-            handle_ip(actapi, cn_map, (all_ips[i:i + batch_size]), db_cache, args.output_format)
+            handle_ip(actapi,
+                      cn_map,
+                      (all_ips[i:i + batch_size]),
+                      db_cache,
+                      args.proxy_string,
+                      args.output_format)
             i += batch_size
             time.sleep(1)
 
