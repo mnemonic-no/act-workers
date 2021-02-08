@@ -152,6 +152,10 @@ def handle_hexdigest(
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
 
+    if 'results' not in response:
+        logging.error("%s in handle_hexdigest for %s", response, hexdigest)
+        sys.exit(1)
+
     if 'scans' not in response['results']:
         # VirusTotal has not seend this hexdigest before
         return
