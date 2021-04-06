@@ -251,8 +251,7 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format
     if 'resolutions' in results:
         for resolution in results['resolutions']:
             if not resolution['hostname']:
-                warning("Empty hostname in result: hostname=%s, result=%s", resolution['hostname'],
-                        results)
+                warning("Empty hostname in result: %s", results)
                 continue
             act.api.helpers.handle_fact(actapi.fact('resolvesTo')
                                         .source('fqdn', resolution['hostname'])
