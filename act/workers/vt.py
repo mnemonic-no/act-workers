@@ -35,7 +35,7 @@ import traceback
 import urllib.parse
 import warnings
 from functools import partialmethod
-from logging import error, info
+from logging import error, info, warning
 from typing import Generator, List, Optional, Text, Tuple, Set
 
 import requests
@@ -250,6 +250,9 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format
 
     if 'resolutions' in results:
         for resolution in results['resolutions']:
+            if not resolution['hostname']:
+                warning("Empty hostname in resolution: ip=%s, result=%s", ip, results)
+                continue
             act.api.helpers.handle_fact(actapi.fact('resolvesTo')
                                         .source('fqdn', resolution['hostname'])
                                         .destination(ip_type, ip),
