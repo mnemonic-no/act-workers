@@ -215,7 +215,6 @@ You can add all options on a single command line, like this example:
 act-ta-helper \
     --output-format str \
     --ta HAFNIUM \
-    --target-countries denmark \
     --sectors pharmaceuticals,education,defense,non-profit \
     --tools PsExec,Procdump,7-Zip,Nishang,PowerCat,WinRar,SIMPLESEESHARP,SPORTSBALL,ChinaChopper,ASPXSPY,Covenant \
     --target-countries "Denmark,United States of America" \
