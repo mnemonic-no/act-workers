@@ -21,6 +21,10 @@ from pyattck import Attck
 from act.workers.libs import worker
 
 
+class VocabularyException(Exception):
+    pass
+
+
 def split_arg(argument, delimiter=","):
     """ Split argument with delimiter and return list """
     if not argument:
@@ -35,14 +39,15 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--ta', '--threat-actor', help='Threat Actor')
     parser.add_argument('--ta-located-in', help='Threat Actor located in')
     parser.add_argument('--campaign', help='Campaign')
-    parser.add_argument('--techniques', type=split_arg, help='Techniques (Commaseparated list)')
+    parser.add_argument('--techniques', type=split_arg, default=[], help='Techniques (Commaseparated list)')
     parser.add_argument('--tools', type=split_arg, help='Tools (Commaseparated list)')
-    parser.add_argument('--sectors', type=split_arg, help='Sectors (Commaseparated list)')
-    parser.add_argument('--target-countries', type=split_arg, help='Target Countries (Commaseparated list)')
+    parser.add_argument('--sectors', type=split_arg, default=[], help='Sectors (Commaseparated list)')
+    parser.add_argument('--target-countries', type=split_arg, default=[], help='Target Countries (Commaseparated list)')
     parser.add_argument('--country-region-url',
                         default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
                         help="Country region URL in json format")
 
+    # Stic Vocabulary
     parser.add_argument(
         '--sector-vocabulary',
         type=split_arg,
@@ -119,50 +124,42 @@ def mitre_techniques():
     return techniques
 
 
-def technique_lookup_or_die(technique: Text):
-    "Lookup technique and return name if exists, otherwise die with suggestion of correct name"
+def technique_lookup(technique: Text):
+    "Lookup technique and return name if exists, otherwise raise VocabularyException"
     techniques = mitre_techniques()
 
-    if technique in techniques:
+    try:
         return techniques[technique]
-
-    else:
-        sys.stderr.write(f"ERROR: Unable to find technique: {technique}\n")
-        sys.stderr.write(f"Did you mean any of these techniques? \n")
-        for candidate in find_levenshtein_candiates(technique, techniques.keys()):
-            sys.stderr.write(f"* {candidate}\n")
-
-        sys.exit(1)
+    except KeyError:
+        raise VocabularyException(
+            "Technique {} not found in MITRE ATT&CK. Nearest matches: {}".format(
+                technique,
+                ", ".join(find_levenshtein_candiates(technique, techniques.keys()))))
 
 
-def country_lookup_or_die(args: argparse.Namespace, country: Text):
-    "Lookup country and return name if exists, otherwise die with suggestion of correct name"
+def country_lookup(args: argparse.Namespace, country: Text):
+    "Lookup country and return name if exists, otherwise raise VocabularyException"
     vocabulary = fetch_country_regions(args.country_region_url, args.proxy_string, args.http_timeout)
 
-    if country.lower() in vocabulary:
+    try:
         return vocabulary[country.lower()]
+    except KeyError:
+        raise VocabularyException(
+            "Country {} not found in ISO 3166 database. Nearest matches: {}".format(
+                country,
+                ", ".join(find_levenshtein_candiates(country, vocabulary.values()))))
 
-    else:
-        sys.stderr.write(f"ERROR: Unable to find country in ISO 3166 list: {country}\n")
-        sys.stderr.write(f"Did you mean any of these countries? \n")
-        for candidate in find_levenshtein_candiates(country, vocabulary.values()):
-            sys.stderr.write(f"* {candidate}\n")
 
-        sys.exit(1)
-
-def sector_lookup_or_die(vocabulary: List[Text], sector: Text):
-    "Lookup sector and return name if exists, otherwise die with suggestion of correct name"
+def sector_lookup(vocabulary: List[Text], sector: Text):
+    "Lookup sector and return name if exists, otherwise raise VocabularyException"
 
     if sector.lower() in vocabulary:
         return sector.lower()
-
     else:
-        sys.stderr.write(f"ERROR: Unable to find sector in vocabulary: {sector}\n")
-        sys.stderr.write(f"Did you mean any of these sectors? \n")
-        for candidate in find_levenshtein_candiates(sector, vocabulary):
-            sys.stderr.write(f"* {candidate}\n")
-
-        sys.exit(1)
+        raise VocabularyException(
+            "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
+                sector,
+                ", ".join(find_levenshtein_candiates(sector, vocabulary))))
 
 
 def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]):
@@ -178,7 +175,7 @@ def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, tech
             .destination("incident", "*"),
             client.fact("classifiedAs")
             .source("event", "*")
-            .destination("technique", technique_lookup_or_die(technique))
+            .destination("technique", technique)
         )
 
         for fact in chain:
@@ -208,7 +205,7 @@ def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: Li
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text], vocabulary: List[Text]):
+def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]):
     for sector in sectors:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -216,7 +213,7 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
             .destination("organization", "*"),
             client.fact("memberOf")
             .source("organization", "*")
-            .destination("sector", sector_lookup_or_die(vocabulary, sector)),
+            .destination("sector", sector),
             client.fact("attributedTo")
             .source("incident", "*")
             .destination("threatActor", threat_actor)
@@ -226,7 +223,7 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_target_country(args: argparse.Namespace, client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]):
+def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]):
     for target_country in target_countries:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -234,7 +231,7 @@ def add_ta_target_country(args: argparse.Namespace, client: Act, output_format: 
             .destination("organization", "*"),
             client.fact("locatedIn")
             .source("organization", "*")
-            .destination("country", country_lookup_or_die(args, target_country)),
+            .destination("country", target_country),
             client.fact("attributedTo")
             .source("incident", "*")
             .destination("threatActor", threat_actor)
@@ -244,11 +241,11 @@ def add_ta_target_country(args: argparse.Namespace, client: Act, output_format: 
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_located_in(args: argparse.Namespace, client: Act, output_format: Text, threat_actor: Text, located_in: Text):
+def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, located_in: Text):
     chain = act.api.fact.fact_chain(
         client.fact("locatedIn")
         .source("organization", "*")
-        .destination("country", country_lookup_or_die(args, located_in)),
+        .destination("country", located_in),
         client.fact("attributedTo")
         .source("threatActor", threat_actor)
         .destination("organization", "*")
@@ -285,8 +282,40 @@ def main() -> None:
         sys.stderr.write("You must specify Threat Actor with --ta <THREAT ACTOR>\n")
         sys.exit(1)
 
+    # Normalize and lookup country/technique/sectors
+    # Print error with suggested match if not found
+    ok = True
+
+    try:
+        args.target_countries = [country_lookup(args, country) for country in args.target_countries]
+    except VocabularyException as e:
+        sys.stderr.write(str(e))
+        ok = False
+
+    try:
+        args.techniques = [technique_lookup(tech) for tech in args.techniques]
+    except VocabularyException as e:
+        sys.stderr.write(str(e))
+        ok = False
+
+    try:
+        if args.ta_located_in:
+            args.ta_located_in = country_lookup(args, args.ta_located_in)
+    except VocabularyException as e:
+        sys.stderr.write(str(e))
+        ok = False
+
+    try:
+        args.sectors = [sector_lookup(args.sector_vocabulary, sector) for sector in args.sectors]
+    except VocabularyException as e:
+        sys.stderr.write(str(e))
+        ok = False
+
+    if not ok:
+        sys.exit(1)
+
     if args.target_countries:
-        add_ta_target_country(args, actapi, args.output_format, args.ta, args.target_countries)
+        add_ta_target_country(actapi, args.output_format, args.ta, args.target_countries)
 
     if args.campaign:
         add_ta_campaign(actapi, args.output_format, args.ta, args.campaign)
@@ -298,10 +327,10 @@ def main() -> None:
         add_ta_techniques(actapi, args.output_format, args.ta, args.techniques)
 
     if args.sectors:
-        add_ta_sectors(actapi, args.output_format, args.ta, args.sectors, args.sector_vocabulary)
+        add_ta_sectors(actapi, args.output_format, args.ta, args.sectors)
 
     if args.ta_located_in:
-        add_ta_located_in(args, actapi, args.output_format, args.ta, args.ta_located_in)
+        add_ta_located_in(actapi, args.output_format, args.ta, args.ta_located_in)
 
 
 def main_log_error() -> None:
