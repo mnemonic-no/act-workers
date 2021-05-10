@@ -90,7 +90,7 @@ def dijkstra(graph: Set[Node], start: Node, stop: Node) -> List[Node]:
             return []
 
 
-def graph_from_type_def(typedef: TextIO, avoids: List[Text], avoid_value: int) -> Set[Node]:
+def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text], avoid_value: int) -> Set[Node]:
     """Build a graph from a type definition file"""
 
     typedef.seek(0)
@@ -112,12 +112,13 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], avoid_value: int) -
             if isinstance(src_objects, str):
                 src_objects = [src_objects]
 
-            cost = 1 + avoid_value if fact_name in avoids else 1
+            cost = 10 * avoid_value if fact_name in avoids else -100 if fact_name in includes else 10
 
             for dest_object in dest_objects:
                 for src_object in src_objects:
                     if dest_object == src_object:
                         continue  # no point in traversing through it self
+                    cost = 10 * avoid_value if fact_name in avoids or dest_object in avoids or src_object in avoids else -100 if fact_name in includes or src_object in includes or dest_object in includes else 10
                     if dest_object not in nodes:
                         nodes[dest_object] = Node(dest_object)
                     if src_object not in nodes:
@@ -149,9 +150,13 @@ def parseargs() -> argparse.ArgumentParser:
         type=str,
         help='Destination objects value')
     parser.add_argument(
-        '--avoid-facts',
+        '--avoid',
         type=str,
-        help='List of fact types to avoid')
+        help='List of fact- or object- types to avoid')
+    parser.add_argument(
+        '--include',
+        type=str,
+        help='List of fact- or object- types to include')
     parser.add_argument(
         '--fact-type-definition',
         type=str,
@@ -173,10 +178,15 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
 
-    if args.avoid_facts:
-        args.avoid_facts = [x.strip() for x in args.avoid_facts.split(",")]
+    if args.avoid:
+        args.avoid = [x.strip() for x in args.avoid.split(",")]
     else:
-        args.avoid_facts = []
+        args.avoid = []
+
+    if args.include:
+        args.include = [x.strip() for x in args.include.split(",")]
+    else:
+        args.include = []
 
     actapi = worker.init_act(args)
 
@@ -186,7 +196,7 @@ def main() -> None:
     } if args.proxy_string else None
 
     with open(args.fact_type_definition) as typedef:
-        graph = graph_from_type_def(typedef, args.avoid_facts, args.avoid_cost)
+        graph = graph_from_type_def(typedef, args.avoid, args.include, args.avoid_cost)
 
     start = None
     stop = None
