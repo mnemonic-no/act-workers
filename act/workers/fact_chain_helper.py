@@ -172,6 +172,68 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
+def find_start_and_end_nodes(graph: Set[Node], start_name: Text, end_name: Text) -> Tuple[Optional[Node], Optional[Node]]:
+    """search through graph looking for nodes with the provded names"""
+
+    start = None
+    end = None
+
+    for node in graph:
+        if node.name == start_name:
+            start = node
+        if node.name == end_name:
+            end = node
+
+    return start, end
+
+
+def fact_chain_from_path_result(actapi: act.api.Act,
+                                res: List[Node],
+                                start: Node,
+                                end: Node,
+                                start_value: Text,
+                                end_value: Text) -> List[act.api.fact]:
+
+    facts: List[act.api.fact] = []
+    prev = None
+    value = '*'
+
+    for node in res:
+        if prev is None:
+            prev = node
+            value = start_value if prev.name == start.name else '*'
+            continue
+
+        if end.name == node.name:
+            value = end_value
+
+        if node.previous_direction == '>':
+            if node == end:
+                facts.append(actapi.fact(node.previous_fact)
+                             .source(prev.name, '*')
+                             .destination(node.name, value))
+            else:
+                facts.append(actapi.fact(node.previous_fact)
+                             .source(prev.name, value)
+                             .destination(node.name, '*'))
+        else:
+            if node == end:
+                facts.append(actapi.fact(node.previous_fact)
+                             .destination(prev.name, '*')
+                             .source(node.name, value))
+            else:
+                facts.append(actapi.fact(node.previous_fact)
+                             .destination(prev.name, value)
+                             .source(node.name, '*'))
+        prev = node
+
+        value = '*'
+
+    fact_chain: List[act.api.fact] = act.api.fact.fact_chain(*facts)
+
+    return fact_chain
+
+
 def main() -> None:
     """main function"""
 
@@ -199,56 +261,15 @@ def main() -> None:
     with fact_type_definition_path.open() as typedef:
         graph = graph_from_type_def(typedef, args.avoid, args.include, args.avoid_cost)
 
-    start = None
-    stop = None
+    start, end = find_start_and_end_nodes(graph, args.source, args.destination)
 
-    for node in graph:
-        if node.name == args.source:
-            start = node
-        if node.name == args.destination:
-            stop = node
-
-    if not start or not stop:
+    if not start or not end:
         sys.exit(1)
 
-    res = dijkstra(graph, start, stop)
+    res = dijkstra(graph, start, end)
 
-    facts: List[act.api.fact] = []
-    prev = None
-    value = '*'
+    chain = fact_chain_from_path_result(actapi, res, start, end, args.source_value, args.destination_value)
 
-    for node in res:
-        if prev is None:
-            prev = node
-            value = args.source_value if prev.name == args.source else '*'
-            continue
-
-        if args.destination == node.name:
-            value = args.destination_value
-
-        if node.previous_direction == '>':
-            if node == stop:
-                facts.append(actapi.fact(node.previous_fact)
-                             .source(prev.name, '*')
-                             .destination(node.name, value))
-            else:
-                facts.append(actapi.fact(node.previous_fact)
-                             .source(prev.name, value)
-                             .destination(node.name, '*'))
-        else:
-            if node == stop:
-                facts.append(actapi.fact(node.previous_fact)
-                             .destination(prev.name, '*')
-                             .source(node.name, value))
-            else:
-                facts.append(actapi.fact(node.previous_fact)
-                             .destination(prev.name, value)
-                             .source(node.name, '*'))
-        prev = node
-
-        value = '*'
-
-    chain = act.api.fact.fact_chain(*facts)
     for fact in chain:
         handle_fact(fact, output_format=args.output_format)
 
