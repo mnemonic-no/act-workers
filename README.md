@@ -196,7 +196,7 @@ information from reports where do not have all the information availiable to you
 We know from a report that the threat actor APT 1 uses the tool Mimikatz
 
 ```bash
-$ act-fact-chain-helper --output-format str --source threatActor --source-value "apt1" --destination tool  --destination-value 'mimikatz' --avoid mentions --include content
+$ act-fact-chain-helper --output-format str --start threatActor/apt1 --end tool/mimikatz --avoid mentions --include content
 (incident/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[attributedTo]-> (threatActor/apt1)
 (event/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[attributedTo]-> (incident/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]])
 (content/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[observedIn]-> (event/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]])
