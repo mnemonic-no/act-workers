@@ -263,7 +263,12 @@ def main() -> None:
 
     start, end = find_start_and_end_nodes(graph, args.source, args.destination)
 
-    if not start or not end:
+    if not start:
+        print(f"{args.source} is not an object type")
+        sys.exit(1)
+
+    if not end:
+        print(f"{args.destination} is not an object type")
         sys.exit(1)
 
     res = dijkstra(graph, start, end)
