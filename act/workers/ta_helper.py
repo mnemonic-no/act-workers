@@ -22,6 +22,9 @@ from pyattck import Attck
 from act.workers.libs import worker
 
 
+class VocabularyException(Exception):
+    pass
+
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Threat Actor helper')
