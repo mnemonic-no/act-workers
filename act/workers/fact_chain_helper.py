@@ -27,6 +27,7 @@ from typing import List, Optional, Set, Text, TextIO, Tuple
 
 import act.api
 from act.api.helpers import handle_fact
+from act.types import types
 from act.workers.libs import worker
 
 
@@ -161,7 +162,7 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument(
         '--fact-type-definition',
         type=str,
-        default='fact-types.json',
+        default=types.etc_file('fact-types.json'),
         help='fact definition file. default="fact-types.json"')
     parser.add_argument(
         '--avoid-cost',
