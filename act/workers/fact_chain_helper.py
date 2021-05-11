@@ -19,6 +19,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 import argparse
 import json
+import pathlib
 import sys
 import traceback
 from logging import error
@@ -190,12 +191,12 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    proxies = {
-        'http': args.proxy_string,
-        'https': args.proxy_string
-    } if args.proxy_string else None
+    fact_type_definition_path = pathlib.Path(args.fact_type_definition).expanduser().resolve()
+    if not fact_type_definition_path.is_file():
+        print(f"{fact_type_definition_path} is not a file.")
+        sys.exit(1)
 
-    with open(args.fact_type_definition) as typedef:
+    with fact_type_definition_path.open() as typedef:
         graph = graph_from_type_def(typedef, args.avoid, args.include, args.avoid_cost)
 
     start = None
