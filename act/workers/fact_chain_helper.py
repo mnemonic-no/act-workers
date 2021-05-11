@@ -192,9 +192,9 @@ def fact_chain_from_path_result(actapi: act.api.Act,
                                 start: Node,
                                 end: Node,
                                 start_value: Text,
-                                end_value: Text) -> List[act.api.fact]:
+                                end_value: Text) -> List[act.api.fact.FactType]:
 
-    facts: List[act.api.fact] = []
+    facts: List[act.api.fact.FactType] = []
     prev = None
     value = '*'
 
@@ -229,7 +229,7 @@ def fact_chain_from_path_result(actapi: act.api.Act,
 
         value = '*'
 
-    fact_chain: List[act.api.fact] = act.api.fact.fact_chain(*facts)
+    fact_chain: List[act.api.fact.FactType] = act.api.fact.fact_chain(*facts)
 
     return fact_chain
 
