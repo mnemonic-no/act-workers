@@ -114,13 +114,20 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text
             if isinstance(src_objects, str):
                 src_objects = [src_objects]
 
-            cost = 10 * avoid_value if fact_name in avoids else -100 if fact_name in includes else 10
-
             for dest_object in dest_objects:
                 for src_object in src_objects:
                     if dest_object == src_object:
                         continue  # no point in traversing through it self
-                    cost = 10 * avoid_value if fact_name in avoids or dest_object in avoids or src_object in avoids else -100 if fact_name in includes or src_object in includes or dest_object in includes else 10
+
+                    cost = 10
+
+                    if fact_name in includes or dest_object in includes or src_object in includes:
+                        cost = -100
+
+                    # Avoid overwrites and takes precedence over includes
+                    if fact_name in avoids or dest_object in avoids or src_object in avoids:
+                        cost = 10 * avoid_value
+
                     if dest_object not in nodes:
                         nodes[dest_object] = Node(dest_object)
                     if src_object not in nodes:
@@ -134,7 +141,18 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text
 def fact_type_value(data: Text) -> Tuple[Text, Text]:
     """Split the argument into fact type and value"""
 
-    return data.split("/", 1)
+    typ, val = data.split("/", 1)
+
+    return typ, val
+
+
+def string_list(data: Text) -> List[Text]:
+    """Split the argument into list of elements based on , separator"""
+
+    if not data:
+        return list()
+
+    return [element.strip() for element in data.split(",")]
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -151,11 +169,13 @@ def parseargs() -> argparse.ArgumentParser:
         help='End type/value (i.e. tool/zeus)')
     parser.add_argument(
         '--avoid',
-        type=str,
+        type=string_list,
+        default=[],
         help='List of fact- or object- types to avoid')
     parser.add_argument(
         '--include',
-        type=str,
+        type=string_list,
+        default=[],
         help='List of fact- or object- types to include')
     parser.add_argument(
         '--fact-type-definition',
@@ -240,19 +260,10 @@ def main() -> None:
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
 
-    if args.avoid:
-        args.avoid = [x.strip() for x in args.avoid.split(",")]
-    else:
-        args.avoid = []
-
-    if args.include:
-        args.include = [x.strip() for x in args.include.split(",")]
-    else:
-        args.include = []
-
     actapi = worker.init_act(args)
 
     fact_type_definition_path = pathlib.Path(args.fact_type_definition).expanduser().resolve()
+
     if not fact_type_definition_path.is_file():
         print(f"{fact_type_definition_path} is not a file.")
         sys.exit(1)
