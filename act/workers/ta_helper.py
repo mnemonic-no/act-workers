@@ -16,14 +16,15 @@ from typing import Dict, List, Text
 
 import act.api
 from act.api.helpers import Act, handle_fact
-from act.workers import worker_config
 from pyattck import Attck
 
+from act.workers import worker_config
 from act.workers.libs import worker
 
 
 class VocabularyException(Exception):
     pass
+
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -31,10 +32,10 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--ta', '--threat-actor', help='Threat Actor')
     parser.add_argument('--ta-located-in', help='Threat Actor located in')
     parser.add_argument('--campaign', help='Campaign')
-    parser.add_argument('--techniques', type=worker_config.string_list, help='Techniques (Commaseparated list)')
-    parser.add_argument('--tools', type=worker_config.string_list, help='Tools (Commaseparated list)')
-    parser.add_argument('--sectors', type=worker_config.string_list, help='Sectors (Commaseparated list)')
-    parser.add_argument('--target-countries', type=worker_config.string_list, help='Target Countries (Commaseparated list)')
+    parser.add_argument('--techniques', type=worker_config.string_list, default=[], help='Techniques (Commaseparated list)')
+    parser.add_argument('--tools', type=worker_config.string_list, default=[], help='Tools (Commaseparated list)')
+    parser.add_argument('--sectors', type=worker_config.string_list, default=[], help='Sectors (Commaseparated list)')
+    parser.add_argument('--target-countries', type=worker_config.string_list, default=[], help='Target Countries (Commaseparated list)')
     parser.add_argument('--country-region-url',
                         default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
                         help="Country region URL in json format")
