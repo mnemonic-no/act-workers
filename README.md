@@ -205,26 +205,6 @@ $ act-fact-chain-helper --fact-type-definition ../act-types/act/types/etc/fact-t
 
 In this case we do need to hint at the tool that it should include the "content" object and avoid "mention" facts.
 
-The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimenta
-# act-fact-chain-helper
-
-The act-fact-chain-helper is a utility that can be used to add facts chains based on known start and end nodes. This can be usefull when adding
-information from reports where do not have all the information availiable to you.
-
-## example
-
-We know from a report that the threat actor APT 1 uses the tool Mimikatz
-
-```bash
-$ act-fact-chain-helper --fact-type-definition ../act-types/act/types/etc/fact-types.json --output-format str --source threatActor --source-value "apt1" --destination tool  --destination-value 'mimikatz' --avoid mentions --include content
-(incident/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[attributedTo]-> (threatActor/apt1)
-(event/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[attributedTo]-> (incident/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]])
-(content/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[observedIn]-> (event/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]])
-(content/[placeholder[1194f1ba4ea8ded28250a0193327654e5ee305bce03741a3e6f183f03b5c6b35]]) -[classifiedAs]-> (tool/mimikatz)
-```
-
-In this case we do need to hint at the tool that it should include the "content" object and avoid "mention" facts.
-
 The source and destination is interchangeable. In the example above, the fact chain created by swapping the source and destination is identical.
 
 The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimental.l.
