@@ -28,6 +28,7 @@ from typing import List, Optional, Set, Text, TextIO, Tuple
 import act.api
 from act.api.helpers import handle_fact
 from act.types import types
+from act.workers import worker_config
 from act.workers.libs import worker
 
 
@@ -146,15 +147,6 @@ def fact_type_value(data: Text) -> Tuple[Text, Text]:
     return typ, val
 
 
-def string_list(data: Text) -> List[Text]:
-    """Split the argument into list of elements based on , separator"""
-
-    if not data:
-        return list()
-
-    return [element.strip() for element in data.split(",")]
-
-
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
@@ -169,12 +161,12 @@ def parseargs() -> argparse.ArgumentParser:
         help='End type/value (i.e. tool/zeus)')
     parser.add_argument(
         '--avoid',
-        type=string_list,
+        type=worker_config.string_list,
         default=[],
         help='List of fact- or object- types to avoid')
     parser.add_argument(
         '--include',
-        type=string_list,
+        type=worker_config.string_list,
         default=[],
         help='List of fact- or object- types to include')
     parser.add_argument(

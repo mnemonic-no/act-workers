@@ -4,13 +4,21 @@
 import argparse
 import os
 import sys
-from typing import Text
-
-from pkg_resources import resource_string
+from typing import List, Text
 
 import caep
+from pkg_resources import resource_string
 
 from act.workers.libs import worker
+
+
+def string_list(data: Text) -> List[Text]:
+    """Split the argument into list of elements based on , separator"""
+
+    if not data:
+        return list()
+
+    return [element.strip() for element in data.split(",")]
 
 
 def parseargs() -> argparse.Namespace:
