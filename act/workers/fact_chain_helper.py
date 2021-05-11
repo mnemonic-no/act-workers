@@ -131,26 +131,24 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text
     return set(nodes.values())
 
 
+def fact_type_value(data: Text) -> Tuple[Text, Text]:
+    """Split the argument into fact type and value"""
+
+    return data.split("/", 1)
+
+
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
     parser = worker.parseargs('ACT Fact Chain Helper')
     parser.add_argument(
-        '--source',
-        type=str,
-        help='Source object')
+        '--start',
+        type=fact_type_value,
+        help='Start type/value (i.e. threatActor/apt21)')
     parser.add_argument(
-        '--source-value',
-        type=str,
-        help="Source object value")
-    parser.add_argument(
-        '--destination',
-        type=str,
-        help='Destination object')
-    parser.add_argument(
-        '--destination-value',
-        type=str,
-        help='Destination objects value')
+        '--end',
+        type=fact_type_value,
+        help='End type/value (i.e. tool/zeus)')
     parser.add_argument(
         '--avoid',
         type=str,
@@ -262,19 +260,22 @@ def main() -> None:
     with fact_type_definition_path.open() as typedef:
         graph = graph_from_type_def(typedef, args.avoid, args.include, args.avoid_cost)
 
-    start, end = find_start_and_end_nodes(graph, args.source, args.destination)
+    start_type, start_value = args.start
+    end_type, end_value = args.end
+
+    start, end = find_start_and_end_nodes(graph, start_type, end_type)
 
     if not start:
-        print(f"{args.source} is not an object type")
+        print(f"{start_type} is not an object type")
         sys.exit(1)
 
     if not end:
-        print(f"{args.destination} is not an object type")
+        print(f"{end_type} is not an object type")
         sys.exit(1)
 
     res = dijkstra(graph, start, end)
 
-    chain = fact_chain_from_path_result(actapi, res, start, end, args.source_value, args.destination_value)
+    chain = fact_chain_from_path_result(actapi, res, start, end, start_value, end_value)
 
     for fact in chain:
         handle_fact(fact, output_format=args.output_format)
