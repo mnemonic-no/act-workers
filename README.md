@@ -207,4 +207,6 @@ In this case we do need to hint at the tool that it should include the "content"
 
 The source and destination is interchangeable. In the example above, the fact chain created by swapping the source and destination is identical.
 
+by adding the ```--act-baseurl``` option, the data will be stored to the platform.
+
 The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimental.l.
