@@ -165,8 +165,8 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument(
         '--avoid-cost',
         type=int,
-        default=2,
-        help='Cost added to paths through avoided fact. Default=2')
+        default=3,
+        help='multiplier used to increase cost of avoided objects or facts. Default=3')
 
     return parser
 
