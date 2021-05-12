@@ -38,13 +38,6 @@ class UnsupportedScheme(Exception):
         Exception.__init__(self, *args)
 
 
-class UnknownResult(Exception):
-    """UnknownResult is used in API request (not 200 result)"""
-
-    def __init__(self, *args: Any) -> None:
-        Exception.__init__(self, *args)
-
-
 class NoResult(Exception):
     """NoResult is used in API request (no data returned)"""
 
@@ -254,7 +247,7 @@ def fetch(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https
 
     if not req.status_code == 200:
         errmsg = "status_code: {0.status_code}: {0.content}"
-        raise UnknownResult(errmsg.format(req))
+        raise FetchError(errmsg.format(req))
 
     return req.text
 

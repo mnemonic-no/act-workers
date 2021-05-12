@@ -45,7 +45,7 @@ def status_code_handler(req: requests.models.Response, res: Dict) -> None:
             if msg_template in STATUS_CODE_TEMPLATES.get(req.status_code, {}):
                 raise STATUS_CODE_TEMPLATES[req.status_code][msg_template](msg)
 
-    raise worker.UnknownResult("Unknown error: {}, {}".format(req, req.content))
+    raise worker.FetchError("Unknown error: {}, {}".format(req, req.content))
 
 
 def batch_query(
@@ -94,7 +94,7 @@ def batch_query(
         try:
             res = req.json()
         except ValueError:
-            raise worker.UnknownResult("Illegal JSON, {}, {}".format(req, req.content))
+            raise worker.FetchError("Illegal JSON, {}, {}".format(req, req.content))
 
         if req.status_code != 200:
             status_code_handler(req, res)
@@ -132,7 +132,7 @@ def single_query(
     try:
         for res in batch_query(method, url, headers, timeout, json_params, proxy_string):
             return res
-    except worker.UnknownResult as e:
+    except worker.FetchError as e:
         if not str(e).startswith("Unknown error: 404"):
             raise
 
