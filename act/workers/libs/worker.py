@@ -243,7 +243,8 @@ def fetch(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, req.url))
+        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, url))
+        return
 
     if not req.status_code == 200:
         errmsg = "status_code: {0.status_code}: {0.content}"
