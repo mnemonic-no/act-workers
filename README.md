@@ -19,6 +19,7 @@ This will install scripts for all workers:
 * act-argus-case
 * act-attack
 * act-country-regions
+* act-fact-chain-helper (see usage below)
 * act-ip-filter
 * act-misp-feeds
 * act-mnemonic-pdns
@@ -28,6 +29,7 @@ This will install scripts for all workers:
 * act-shadowserver-asn
 * act-uploader
 * act-url-shorter-unpack
+* act-ta-helper (see usage below)
 * act-veris
 * act-vt
 
@@ -210,3 +212,91 @@ The source and destination is interchangeable. In the example above, the fact ch
 by adding the ```--act-baseurl``` option, the data will be stored to the platform.
 
 The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimental.l.
+
+# add-ta-helper
+
+You can use `add-ta-helper` to create facts, including placeholders, for typical scenarios where you have some
+information of TA activity, but not all.
+
+This worker should not be used if any of objects listed as placeholders below are known.
+
+```bash
+  --ta THREAT-ACTOR             Threat Actor Name (Required)
+  --ta-located-in COUNTRY       Country where threat actor is located
+  --campaign CAMPAIGN           Campaign
+  --techniques TECHNIQUES       List of techniques (commaseparated).
+                                Support technique IDs, e.g. T1002 and name
+                                e.g "Valid Accounts"
+  --tools TOOLS                 List of tools (commaseparated)
+  --sectors SECTORS             List of Sectors (commaseparated)
+  --target-countries COUNTRIES  Target Countries (commaseparated)
+```
+
+You can run the tool with the options above, and add `--output-format str` to se a suggested list of facts.
+You can then add `--act-baseurl` and `--user-id` to add the facts to a platform instance.
+
+
+You can add all options on a single command line, like this example:
+```bash
+act-ta-helper \
+    --output-format str \
+    --ta HAFNIUM \
+    --sectors pharmaceuticals,education,defense,non-profit \
+    --tools PsExec,Procdump,7-Zip,Nishang,PowerCat,WinRar,SIMPLESEESHARP,SPORTSBALL,ChinaChopper,ASPXSPY,Covenant \
+    --target-countries "Denmark,United States of America" \
+    --campaign "Operation Exchange Marauder" \
+    --ta-located-in China \
+    --techniques T1588,T1003,T1190,T1560,T1583,T1071,T1114,T1567,T1136,T1021
+```
+
+The following facts/placeholders will be created based on the options (placeholders are marked with [*]):
+
+## `ta-located-in`
+
+Use this if you know the threat actor name and country where TA is located, but organization is unknown.
+
+```
+threatActor -[attributedTo]-> organization[*] -[locatedIn]-> country
+```
+
+## `campaign`
+
+Use this if you know the threat actor and campaign name, but incident is unknown.
+
+```
+threatActor -[attributedTo]-> incident[*] -[attributedTo]-> campaign
+```
+
+## `techniques`
+
+Use this if you know the threat actor and technique, but event and incident is unknown.
+
+
+```
+technique <-[classifiedAs]- event[*] -[attributedTo]-> incident[*] -[attributedTo]-> threatActor
+
+```
+
+## `tools`
+
+Use if tool and threat actor is known, but incident, content and event is unknown.
+
+```
+threatActor <-[attributedTod]- incident[*] <-[attributedTod]- event[*] <-[observedIn]- content[*] -[classifiedAs]-> tool
+```
+
+## `sectors`
+
+Use this if threat actor and target sector is known, but organization and incident is unknown.
+
+```
+threatActor -[attributedTo]-> incident[*] -[targets]-> organization[*] -[memberOf]-> sector
+```
+
+## `target-countries`
+
+Use this if threat actor and target country is known, but organization and incident is unknown.
+
+```
+threatActor -[attributedTo]-> incident[*] -[targets]-> organization[*] -[locatedIn]-> country
+```
