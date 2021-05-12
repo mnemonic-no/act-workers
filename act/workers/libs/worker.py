@@ -265,8 +265,8 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
     proxy_string (string, optional): Optional proxy string on format host:port
     timeout (int, optional):         Timeout value for query (default=60 seconds)
     """
+    content = fetch(url, proxy_string, timeout, verify_https)
     try:
-        content = fetch(url, proxy_string, timeout, verify_https)
         return json.loads(content)
     except json.decoder.JSONDecodeError as e:
         raise FetchError(f"Cannot parse as json {e}, {content} {url}")
