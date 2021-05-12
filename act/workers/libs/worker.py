@@ -24,6 +24,13 @@ CONFIG_ID = "actworkers"
 CONFIG_NAME = "actworkers.ini"
 
 
+class FetchError(Exception):
+    """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
 class UnsupportedScheme(Exception):
     """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
 
@@ -243,8 +250,7 @@ def fetch(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https
     except (urllib3.exceptions.ReadTimeoutError,
             requests.exceptions.ReadTimeout,
             socket.timeout) as err:
-        error("Timeout ({0.__class__.__name__}), query: {1}".format(err, url))
-        return ""
+        raise FetchError("Timeout ({0.__class__.__name__}), query: {1}".format(err, url))
 
     if not req.status_code == 200:
         errmsg = "status_code: {0.status_code}: {0.content}"
@@ -259,8 +265,11 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
     proxy_string (string, optional): Optional proxy string on format host:port
     timeout (int, optional):         Timeout value for query (default=60 seconds)
     """
-    return json.loads(fetch(url, proxy_string, timeout, verify_https))
-
+    try:
+        content = fetch(url, proxy_string, timeout, verify_https)
+        return json.loads(content)
+    except json.decoder.JSONDecodeError as e:
+        raise FetchError(f"Cannot parse as json {e}, {content} {url}")
 
 
 def sendmail(smtphost: str, sender: str, recipient: str, subject: str, body: str) -> None:
