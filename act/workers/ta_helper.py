@@ -9,7 +9,6 @@ Create common placeholders based on known information.
 
 import argparse
 import functools
-import json
 import sys
 import traceback
 from logging import error
