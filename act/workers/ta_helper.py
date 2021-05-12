@@ -9,6 +9,7 @@ Create common placeholders based on known information.
 
 import argparse
 import functools
+import json
 import sys
 import traceback
 from logging import error
@@ -36,9 +37,9 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--tools', type=worker_config.string_list, default=[], help='Tools (Commaseparated list)')
     parser.add_argument('--sectors', type=worker_config.string_list, default=[], help='Sectors (Commaseparated list)')
     parser.add_argument('--target-countries', type=worker_config.string_list, default=[], help='Target Countries (Commaseparated list)')
-    parser.add_argument('--country-region-url',
+    parser.add_argument('--country-region',
                         default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
-                        help="Country region URL in json format")
+                        help="Country region in json format (HTTP URL or file)")
 
     # Stic Vocabulary
     parser.add_argument(
@@ -76,7 +77,7 @@ def levenshtein(a: Text, b: Text) -> int:
     return current[n]
 
 
-def find_levenshtein_candiates(value, vocabulary, n_items=3) -> List:
+def find_levenshtein_candiates(value: Text, vocabulary: List, n_items: int = 3) -> List:
     "Return top N list of possible levenshtein candidates"
 
     possible_match = []
@@ -88,12 +89,12 @@ def find_levenshtein_candiates(value, vocabulary, n_items=3) -> List:
 
 
 @functools.lru_cache(32)
-def fetch_country_regions(country_region_url: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
+def fetch_country_regions(country_region: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
     "Fetch ISO-3166 list of country/regions"
 
     vocabulary: Dict = {}
 
-    for c_map in worker.fetch_json(country_region_url, proxy_string, http_timeout):
+    for c_map in worker.fetch_json(country_region, proxy_string, http_timeout):
         country = c_map["name"]
         vocabulary[country.lower()] = country
 
@@ -132,7 +133,7 @@ def technique_lookup(technique: Text) -> Text:
 
 def country_lookup(args: argparse.Namespace, country: Text) -> Text:
     "Lookup country and return name if exists, otherwise raise VocabularyException"
-    vocabulary = fetch_country_regions(args.country_region_url, args.proxy_string, args.http_timeout)
+    vocabulary = fetch_country_regions(args.country_region, args.proxy_string, args.http_timeout)
 
     try:
         return vocabulary[country.lower()]
@@ -280,7 +281,7 @@ def main() -> None:
 
     try:
         args.target_countries = [country_lookup(args, country) for country in args.target_countries]
-    except VocabularyException as e:
+    except (VocabularyException, FileNotFoundError, worker.UnsupportedScheme) as e:
         sys.stderr.write(str(e))
         ok = False
 

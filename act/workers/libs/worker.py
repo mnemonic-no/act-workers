@@ -2,11 +2,13 @@
 
 import argparse
 import inspect
+import json
 import os
 import re
 import smtplib
 import socket
 import sys
+import urllib.parse
 from email.mime.text import MIMEText
 from logging import debug, error, warning
 from typing import Any, Optional, Text, Dict, cast
@@ -20,6 +22,13 @@ import act.api
 
 CONFIG_ID = "actworkers"
 CONFIG_NAME = "actworkers.ini"
+
+
+class UnsupportedScheme(Exception):
+    """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
 
 
 class UnknownResult(Exception):
@@ -217,6 +226,15 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
         "proxies": proxies,
         "params": {}
     }
+
+    parsed = urllib.parse.urlparse(url)
+
+    # No scheme - assume this is a file
+    if not parsed.scheme:
+        return json.load(open(url))
+
+    if not parsed.scheme.lower() in ("http", "https"):
+        raise UnsupportedScheme(f"Unsupported scheme in {url}")
 
     if not verify_https:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
