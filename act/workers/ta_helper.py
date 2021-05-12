@@ -76,7 +76,7 @@ def levenshtein(a: Text, b: Text) -> int:
     return current[n]
 
 
-def find_levenshtein_candiates(value, vocabulary, n_items=3):
+def find_levenshtein_candiates(value, vocabulary, n_items=3) -> List:
     "Return top N list of possible levenshtein candidates"
 
     possible_match = []
@@ -88,7 +88,7 @@ def find_levenshtein_candiates(value, vocabulary, n_items=3):
 
 
 @functools.lru_cache(32)
-def fetch_country_regions(country_region_url: Text, proxy_string: Text, http_timeout: int):
+def fetch_country_regions(country_region_url: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
     "Fetch ISO-3166 list of country/regions"
 
     vocabulary: Dict = {}
@@ -101,7 +101,7 @@ def fetch_country_regions(country_region_url: Text, proxy_string: Text, http_tim
 
 
 @functools.lru_cache(32)
-def mitre_techniques():
+def mitre_techniques() -> Dict[Text, Text]:
     """
     Get list of all MITRE ATT&CK techniques and return map combined with
     both technique IDs and (lowercased) name as key an name as value
@@ -117,7 +117,7 @@ def mitre_techniques():
     return techniques
 
 
-def technique_lookup(technique: Text):
+def technique_lookup(technique: Text) -> Text:
     "Lookup technique and return name if exists, otherwise raise VocabularyException"
     techniques = mitre_techniques()
 
@@ -130,7 +130,7 @@ def technique_lookup(technique: Text):
                 ", ".join(find_levenshtein_candiates(technique, techniques.keys()))))
 
 
-def country_lookup(args: argparse.Namespace, country: Text):
+def country_lookup(args: argparse.Namespace, country: Text) -> Text:
     "Lookup country and return name if exists, otherwise raise VocabularyException"
     vocabulary = fetch_country_regions(args.country_region_url, args.proxy_string, args.http_timeout)
 
@@ -143,19 +143,18 @@ def country_lookup(args: argparse.Namespace, country: Text):
                 ", ".join(find_levenshtein_candiates(country, vocabulary.values()))))
 
 
-def sector_lookup(vocabulary: List[Text], sector: Text):
+def sector_lookup(vocabulary: List[Text], sector: Text) -> Text:
     "Lookup sector and return name if exists, otherwise raise VocabularyException"
 
     if sector.lower() in vocabulary:
         return sector.lower()
-    else:
-        raise VocabularyException(
-            "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
-                sector,
-                ", ".join(find_levenshtein_candiates(sector, vocabulary))))
+    raise VocabularyException(
+        "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
+            sector,
+            ", ".join(find_levenshtein_candiates(sector, vocabulary))))
 
 
-def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]):
+def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]) -> None:
     """ Threat Actor Techniques """
 
     for technique in techniques:
@@ -175,7 +174,7 @@ def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, tech
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: List[Text]):
+def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: List[Text]) -> None:
     """ Threat Actor Tools """
 
     for tool in tools:
@@ -198,7 +197,7 @@ def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: Li
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]):
+def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]) -> None:
     for sector in sectors:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -216,7 +215,7 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]):
+def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]) -> None:
     for target_country in target_countries:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -234,7 +233,7 @@ def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, 
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, located_in: Text):
+def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, located_in: Text) -> None:
     chain = act.api.fact.fact_chain(
         client.fact("locatedIn")
         .source("organization", "*")
@@ -248,7 +247,7 @@ def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, loca
         handle_fact(fact, output_format=output_format)
 
 
-def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campaign: Text):
+def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campaign: Text) -> None:
     chain = act.api.fact.fact_chain(
         client.fact("attributedTo")
         .source("incident", "*")
