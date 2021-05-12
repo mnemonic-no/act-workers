@@ -40,16 +40,11 @@ def parseargs() -> argparse.ArgumentParser:
                         default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
                         help="Country region in json format (HTTP URL or file)")
 
-    # Stic Vocabulary
+    # Stix Vocabulary
     parser.add_argument(
         '--sector-vocabulary',
-        type=worker_config.string_list,
-        default="aerospace, agriculture, automotive, chemical, commercial, communications, construction, dams, defense,"
-        "education, emergency-services, energy, entertainment, financial-services, government, government-local,"
-        "government-national, government-public-services, government-regional, healthcare, hospitality-leisure,"
-        "infrastructure, insurance, manufacturing, mining, non-profit, nuclear, pharmaceuticals, retail, technology,"
-        "telecommunications, transportation, utilities, water",
-        help="Sector vocabulary")
+        default="https://raw.githubusercontent.com/mnemonic-no/act-scio2/master/act/scio/etc/plugins/sectors.cfg",
+        help="Sector vocabulary (STIX2, in scio format). Fetched from URL or file")
 
     return parser
 
@@ -101,6 +96,29 @@ def fetch_country_regions(country_region: Text, proxy_string: Text, http_timeout
 
 
 @functools.lru_cache(32)
+def fetch_sector(sector_vocabulary: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
+    "Fetch STIX2 sector vocabulary"
+
+    vocabulary: Dict = {}
+
+    # format=
+    # name: alias1,alias2,...aliasN
+    for line in worker.fetch(sector_vocabulary, proxy_string, http_timeout).split("\n"):
+        if not line.strip():
+            continue
+
+        name, aliases = line.split(":", 1)
+
+        vocabulary[name] = name
+
+        for alias in [a.strip() for a in aliases.split(",")]:
+            vocabulary[alias] = name
+
+    return vocabulary
+
+
+
+@functools.lru_cache(32)
 def mitre_techniques() -> Dict[Text, Text]:
     """
     Get list of all MITRE ATT&CK techniques and return map combined with
@@ -143,15 +161,18 @@ def country_lookup(args: argparse.Namespace, country: Text) -> Text:
                 ", ".join(find_levenshtein_candiates(country, vocabulary.values()))))
 
 
-def sector_lookup(vocabulary: List[Text], sector: Text) -> Text:
+def sector_lookup(args: argparse.Namespace, sector: Text) -> Text:
     "Lookup sector and return name if exists, otherwise raise VocabularyException"
 
-    if sector.lower() in vocabulary:
-        return sector.lower()
-    raise VocabularyException(
-        "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
-            sector,
-            ", ".join(find_levenshtein_candiates(sector, vocabulary))))
+    vocabulary = fetch_sector(args.sector_vocabulary, args.proxy_string, args.http_timeout)
+
+    try:
+        return vocabulary[sector.lower()]
+    except KeyError:
+        raise VocabularyException(
+            "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
+                sector,
+                ", ".join(find_levenshtein_candiates(sector, vocabulary))))
 
 
 def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]) -> None:
@@ -198,6 +219,7 @@ def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: Li
 
 
 def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]) -> None:
+    """ Threat Actor Sectors """
     for sector in sectors:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -216,6 +238,7 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
 
 
 def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]) -> None:
+    """ Threat actor target countries """
     for target_country in target_countries:
         chain = act.api.fact.fact_chain(
             client.fact("targets")
@@ -234,6 +257,7 @@ def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, 
 
 
 def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, located_in: Text) -> None:
+    """ Threat actor located in """
     chain = act.api.fact.fact_chain(
         client.fact("locatedIn")
         .source("organization", "*")
@@ -248,6 +272,7 @@ def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, loca
 
 
 def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campaign: Text) -> None:
+    """ Threat Actor Campaign """
     chain = act.api.fact.fact_chain(
         client.fact("attributedTo")
         .source("incident", "*")
@@ -298,7 +323,7 @@ def main() -> None:
         ok = False
 
     try:
-        args.sectors = [sector_lookup(args.sector_vocabulary, sector) for sector in args.sectors]
+        args.sectors = [sector_lookup(args, sector) for sector in args.sectors]
     except VocabularyException as e:
         sys.stderr.write(str(e))
         ok = False

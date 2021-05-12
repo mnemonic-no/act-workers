@@ -207,10 +207,9 @@ def fatal(message: Text, exit_code: int = 1) -> None:
     error(message.strip())
     sys.exit(exit_code)
 
-
-def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
-    """Fetch remote URL as JSON
-    url (string):                    URL to fetch
+def fetch(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
+    """Fetch remote URL and return content
+    url (string):                    File or URL to fetch
     proxy_string (string, optional): Optional proxy string on format host:port
     timeout (int, optional):         Timeout value for query (default=60 seconds)
     """
@@ -231,7 +230,7 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
 
     # No scheme - assume this is a file
     if not parsed.scheme:
-        return json.load(open(url))
+        return open(url).read()
 
     if not parsed.scheme.lower() in ("http", "https"):
         raise UnsupportedScheme(f"Unsupported scheme in {url}")
@@ -250,7 +249,17 @@ def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_
         errmsg = "status_code: {0.status_code}: {0.content}"
         raise UnknownResult(errmsg.format(req))
 
-    return req.json()
+    return req.text
+
+
+def fetch_json(url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False) -> Any:
+    """ Fetch remote URL or local and return content parse as json
+    url (string):                    File or URL to fetch
+    proxy_string (string, optional): Optional proxy string on format host:port
+    timeout (int, optional):         Timeout value for query (default=60 seconds)
+    """
+    return json.loads(fetch(url, proxy_string, timeout, verify_https))
+
 
 
 def sendmail(smtphost: str, sender: str, recipient: str, subject: str, body: str) -> None:
