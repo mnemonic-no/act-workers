@@ -24,11 +24,11 @@ import traceback
 import warnings
 from functools import partialmethod
 from logging import error
-from typing import Text, Dict, Optional, Any, Generator
-
-import requests
+from typing import Any, Dict, Generator, Optional, Text
 
 import act.api
+import requests
+
 from act.workers.libs import worker
 
 CATEGORIES = {
