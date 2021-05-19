@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="1.0.59",
+    version="1.0.62",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -22,28 +22,31 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
+            'act-abuseipdb = act.workers.abuseipdb:main_log_error',
             'act-argus-case = act.workers.argus_case:main_log_error',
-            'act-vt = act.workers.vt:main_log_error',
+            'act-attack = act.workers.attack:main_log_error',
+            'act-country-regions = act.workers.country_regions:main_log_error',
+            'act-fact-chain-helper = act.workers.fact_chain_helper:main_log_error',
+            'act-greynoise = act.workers.greynoise:main_log_error',
+            'act-hybrid-analysis-feed = act.workers.hybrid_analysis_feed:main_log_error',
+            'act-ip-asn-history = act.workers.ip_asn_history:main_log_error',
             'act-ip-filter= act.workers.ip_filter:main_log_error',
             'act-isight = act.workers.isight:main_log_error',
-            'act-attack = act.workers.attack:main_log_error',
-            'act-mnemonic-pdns = act.workers.mnemonic_pdns:main_log_error',
-            'act-country-regions = act.workers.country_regions:main_log_error',
             'act-misp-feeds = act.workers.misp_feeds:main_log_error',
-            'act-scio = act.workers.scio:main_log_error',
+            'act-mnemonic-pdns = act.workers.mnemonic_pdns:main_log_error',
+            'act-origin = act.workers.origin_client:main',
             'act-scio2 = act.workers.scio2:main_log_error',
+            'act-scio = act.workers.scio:main_log_error',
+            'act-search-graph = act.workers.search_graph:main_log_error',
+            'act-shadowserver-asn = act.workers.shadowserver_asn:main_log_error',
+            'act-ta-helper = act.workers.ta_helper:main_log_error',
+            'act-thaicert = act.workers.thaicert:main_log_error',
+            'act-tool-alias = act.workers.tool_alias:main_log_error',
             'act-uploader = act.workers.generic_uploader:main_log_error',
             'act-url-shorter-unpack = act.workers.url_shorter_unpack:main_log_error',
-            'act-shadowserver-asn = act.workers.shadowserver_asn:main_log_error',
-            'act-ip-asn-history = act.workers.ip_asn_history:main_log_error',
             'act-veris = act.workers.veris:main_log_error',
+            'act-vt = act.workers.vt:main_log_error',
             'act-worker-config = act.workers.worker_config:main',
-            'act-origin = act.workers.origin_client:main',
-            'act-search-graph = act.workers.search_graph:main_log_error',
-            'act-tool-alias = act.workers.tool_alias:main_log_error',
-            'act-fact-chain-helper = act.workers.fact_chain_helper:main_log_error',
-            'act-thaicert = act.workers.thaicert:main_log_error',
-            'act-ta-helper = act.workers.ta_helper:main_log_error'
         ]
     },
 
@@ -56,7 +59,8 @@ setup(
     # __path__ = __import__('pkgutil').extend_path(__path__, __name__)
     namespace_packages=['act'],
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api>=1.0.29,<1.1.0', 'act-types', 'caep', 'requests', 'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser', 'pyattck'],
+    install_requires=['act-api>=1.0.29,<1.1.0', 'act-types', 'caep', 'requests',
+                      'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser', 'pyattck'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
         "Development Status :: 4 - Beta",
