@@ -89,6 +89,7 @@ def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Te
     for report in feed['data']:
         if not (report.get('isinteresting', False) or report.get('threatlevel', 0)):
             continue
+        # store data if threatlevel > 0 or report is interesting
 
         if 'sha256' not in report:
             continue
