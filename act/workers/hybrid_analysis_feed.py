@@ -100,6 +100,150 @@ def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Te
         act.api.helpers.handle_fact(fact, output_format=output_format)
 
 
+def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[act.api.fact.FactType]:
+    """handle the hosts part of a hybrid-analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for host in hosts:
+        (ip_type, ip) = act.api.helpers.ip_obj(host)
+
+        chain = []
+
+        chain.append(actapi.fact('connectsTo')
+                     .source('content', content)
+                     .destination('uri', '*'))
+        chain.append(actapi.fact('resolvesTo')
+                     .source('fqdn', '*')
+                     .destination(ip_type, ip))
+        chain.append(actapi.fact('componentOf')
+                     .source('fqdn', '*')
+                     .destination('uri', '*'))
+
+        feeds_facts += act.api.fact.fact_chain(*chain)
+
+    return feeds_facts
+
+
+def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> List[act.api.fact.FactType]:
+    """Handle the domains part of a hybrid-analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for domain in domains:
+
+        chain = []
+
+        chain.append(actapi.fact('connectsTo')
+                     .source('content', content)
+                     .destination('uri', '*'))
+        chain.append(actapi.fact('componentOf')
+                     .source('fqdn', domain)
+                     .destination('uri', '*'))
+
+        feeds_facts += act.api.fact.fact_chain(*chain)
+
+    return feeds_facts
+
+
+def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: List[Dict]) -> List[act.api.fact.FactType]:
+    """Handle the extracted_files part of a hybrid_analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for file in extracted_files:
+
+        chain = []
+
+        if 'sha256' not in file:
+            continue
+
+        if not file['file_path']:
+            info(f"{file} is missing file_path using name instead")
+
+        path = file['file_path'] if file['file_path'] else file['name']
+
+        chain.append(actapi.fact('componentOf')
+                     .source('path', path)
+                     .destination('uri', '*'))
+
+        chain.append(actapi.fact('at')
+                     .source('content', file['sha256'])
+                     .destination('uri', '*'))
+
+        feeds_facts += act.api.fact.fact_chain(*chain)
+
+        for hash_type in ['md5', 'sha1', 'sha256']:
+            feeds_facts.append(actapi.fact('represents')
+                               .source('hash', file[hash_type])
+                               .destination('content', file['sha256']))
+            feeds_facts.append(actapi.fact('category', hash_type)
+                               .source('hash', file[hash_type]))
+
+        if content != file['sha256']:  # the act platform does not accept same object on source and destination for write
+            feeds_facts.append(actapi.fact('writes')
+                               .source('content', content)
+                               .destination('content', file['sha256']))
+
+    return feeds_facts
+
+
+def handle_classification_tags(actapi: act.api.Act, content: Text, classification_tags: List[Text]) -> List[act.api.fact.FactType]:
+    """handle the classification_tags part or a hybrid_analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for tag in classification_tags:
+        feeds_facts.append(actapi.fact('classifiedAs')
+                           .source('content', content)
+                           .destination('tool', tag))
+
+    return feeds_facts
+
+
+def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[Dict]) -> List[act.api.fact.FactType]:
+    """Handle the MITRE Att&ck part of the hybrid analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for attck in mitre_attcks:
+        chain = []
+
+        chain.append(actapi.fact('classifiedAs')
+                     .source('content', content)
+                     .destination('tool', '*'))
+        chain.append(actapi.fact('implements')
+                     .source('tool', '*')
+                     .destination('technique', attck['technique']))
+
+        feeds_facts += act.api.fact.fact_chain(*chain)
+
+    return feeds_facts
+
+
+def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[Dict]) -> List[act.api.fact.FactType]:
+    """Handle the process list part of the hybrid analysis report"""
+
+    feeds_facts: List[act.api.fact.FactType] = []
+
+    for proc in process_list:
+
+        chain = []
+
+        path = proc['normalizedpath'] if 'normalizedpath' in proc else proc['name']
+
+        chain.append(actapi.fact('executes')
+                     .source('content', content)
+                     .destination('uri', '*'))
+        chain.append(actapi.fact('componentOf')
+                     .source('path', path)
+                     .destination('uri', '*'))
+
+        feeds_facts += act.api.fact.fact_chain(*chain)
+
+    return feeds_facts
+
+
 def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.fact.FactType]:
     """Create facts from a report"""
 
@@ -118,106 +262,12 @@ def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.
 
     chain: List[act.api.fact.FactType]
 
-    if 'hosts' in report:
-        for host in report['hosts']:
-            (ip_type, ip) = act.api.helpers.ip_obj(host)
-
-            chain = []
-
-            chain.append(actapi.fact('connectsTo')
-                         .source('content', content)
-                         .destination('uri', '*'))
-            chain.append(actapi.fact('resolvesTo')
-                         .source('fqdn', '*')
-                         .destination(ip_type, ip))
-            chain.append(actapi.fact('componentOf')
-                         .source('fqdn', '*')
-                         .destination('uri', '*'))
-
-            feeds_facts += act.api.fact.fact_chain(*chain)
-
-    if 'domains' in report:
-        for domain in report['domains']:
-
-            chain = []
-
-            chain.append(actapi.fact('connectsTo')
-                         .source('content', content)
-                         .destination('uri', '*'))
-            chain.append(actapi.fact('componentOf')
-                         .source('fqdn', domain)
-                         .destination('uri', '*'))
-
-            feeds_facts += act.api.fact.fact_chain(*chain)
-
-    if 'extracted_files' in report:
-        for file in report['extracted_files']:
-
-            chain = []
-
-            if 'sha256' not in file:
-                continue
-
-            if not file['file_path']:
-                info(f"{file} is missing file_path using name instead")
-
-            path = file['file_path'] if file['file_path'] else file['name']
-
-            chain.append(actapi.fact('componentOf')
-                         .source('path', path)
-                         .destination('uri', '*'))
-
-            chain.append(actapi.fact('at')
-                         .source('content', file['sha256'])
-                         .destination('uri', '*'))
-
-            feeds_facts += act.api.fact.fact_chain(*chain)
-
-            for hash_type in ['md5', 'sha1', 'sha256']:
-                feeds_facts.append(actapi.fact('represents')
-                                   .source('hash', file[hash_type])
-                                   .destination('content', file['sha256']))
-                feeds_facts.append(actapi.fact('category', hash_type)
-                                   .source('hash', report[hash_type]))
-
-            feeds_facts.append(actapi.fact('writes')
-                               .source('content', content)
-                               .destination('content', file['sha256']))
-
-    if 'classification_tags' in report:
-        for tag in report['classification_tags']:
-            feeds_facts.append(actapi.fact('classifiedAs')
-                               .source('content', content)
-                               .destination('tool', tag))
-
-    if 'mitre_attcks' in report:
-        for attck in report['mitre_attcks']:
-            chain = []
-
-            chain.append(actapi.fact('classifiedAs')
-                         .source('content', content)
-                         .destination('tool', '*'))
-            chain.append(actapi.fact('implements')
-                         .source('tool', '*')
-                         .destination('technique', attck['technique']))
-
-            feeds_facts += act.api.fact.fact_chain(*chain)
-
-    if 'process_list' in report:
-        for proc in report['process_list']:
-
-            chain = []
-
-            path = proc['normalizedpath'] if 'normalizedpath' in proc else proc['name']
-
-            chain.append(actapi.fact('executes')
-                         .source('content', content)
-                         .destination('uri', '*'))
-            chain.append(actapi.fact('componentOf')
-                         .source('path', path)
-                         .destination('uri', '*'))
-
-            feeds_facts += act.api.fact.fact_chain(*chain)
+    feeds_facts += handle_hosts(actapi, content, report.get('hosts', []))
+    feeds_facts += handle_domains(actapi, content, report.get('domains', []))
+    feeds_facts += handle_extracted_files(actapi, content, report.get('extracted_files', []))
+    feeds_facts += handle_classification_tags(actapi, content, report.get('classification_tags', []))
+    feeds_facts += handle_mitre_attcks(actapi, content, report.get('mitre_attcks', []))
+    feeds_facts += handle_process_list(actapi, content, report.get('process_list', []))
 
     return feeds_facts
 
