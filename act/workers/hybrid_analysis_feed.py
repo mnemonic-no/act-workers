@@ -260,8 +260,6 @@ def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.
         feeds_facts.append(actapi.fact('category', hash_type)
                            .source('hash', report[hash_type]))
 
-    chain: List[act.api.fact.FactType]
-
     feeds_facts += handle_hosts(actapi, content, report.get('hosts', []))
     feeds_facts += handle_domains(actapi, content, report.get('domains', []))
     feeds_facts += handle_extracted_files(actapi, content, report.get('extracted_files', []))
