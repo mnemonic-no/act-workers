@@ -106,7 +106,7 @@ def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.
 
     content = report['sha256']
     for hash_type in ['md5', 'sha1', 'sha256', 'ssdeep', 'imphash', 'sha512']:
-        if not report[hash_type] or report[hash_type] == "Unknown":
+        if hash_type not in report or not report[hash_type] or report[hash_type] == "Unknown":
             info(f"{hash_type} not set for content {content}")
             continue
         feeds_facts.append(actapi.fact('represents')
