@@ -47,7 +47,7 @@ def parseargs() -> argparse.ArgumentParser:
                         help="community apikey for hybrid-analysis.com")
 
     parser.add_argument("--user-agent",
-                        default="Mozilla/5.0 (X11; CrOS x86_64 13816.64.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.100 Safari/537.36",
+                        default="Falcon Sandbox",
                         help="User agent while talking to API")
 
     parser.add_argument("--no-check-certificate",
