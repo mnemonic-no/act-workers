@@ -27,11 +27,13 @@ STIX_VOCAB = "http://raw.githubusercontent.com/oasis-open/cti-stix2-json-schemas
 COUNTRY_REGIONS = "https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
 THAICERT_TOOLS_URL = "https://apt.thaicert.or.th/cgi-bin/getcard.cgi?t=all&o=j"
 
+
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments"""
+    """Parse arguments"""
     parser = worker.parseargs("ThaiCERT worker")
-    parser.add_argument('--url', dest="thaicert_url", default=THAICERT_URL,
-                        help='ThaiCERT data URL')
+    parser.add_argument(
+        "--url", dest="thaicert_url", default=THAICERT_URL, help="ThaiCERT data URL"
+    )
     return parser
 
 
@@ -40,12 +42,15 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
 
     for actor in ta_cards:
         if len(actor["names"]) > 1:
-            aliases = list(set([alias["name"] for alias in actor["names"]]))
-            for a1, a2 in combinations(aliases, 2):
+            for alias in actor["names"][1:]:
                 handle_fact(
-                    client.fact("alias")
-                    .bidirectional("threatActor", a1, "threatActor", a2),
-                    output_format=output_format
+                    client.fact("alias").bidirectional(
+                        "threatActor",
+                        actor["names"][0]["name"].lower(),
+                        "threatActor",
+                        alias["name"].lower(),
+                    ),
+                    output_format=output_format,
                 )
 
         if "operations" in actor:
@@ -55,10 +60,12 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                         chain = act.api.fact.fact_chain(
                             client.fact("attributedTo")
                             .source("incident", "*")
-                            .destination("campaign", operation["activity"].split("\n")[0]),
+                            .destination(
+                                "campaign", operation["activity"].split("\n")[0]
+                            ),
                             client.fact("attributedTo")
                             .source("incident", "*")
-                            .destination("threatActor", ta)
+                            .destination("threatActor", ta),
                         )
 
                 for fact in chain:
@@ -68,12 +75,14 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                         warning("ValidationError while storing objects: %s" % err)
 
 
-def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_format: Text = "json") -> None:
+def add_countries(
+    client: act.api.Act, ta_cards: List, countries: List, output_format: Text = "json"
+) -> None:
     """
     Only submit country if ISO-3166 country
     """
     for actor in ta_cards:
-        if "country" in actor: 
+        if "country" in actor:
             for country in actor["country"]:
                 if country.lower() in countries:
                     chain = act.api.fact.fact_chain(
@@ -82,7 +91,7 @@ def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_f
                         .destination("country", country),
                         client.fact("attributedTo")
                         .source("threatActor", actor["actor"])
-                        .destination("organization", "*")
+                        .destination("organization", "*"),
                     )
 
                     for fact in chain:
@@ -101,14 +110,16 @@ def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_f
                             .destination("organization", "*"),
                             client.fact("attributedTo")
                             .source("incident", "*")
-                            .destination("threatActor", ta)
+                            .destination("threatActor", ta),
                         )
 
                         for fact in chain:
                             handle_fact(fact, output_format=output_format)
 
 
-def add_sectors(client: act.api.Act, ta_cards: List, vocab: List, output_format: Text = "json") -> None:
+def add_sectors(
+    client: act.api.Act, ta_cards: List, vocab: List, output_format: Text = "json"
+) -> None:
     """
     Only submit sectors if in STIX vocabulary
     """
@@ -126,20 +137,22 @@ def add_sectors(client: act.api.Act, ta_cards: List, vocab: List, output_format:
                             .destination("organization", "*"),
                             client.fact("attributedTo")
                             .source("incident", "*")
-                            .destination("threatActor", ta)
+                            .destination("threatActor", ta),
                         )
 
                     for fact in chain:
                         handle_fact(fact, output_format=output_format)
 
 
-def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: Text = "json") -> None:
+def add_tools(
+    client: act.api.Act, ta_cards: List, tools: List, output_format: Text = "json"
+) -> None:
     """
     Submit tool aliases and actor tools
     """
     tool_vocab = [tool["tool"] for tool in tools]
     for actor in ta_cards:
-       if "tools" in actor:
+        if "tools" in actor:
             for tool in actor["tools"]:
                 if tool in tool_vocab:
                     for ta in actor["actor"].split(","):
@@ -155,7 +168,7 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
                             .destination("incident", "*"),
                             client.fact("attributedTo")
                             .source("incident", "*")
-                            .destination("threatActor", ta)
+                            .destination("threatActor", ta),
                         )
 
                     for fact in chain:
@@ -165,10 +178,11 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
                             error("ResponseError while storing objects: %s" % err)
 
     for values in tools:
-        aliases = set([tool["name"].strip() for tool in values["names"]] + [values["tool"]])
+        aliases = set(
+            [tool["name"].strip() for tool in values["names"]] + [values["tool"]]
+        )
         for tool1, tool2 in combinations(aliases, 2):
-            fact = client.fact("alias") \
-                                .bidirectional("tool", tool1, "tool", tool2)
+            fact = client.fact("alias").bidirectional("tool", tool1, "tool", tool2)
             handle_fact(fact)
 
 
@@ -176,7 +190,9 @@ def main() -> None:
     """Main function"""
     args = worker.handle_args(parseargs())
     actapi = worker.init_act(args)
-    ta_cards = worker.fetch_json(args.thaicert_url, args.proxy_string, args.http_timeout)
+    ta_cards = worker.fetch_json(
+        args.thaicert_url, args.proxy_string, args.http_timeout
+    )
     process(actapi, ta_cards["values"])
 
     vocab = worker.fetch_json(STIX_VOCAB, args.proxy_string, args.http_timeout)
@@ -189,14 +205,15 @@ def main() -> None:
     tools = worker.fetch_json(THAICERT_TOOLS_URL, args.proxy_string, args.http_timeout)
     add_tools(actapi, ta_cards["values"], tools["values"])
 
+
 def main_log_error() -> None:
     "Main function wrapper. Log all exceptions to error"
     try:
-       main() 
+        main()
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()
