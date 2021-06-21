@@ -37,6 +37,7 @@ import traceback
 from logging import debug, error
 
 from act.workers.libs import worker
+from act.api.libs import cli
 
 
 def process() -> None:
@@ -91,7 +92,7 @@ def process() -> None:
 
 def main() -> None:
     """Main function"""
-    args = worker.handle_args(worker.parseargs("IP Filter"))
+    args = cli.handle_args(worker.parseargs("IP Filter"))
     worker.init_act(args)
     process()
 

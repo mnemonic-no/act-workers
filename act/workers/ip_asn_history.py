@@ -27,6 +27,7 @@ import act.api
 import requests
 from act.workers.libs import worker
 from typing import Text, Optional, List, Tuple
+from act.api.libs import cli
 
 
 WORKER_NAME = "ip-asn-history"
@@ -72,7 +73,7 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and
     # ~/config/actworkers/actworkers.ini (or replace .config with
     # $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(worker.parseargs(WORKER_NAME))
+    args = cli.handle_args(worker.parseargs(WORKER_NAME))
     actapi = worker.init_act(args)
 
     process(actapi, args.proxy_string, args.output_format)

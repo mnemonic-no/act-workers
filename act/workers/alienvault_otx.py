@@ -31,6 +31,7 @@ import act
 import act.api
 import requests
 from act.workers.libs import worker
+from act.api.libs import cli
 
 WORKER_NAME = 'alienvault-otx'
 VERSION = 0.1
@@ -251,7 +252,7 @@ def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and
     # ~/config/actworkers/actworkers.ini (or replace .config with
     # $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     # setup logging
     act.api.utils.setup_logging(args.loglevel, prefix='act-alienvault-otx')

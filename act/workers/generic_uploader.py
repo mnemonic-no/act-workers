@@ -13,6 +13,7 @@ from logging import error, warning
 import act.api
 
 from act.workers.libs import worker
+from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -74,7 +75,7 @@ def main_log_error() -> None:
     try:
         # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
         # (or replace .config with $XDG_CONFIG_DIR if set)
-        args = worker.handle_args(parseargs())
+        args = cli.handle_args(parseargs())
         actapi = worker.init_act(args)
 
         main(actapi, args.timing)

@@ -17,6 +17,7 @@ import urllib3
 
 import act.api
 from act.workers.libs import argus, mnemonic, worker
+from act.api.libs import cli
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -178,7 +179,7 @@ def main() -> None:
     # ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
 
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     if not args.argus_apikey:
         worker.fatal("You must specify --apikey on command line or in config file")
