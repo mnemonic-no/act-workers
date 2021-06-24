@@ -28,6 +28,7 @@ from stix2 import Filter, MemoryStore, parse
 import act.api
 from act.api.helpers import handle_fact
 from act.workers.libs import worker
+from act.api.libs import cli
 
 MITRE_URLS = {
     "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
@@ -358,7 +359,7 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     actapi = worker.init_act(args)
 

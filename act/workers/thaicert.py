@@ -19,6 +19,7 @@ from logging import error
 
 from act.workers.libs import worker
 from act.api.helpers import handle_fact
+from act.api.libs import cli
 
 
 WORKER_NAME = "thaicert"
@@ -188,7 +189,7 @@ def add_tools(
 
 def main() -> None:
     """Main function"""
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
     ta_cards = worker.fetch_json(
         args.thaicert_url, args.proxy_string, args.http_timeout
@@ -209,7 +210,7 @@ def main() -> None:
 def main_log_error() -> None:
     "Main function wrapper. Log all exceptions to error"
     try:
-        main()
+       main()
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise

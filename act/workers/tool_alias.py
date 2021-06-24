@@ -12,6 +12,7 @@ from typing import Dict, List, Text
 import act
 import act.api
 from act.workers.libs import worker
+from act.api.libs import cli
 import os
 
 def parseargs() -> argparse.ArgumentParser:
@@ -84,7 +85,7 @@ def process(tools: Dict, aliases: Dict, threshold: float) -> None:
 
 def main() -> None:
     """Main function"""
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
 
     if not (args.act_baseurl and args.user_id):

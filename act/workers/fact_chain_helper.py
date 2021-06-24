@@ -30,6 +30,7 @@ from act.api.helpers import handle_fact
 from act.types import types
 from act.workers import worker_config
 from act.workers.libs import worker
+from act.api.libs import cli
 
 
 class Node:
@@ -250,7 +251,7 @@ def main() -> None:
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     actapi = worker.init_act(args)
 

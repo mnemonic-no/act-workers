@@ -9,7 +9,7 @@ from typing import List, Text
 import caep
 from pkg_resources import resource_string
 
-from act.workers.libs import worker
+from act.api.libs import cli
 
 
 def string_list(data: Text) -> List[Text]:
@@ -31,7 +31,7 @@ def parseargs() -> argparse.Namespace:
 
     system - Copy default config to /etc/{1}
 
-""".format(caep.get_config_dir(worker.CONFIG_ID), worker.CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
+""".format(caep.get_config_dir(cli.CONFIG_ID), cli.CONFIG_NAME), formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('action', nargs=1, choices=["show", "user", "system"])
 
@@ -40,7 +40,7 @@ def parseargs() -> argparse.Namespace:
 
 def default_ini() -> Text:
     "Get content of default ini file"
-    return resource_string("act.workers", "etc/{}".format(worker.CONFIG_NAME)).decode('utf-8')
+    return resource_string("act.workers", "etc/{}".format(cli.CONFIG_NAME)).decode('utf-8')
 
 
 def save_config(filename: Text) -> None:
@@ -67,11 +67,11 @@ def main() -> None:
         print(default_ini())
 
     if "user" in args.action:
-        config_dir = caep.get_config_dir(worker.CONFIG_ID, create=True)
-        save_config(os.path.join(config_dir, worker.CONFIG_NAME))
+        config_dir = caep.get_config_dir(cli.CONFIG_ID, create=True)
+        save_config(os.path.join(config_dir, cli.CONFIG_NAME))
 
     if "system" in args.action:
-        save_config("/etc/{}".format(worker.CONFIG_NAME))
+        save_config("/etc/{}".format(cli.CONFIG_NAME))
 
 
 if __name__ == '__main__':

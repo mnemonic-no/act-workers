@@ -17,6 +17,7 @@ import dateparser
 
 import act.api
 from act.workers.libs import worker
+from act.api.libs import cli
 
 # Inspect object search function to get list of valid arguments and their defaults
 VALID_SEARCH_OPTIONS: Dict[str, Any] = {
@@ -161,7 +162,7 @@ def main_log_error() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
 
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
 
     if not (args.act_baseurl and args.user_id):

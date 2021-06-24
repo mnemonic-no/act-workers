@@ -24,7 +24,7 @@ def main():
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     # gets all ta names from objects(as a set of strings) and facts(as a
     # set with tuples of two strings) in ACT.

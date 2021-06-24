@@ -17,6 +17,7 @@ import urllib3
 
 import act.api
 from act.workers.libs import mnemonic, worker
+from act.api.libs import cli
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -166,7 +167,7 @@ def process(
 def main() -> None:
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
 
     process(actapi,

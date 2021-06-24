@@ -19,6 +19,7 @@ from typing import Dict, List, Text
 import act.api
 from act.api.helpers import handle_fact
 from act.workers.libs import worker
+from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -67,7 +68,7 @@ def main_log_error() -> None:
     "Main function. Log all exceptions to error"
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(parseargs())
+    args = cli.handle_args(parseargs())
 
     actapi = worker.init_act(args)
 
