@@ -77,7 +77,7 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
 
     # This check is done here to make sure logging is set up
     if args.disabled:
-        warning("Component is disabled")
+        warning("Worker is disabled")
         sys.exit(0)
 
     return api
