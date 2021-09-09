@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''Alienvault OTX Worker for the ACT Project
 
-Copyright 2018 the ACT project <opensource@mnemonic.no>
+Copyright 2018,2021 the ACT project <opensource@mnemonic.no>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -22,14 +22,15 @@ import datetime
 import hashlib
 import logging
 import os
-import sys
 import traceback
 import urllib.parse
 from typing import Any, Dict, Generator, Optional, Text
 
+import pid
+import requests
+
 import act
 import act.api
-import requests
 from act.workers.libs import worker
 
 WORKER_NAME = 'alienvault-otx'
@@ -191,7 +192,7 @@ def handle_facts(actapi: act.api.helpers.Act, event: Dict[Any, Any]) -> None:
 
     # generate report name - sha256
     report_id: Text = hashlib.sha256(
-            f'alienvault-otx-{event["id"]}-{event["modified"]}'.encode('utf-8')
+        f'alienvault-otx-{event["id"]}-{event["modified"]}'.encode('utf-8')
     ).hexdigest()
 
     # add a name fact to the report
@@ -274,20 +275,13 @@ def main() -> None:
 
 def main_log_error() -> None:
     "Main function wrapper. Log all exceptions to error"
-    pid_file = '/tmp/act-alienvault-otx.pid'
-    if os.path.isfile(pid_file):
-        logging.error('Instance already running')
-        sys.exit(1)
 
     try:
-        with open(pid_file, 'w') as pid_fh:
-            pid_fh.write(str(os.getpid()))
-        main()
+        with pid.PidFile(force_tmpdir=True, pidname='act-alienvault-otx.pid'):
+            main()
     except Exception:
         logging.error('Unhandled exception: %s', traceback.format_exc())
         raise
-    finally:
-        os.unlink(pid_file)
 
 
 if __name__ == '__main__':

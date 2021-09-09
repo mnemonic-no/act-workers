@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), "rb") as f:
 
 setup(
     name="act-workers",
-    version="1.0.61",
+    version="1.0.62",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -22,6 +22,7 @@ setup(
     keywords="ACT, mnemonic",
     entry_points={
         'console_scripts': [
+            'act-alienvault-otx = act.workers.alienvault_otx:main_log_error',
             'act-argus-case = act.workers.argus_case:main_log_error',
             'act-attack = act.workers.attack:main_log_error',
             'act-country-regions = act.workers.country_regions:main_log_error',
@@ -57,7 +58,7 @@ setup(
     # __path__ = __import__('pkgutil').extend_path(__path__, __name__)
     namespace_packages=['act'],
     url="https://github.com/mnemonic-no/act-workers",
-    install_requires=['act-api>=1.0.29,<1.1.0', 'act-types', 'caep', 'requests',
+    install_requires=['act-api>=1.0.29,<1.1.0', 'act-types', 'caep', 'pid', 'requests',
                       'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser', 'pyattck'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
