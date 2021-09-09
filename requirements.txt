@@ -1,7 +1,9 @@
 act-api
+act-types
 caep
 dateparser
 pid
+pyattck
 RashlyOutlaid
 requests
 stix2
