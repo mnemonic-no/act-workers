@@ -30,14 +30,13 @@ from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
 from typing import Dict, Generator, List, Text, Tuple, Union
 
-from RashlyOutlaid.libwhois import QueryError
-import RashlyOutlaid.api as shadowserver
-
-import caep
-
 import act.api
+import caep
 from act.api.helpers import handle_fact
 from act.workers.libs import worker
+
+import RashlyOutlaid.api as shadowserver
+from RashlyOutlaid.libwhois import QueryError
 
 CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
 ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
@@ -129,9 +128,8 @@ def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tupl
     """ Query cache for all IPs in list """
     cursor = cache.cursor()
 
-    in_list = ",".join(['"{}"'.format(ip) for ip in ip_list])
-
-    for res in cursor.execute("SELECT * FROM asn WHERE ip in ({})".format(in_list)).fetchall():
+    for res in cursor.execute("SELECT * FROM asn WHERE ip in ({})".format(','.join('?' * len(ip_list))),
+                              ip_list).fetchall():
         asn_tuple = list(res[1:7])
         asn_tuple[5] = str(asn_tuple[5]).split(",")  # Split peers into list
         yield (res[0], shadowserver.ASNRecord(*asn_tuple))
