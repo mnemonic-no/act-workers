@@ -11,9 +11,9 @@ import traceback
 from logging import error, warning
 
 import act.api
+from act.api.libs import cli
 
 from act.workers.libs import worker
-from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -33,6 +33,8 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
     handle_fact_time = []
     origins = set()
 
+    facts = {}
+
     for line in sys.stdin:
         try:
             data = json.loads(line)
@@ -42,9 +44,29 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
 
         fact = actapi.fact(**data)
         try:
-            started = time.time()
-            act.api.helpers.handle_fact(fact)
 
+            started = time.time()
+
+            # If this is a meta fact, populate referenced Fact ID from cache
+            if fact.in_reference_to:
+                if fact.in_reference_to not in facts:
+                    error("Recieved metafact that references unknown fact. "
+                          "The fact must be submitted in the same file as the meta fact")
+                    continue
+
+                fact.in_reference_to.id = facts[fact.in_reference_to]
+
+            # Handle fact
+            # Fact will be added to the platform if base_url is configured
+            # The returned fact will be populated with a fact id
+            # and default values from the platform
+            fact_copy = act.api.helpers.handle_fact(fact)
+
+            # Add cache for facts to be used to populate id in meta facts
+            if not fact.in_reference_to:
+                facts[fact] = fact_copy.id
+
+            # Keep list of all known origins
             if fact.origin:
                 origins.add(fact.origin.name)
 
@@ -63,7 +85,7 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
             "Total time (count:%s,total:%s,mean:%s,min:%s,max:%s,origins:%s)",
             len(handle_fact_time),
             round(sum(handle_fact_time), 2),
-            round(sum(handle_fact_time)/len(handle_fact_time), 2),
+            round(sum(handle_fact_time) / len(handle_fact_time), 2),
             round(min(handle_fact_time), 2),
             round(max(handle_fact_time), 2),
             "+".join(origins)
