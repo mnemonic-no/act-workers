@@ -19,21 +19,27 @@ from act.workers.libs import worker
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
     parser = worker.parseargs('Generic uploader')
-    parser.add_argument('--timing', action="store_true",
+    parser.add_argument('--allow-default-origin',
+                        action="store_true",
+                        help="Allow facts without origin")
+    parser.add_argument('--timing',
+                        action="store_true",
                         help="Add timing operations at warn level")
 
     return parser
 
 
-def main(actapi: act.api.Act, timing: bool = False) -> None:
+def main(actapi: act.api.Act,
+         timing: bool = False,
+         allow_default_origin: bool = False) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
     be the on the form accepted by the ACT Rest API fact API."""
 
     handle_fact_time = []
     origins = set()
-
     facts = {}
+    metafacts = set()
 
     for line in sys.stdin:
         try:
@@ -43,39 +49,58 @@ def main(actapi: act.api.Act, timing: bool = False) -> None:
             continue
 
         fact = actapi.fact(**data)
+
+        if not allow_default_origin:
+            if not (fact.origin and (fact.origin.id or fact.origin.name)):
+                error("Origin not specified: %s", fact)
+                continue
+
+        started = time.time()
+
+        # If this is a meta fact, save for later upload
+        if fact.in_reference_to:
+            metafacts.add(fact)
+            continue
+
+        # Handle fact
+        # Fact will be added to the platform if base_url is configured
+        # The returned fact will be populated with a fact id
+        # and default values from the platform
         try:
-
-            started = time.time()
-
-            # If this is a meta fact, populate referenced Fact ID from cache
-            if fact.in_reference_to:
-                if fact.in_reference_to not in facts:
-                    error("Recieved metafact that references unknown fact. "
-                          "The fact must be submitted in the same file as the meta fact")
-                    continue
-
-                fact.in_reference_to.id = facts[fact.in_reference_to]
-
-            # Handle fact
-            # Fact will be added to the platform if base_url is configured
-            # The returned fact will be populated with a fact id
-            # and default values from the platform
             fact_copy = act.api.helpers.handle_fact(fact)
-
-            # Add cache for facts to be used to populate id in meta facts
-            if not fact.in_reference_to:
-                facts[fact] = fact_copy.id
-
-            # Keep list of all known origins
-            if fact.origin:
-                origins.add(fact.origin.name)
-
-            time_spent = time.time() - started
-            handle_fact_time.append(time_spent)
-            if timing:
-                warning("Handle fact time: %s", round(time_spent, 2))
         except act.api.base.ValidationError as err:
             warning("ValidationError while storing objects: %s" % err)
+            continue
+        except act.api.base.ResponseError as err:
+            error("ResponseError while storing objects: %s" % err)
+            sys.exit(1)
+
+        # Add cache for facts to be used to populate id in meta facts
+        if not fact.in_reference_to:
+            facts[fact] = fact_copy.id
+
+        # Keep list of all known origins
+        if fact.origin:
+            origins.add(fact.origin.name)
+
+        time_spent = time.time() - started
+        handle_fact_time.append(time_spent)
+        if timing:
+            warning("Handle fact time: %s", round(time_spent, 2))
+
+    for fact in metafacts:
+        if fact.in_reference_to not in facts:
+            error("Recieved metafact that references unknown fact. "
+                  "The fact must be submitted in the same file as the meta fact")
+            continue
+
+        # Update ID of referenced fact from cache
+        fact.in_reference_to.id = facts[fact.in_reference_to]
+        try:
+            act.api.helpers.handle_fact(fact)
+        except act.api.base.ValidationError as err:
+            warning("ValidationError while storing objects: %s" % err)
+            continue
         except act.api.base.ResponseError as err:
             error("ResponseError while storing objects: %s" % err)
             sys.exit(1)
@@ -100,7 +125,7 @@ def main_log_error() -> None:
         args = cli.handle_args(parseargs())
         actapi = worker.init_act(args)
 
-        main(actapi, args.timing)
+        main(actapi, args.timing, args.allow_default_origin)
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
