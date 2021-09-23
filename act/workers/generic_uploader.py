@@ -48,7 +48,8 @@ def main(actapi: act.api.Act,
             error("Error decoding json: %s" % line)
             continue
 
-        fact = actapi.fact(**data)
+        # Create either Fact or MetaFact, if we have the inReferenceTo field populated or not
+        fact = actapi.meta_fact(**data) if "inReferenceTo" in data else actapi.fact(**data)
 
         if not allow_default_origin:
             if not (fact.origin and (fact.origin.id or fact.origin.name)):
@@ -58,7 +59,7 @@ def main(actapi: act.api.Act,
         started = time.time()
 
         # If this is a meta fact, save for later upload
-        if fact.in_reference_to:
+        if isinstance(fact, act.api.fact.MetaFact):
             metafacts.add(fact)
             continue
 
@@ -76,7 +77,7 @@ def main(actapi: act.api.Act,
             sys.exit(1)
 
         # Add cache for facts to be used to populate id in meta facts
-        if not fact.in_reference_to:
+        if isinstance(fact, act.api.fact.Fact):
             facts[fact] = fact_copy.id
 
         # Keep list of all known origins
