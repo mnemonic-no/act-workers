@@ -92,7 +92,8 @@ def main(actapi: act.api.Act,
     for fact in metafacts:
         if fact.in_reference_to not in facts:
             error("Recieved metafact that references unknown fact. "
-                  "The fact must be submitted in the same file as the meta fact")
+                  "This error can occur if the fact is not submitted in the same file "
+                  "or the fact fails to validate.")
             continue
 
         # Update ID of referenced fact from cache
