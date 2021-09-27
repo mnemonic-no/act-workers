@@ -1,202 +1,242 @@
 #!/usr/bin/env python3
 
-"""
-
-Worker for Mitre ATT&CK, using the STIX implementation available here:
-
-    https://github.com/mitre/cti
-
-    ATT&CK Property     STIX Object type        ACT object
-    =========================================================
-    Technique           attack-pattern          technique
-    Group               intrusion-set           threatActor
-    Software	        malware or tool         tool
-    Mitigation	        course-of-action        n/a
-
-"""
+""" Worker for Mitre ATT&CK """
 
 import argparse
+import contextlib
 import os
+import re
 import sys
 import traceback
+from functools import partialmethod
 from logging import error, info, warning
-from typing import Any, Dict, List, Text
-
-import stix2
-from stix2 import Filter, MemoryStore, parse
+from typing import Dict, Generator, List, Optional, Text, Union
 
 import act.api
+import requests
 from act.api.helpers import handle_fact
-from act.workers.libs import worker
 from act.api.libs import cli
+from act.types.types import object_validates
 
-MITRE_URLS = {
-    "enterprise": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
-    "pre": "https://raw.githubusercontent.com/mitre/cti/master/pre-attack/pre-attack.json",
-    "mobile": "https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json"
-}
+from act.workers.libs import worker
+
+AttckMatrice = Union["Enterprise", "PreAttck", "MobileAttck"]
+
+MITRE_TYPES = ["enterprise", "preattack", "mobile"]
 
 DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
 
 
 class NotificationError(Exception):
-    """NotificationError"""
+    pass
 
-    def __init__(self, *args: Any) -> None:
-        Exception.__init__(self, *args)
+
+class ValidationError(Exception):
+    pass
 
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
-    parser = worker.parseargs('Mitre ATT&CK worker')
-    parser.add_argument('--smtphost', dest='smtphost', help="SMTP host used to send revoked/deprecated objects")
-    parser.add_argument('--sender', dest='sender', help="Sender address used to send revoked/deprecated objects")
-    parser.add_argument('--recipient', dest='recipient', help="Recipient address used to send revoked/deprecated objects")
+    parser = worker.parseargs("Mitre ATT&CK worker")
     parser.add_argument(
-        '--type',
-        choices=list(MITRE_URLS.keys()),
-        help='Specify a single type to download (enterprise, mobile or pre). Default is to fetch all')
-    parser.add_argument('--notifycache', dest='notifycache', help="Cache for revoked/deprecated objects", default=DEFAULT_NOTIFY_CACHE)
+        "--smtphost",
+        dest="smtphost",
+        help="SMTP host used to send revoked/deprecated objects",
+    )
+    parser.add_argument(
+        "--sender",
+        dest="sender",
+        help="Sender address used to send revoked/deprecated objects",
+    )
+    parser.add_argument(
+        "--recipient",
+        dest="recipient",
+        help="Recipient address used to send revoked/deprecated objects",
+    )
+    parser.add_argument(
+        "--type",
+        choices=list(MITRE_TYPES),
+        help="Specify a single type to download (enterprise, mobile or pre). Default is to fetch all",
+    )
+    parser.add_argument(
+        "--notifycache",
+        dest="notifycache",
+        help="Cache for revoked/deprecated objects",
+        default=DEFAULT_NOTIFY_CACHE,
+    )
 
     return parser
 
 
-def get_attack(url: str, proxy_string: str, timeout: int) -> MemoryStore:
-    """Fetch Mitre ATT&CK JSON data in Stix2 format and return a Stix2 memory store"""
-    attack = worker.fetch_json(url, proxy_string, timeout)
+@contextlib.contextmanager
+def request_proxy(proxy_string: Text) -> Generator[None, None, None]:
+    """
+    Monkey patch request to to use proxy argument in libraries that do not
+    support to set explicit proxy
+    """
 
-    # Create memory store
-    mem = MemoryStore()
+    proxies = {
+        'http': proxy_string,
+        'https': proxy_string
+    } if proxy_string else None
 
-    # Add all objects to the memory store
-    for obj in parse(attack, allow_custom=True).objects:
-        mem.add(obj)
+    old_session = requests.Session.request
+    requests.Session.request = partialmethod(old_session, proxies=proxies)
 
-    return mem
+    yield
+
+    requests.Session.request = old_session
 
 
-def add_techniques(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
+def handle_techniques(
+        client,
+        technique: "AttckTechnique",
+        subtechniqueof: Optional["AttckTechnique"],
+        output_format: Text = "json") -> List:
+
+    if getattr(technique, "revoked", None) or getattr(technique, "deprecated", None):
+        # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
+        return [technique]
+
+    if subtechniqueof:
+        handle_fact(
+            client.fact("subTechniqueOf")
+            .source("technique", technique.id)
+            .destination("technique", subtechniqueof.id),
+            output_format=output_format,
+        )
+
+    handle_fact(
+        client.fact("name", technique.name).source("technique", technique.id),
+        output_format=output_format,
+    )
+
+    # Mitre ATT&CK Tactics are implemented in STIX as kill chain phases with kill_chain_name "mitre-attack"
+    for tactic in technique.tactics:
+        handle_fact(
+            client.fact("accomplishes")
+            .source("technique", technique.id)
+            .destination("tactic", tactic.id),
+            output_format=output_format,
+        )
+
+        handle_fact(
+            client.fact("name", tactic.name).source("tactic", tactic.id),
+            output_format=output_format,
+        )
+
+    return []
+
+
+def add_techniques(
+    client, matrice: AttckMatrice, output_format: Text = "json"
+) -> List:
     """
         extract objects/facts related to ATT&CK techniques
 
     Args:
-        attack (stix2):       Stix attack instance
+        attack (AttckMatrice):       Attack matrice
+        output_format (Text):        "json" or "str" output format
 
     """
 
     notify = []
 
-    # ATT&CK concept    STIX Object type        ACT object
-    # =========================================================
-    # Technique         attack-pattern          technique
-    # Filter out ATT&CK techniques (attack-pattern) from bundle
+    for technique in matrice.techniques:
+        notify += handle_techniques(client, technique, None, output_format)
 
-    for technique in attack.query([Filter("type", "=", "attack-pattern")]):
-        if getattr(technique, "revoked", None):
-            # Object is revoked, add to notification list but do not add to facts that should be added to the platform
-            notify.append(technique)
-            continue
-
-        if getattr(technique, "x_mitre_deprecated", None):
-            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
-            notify.append(technique)
-
-        # Mitre ATT&CK Tactics are implemented in STIX as kill chain phases with kill_chain_name "mitre-attack"
-        for tactic in technique.kill_chain_phases:
-            if tactic.kill_chain_name != "mitre-attack":
-                continue
-
-            handle_fact(
-                client.fact("accomplishes")
-                .source("technique", technique.name)
-                .destination("tactic", tactic.phase_name),
-                output_format=output_format
-            )
+        for subtechnique in getattr(technique, "subtechniques", []):
+            # Pre Attack does not have sub techniques
+            notify += handle_techniques(client, subtechnique, technique, output_format)
 
     return notify
 
 
-def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
+def format_tool(tool: Text) -> Text:
+    """Format tool name:
+    * remove text in paranthesis
+    * lowercase
+    * check that tool validates
     """
-        extract objects/facts related to ATT&CK Groups
+
+    name = re.sub(r"\(.*\)", "", tool).lower().strip()
+
+    if not object_validates("tool", name):
+        raise ValidationError(f"Tool does not validate: {tool}")
+
+    return name
+
+
+def format_threat_actor(threat_actor: Text) -> Text:
+    """Format Threat Actor:
+    * lowercase
+    * check that threat actor validates
+    """
+
+    name = re.sub(r"\(.*\)", "", threat_actor).lower().strip()
+
+    if not object_validates("threatActor", name):
+        raise ValidationError(f"ThreatActor does not validate: {threat_actor}")
+
+    return name
+
+
+def add_groups(
+        client, matrice: AttckMatrice, output_format: Text = "json") -> List:
+    """
+        extract objects/facts related to ATT&CK Threat Actors
 
     Args:
-        attack (stix2):       Stix attack instance
+        attack (AttckMatrice):       Attack matrice
+        output_format (Text):        "json" or "str" output format
 
     """
 
-    notify = []
+    notify: List = []
 
-    # ATT&CK concept    STIX Object type        ACT object
-    # =========================================================
-    # Group	        intrusion-set           threatActor
-    #
-    # Filter out ATT&CK groups (intrusion-set) from bundle
-
-    for group in attack.query([Filter("type", "=", "intrusion-set")]):
-        if getattr(group, "revoked", None):
+    for actor in matrice.actors:
+        if getattr(actor, "revoked", None) or getattr(actor, "deprecated", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
-            notify.append(group)
+            notify.append(actor)
             continue
 
-        if getattr(group, "x_mitre_deprecated", None):
-            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
-            notify.append(group)
-
-        for alias in getattr(group, "aliases", []):
-            if group.name != alias:
+        for alias in actor.alias:
+            if actor.name != alias:
                 handle_fact(
-                    client.fact("alias")
-                    .bidirectional("threatActor", group.name, "threatActor", alias),
-                    output_format=output_format
+                    client.fact("alias").bidirectional(
+                        "threatActor", format_threat_actor(actor.name), "threatActor", format_threat_actor(alias)
+                    ),
+                    output_format=output_format,
                 )
 
-        #   ATT&CK concept   STIX Properties
-        #   ==========================================================================
-        #   Software         relationship where relationship_type == "uses",
-        #                    points to a target object with type== "malware" or "tool"
+        for tool in actor.known_tools:
 
-        for tool in attack.related_to(group, relationship_type="uses"):
-            if tool.type not in ("malware", "tool"):
-                continue
+            try:
+                chain = act.api.fact.fact_chain(
+                    client.fact("classifiedAs")
+                    .source("content", "*")
+                    .destination("tool", format_tool(tool)),
+                    client.fact("observedIn")
+                    .source("content", "*")
+                    .destination("incident", "*"),
+                    client.fact("attributedTo")
+                    .source("incident", "*")
+                    .destination("threatActor", format_threat_actor(actor.name)),
+                )
 
+                for fact in chain:
+                    handle_fact(fact, output_format=output_format)
+            except ValidationError as e:
+                error(e)
+
+        for technique in actor.techniques:
             chain = act.api.fact.fact_chain(
-                client.fact("classifiedAs")
-                .source("content", "*")
-                .destination("tool", tool.name.lower()),
                 client.fact("observedIn")
-                .source("content", "*")
-                .destination("event", "*"),
-                client.fact("attributedTo")
-                .source("event", "*")
+                .source("technique", technique.id)
                 .destination("incident", "*"),
                 client.fact("attributedTo")
                 .source("incident", "*")
-                .destination("threatActor", group.name)
-            )
-
-            for fact in chain:
-                handle_fact(fact, output_format=output_format)
-
-        #   ATT&CK concept   STIX Properties
-        #   ==========================================================================
-        #   Technqiues       relationship where relationship_type == "uses", points to
-        #                    a target object with type == "attack-pattern"
-
-        for technique in attack.related_to(group, relationship_type="uses"):
-            if technique.type != "attack-pattern":
-                continue
-
-            chain = act.api.fact.fact_chain(
-                client.fact("classifiedAs")
-                .source("event", "*")
-                .destination("technique", technique.name),
-                client.fact("attributedTo")
-                .source("event", "*")
-                .destination("incident", "*"),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", group.name)
+                .destination("threatActor", format_threat_actor(actor.name)),
             )
 
             for fact in chain:
@@ -205,64 +245,71 @@ def add_groups(client, attack: MemoryStore, output_format: Text = "json") -> Lis
     return notify
 
 
-def add_software(client, attack: MemoryStore, output_format: Text = "json") -> List[stix2.AttackPattern]:
+def add_software(
+    client, matrice: AttckMatrice, output_format: Text = "json"
+) -> List:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
 
     Args:
-        attack (stix2):       Stix attack instance
+        attack (AttckMatrice):       Attack matrice
+        output_format (Text):        "json" or "str" output format
 
     """
 
-    notify = []
+    notify: List = []
 
-    for software in attack.query([Filter("type", "in", ["tool", "malware"])]):
-        tool_name = software.name.lower()
+    # Enterprise matrice has malwares and tools, but preattack has none of them
+    for software in getattr(matrice, "malwares", []) + getattr(matrice, "tools", []):
+        if getattr(software, "revoked", None) or getattr(software, "deprecated", None):
+            # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
+            notify.append(software)
+            continue
+
+        try:
+            tool_name = format_tool(software.name)
+        except ValidationError as e:
+            error(e)
+            continue
 
         # Tool category
         handle_fact(
             client.fact("category", software.type).source("tool", tool_name),
-            output_format=output_format
+            output_format=output_format,
         )
 
-        if getattr(software, "revoked", None):
-            # Object is revoked, add to notification list but do not add to facts that should be added to the platform
-            notify.append(software)
-            continue
-
-        if getattr(software, "x_mitre_deprecated", None):
-            # Object is revoked, add to notification list AND continue to add to facts that should be added to the platform
-            notify.append(software)
-
-        for alias in getattr(software, "x_mitre_aliases", []):
-            if tool_name != alias.lower():
-                # Tool category (alias)
-                handle_fact(
-                    client.fact("category", software.type).source("tool", alias.lower()),
-                    output_format=output_format
-                )
-                handle_fact(
-                    client.fact("alias")
-                    .bidirectional("tool", tool_name, "tool", alias.lower()),
-                    output_format=output_format
-                )
-
-        #   ATT&CK concept   STIX Properties
-        #   ==========================================================================
-        #   Technqiues       relationship where relationship_type == "uses", points to
-        #                    a target object with type == "attack-pattern"
-
-        for technique in attack.related_to(software, relationship_type="uses"):
-            if technique.type != "attack-pattern":
+        for alias in software.alias:
+            try:
+                alias_name = format_tool(alias)
+            except ValidationError as e:
+                error(e)
                 continue
 
-            handle_fact(
-                client.fact("implements")
-                .source("tool", software.name.lower())
-                .destination("technique", technique.name),
-                output_format=output_format
-            )
+            if tool_name != alias_name:
+                # Tool category (alias)
+                handle_fact(
+                    client.fact("category", software.type).source("tool", alias_name),
+                    output_format=output_format,
+                )
+                handle_fact(
+                    client.fact("alias").bidirectional(
+                        "tool", tool_name, "tool", alias_name
+                    ),
+                    output_format=output_format,
+                )
+
+        for technique in software.techniques:
+            try:
+                handle_fact(
+                    client.fact("implements")
+                    .source("tool", format_tool(software.name))
+                    .destination("technique", technique.id),
+                    output_format=output_format,
+                )
+            except ValidationError as e:
+                error(e)
+                continue
 
     return notify
 
@@ -283,7 +330,9 @@ def notify_cache(filename: str) -> Dict:
                 if line:
                     cache[line.strip()] = True
     except FileNotFoundError:
-        warning("Cache file {} not found, will be created if necessary".format(filename))
+        warning(
+            "Cache file {} not found, will be created if necessary".format(filename)
+        )
 
     return cache
 
@@ -303,16 +352,17 @@ def add_to_cache(filename: str, entry: str) -> None:
 
 
 def send_notification(
-        notify: List[stix2.AttackPattern],
-        smtphost: str,
-        sender: str,
-        recipient: str,
-        url: str) -> List[str]:
+    notify: List,
+    smtphost: Text,
+    sender: Text,
+    recipient: Text,
+    model: Text,
+) -> List[Text]:
     """
     Process revoked objects
 
     Args:
-        notify(attack[]):   Array of revoked/deprecated Stix objects
+        notify(attack[]):   Array of revoked/deprecated objects
         notifycache(str):   Filename of notify cache
         smtphost(str):      SMTP host used to notify of revoked/deprecated objects
         sender(str):        sender address used to notify of revoked/deprecated objects
@@ -327,28 +377,38 @@ def send_notification(
     notified = []
 
     if not (smtphost and recipient and sender):
-        error("--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email")
+        error(
+            "--smtphost, --recipient and --sender must be set to send revoked/deprecated objects on email"
+        )
         return []
 
-    body = url + "\n\n"
-    warning("[{}]".format(url))
+    body = model + "\n\n"
+    warning("[{}]".format(model))
 
     for obj in notify:
         if getattr(obj, "revoked", None):
-            text = "revoked: {}:{}".format(obj.type, obj.name)
+            text = "revoked: {}:{}".format(obj.id, obj.name)
 
         elif getattr(obj, "x_mitre_deprecated", None):
-            text = "deprecated: {}:{}".format(obj.type, obj.name)
+            text = "deprecated: {}:{}".format(obj.id, obj.name)
 
         else:
-            raise NotificationError("object tis not deprecated or revoked: {}:{}".format(obj.type, obj.name))
+            raise NotificationError(
+                "object is not deprecated or revoked: {}:{}".format(obj.id, obj.name)
+            )
 
         notified.append(obj.id)
 
         body += text + "\n"
         warning(text)
 
-    worker.sendmail(smtphost, sender, recipient, "Revoked/deprecated objects from MITRE/ATT&CK", body)
+    worker.sendmail(
+        smtphost,
+        sender,
+        recipient,
+        "Revoked/deprecated objects from MITRE/ATT&CK",
+        body,
+    )
     info("Email sent to {}".format(recipient))
 
     return notified
@@ -363,40 +423,46 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    if args.type:
-        types = [args.type]
-    else:
-        types = list(MITRE_URLS.keys())
+    # Attck uses requests, so we set environment variable that will be used to update Attck
 
-    for mitre_type in types:
-        url = MITRE_URLS.get(mitre_type.lower())
+    with request_proxy(args.proxy_string):
+        from pyattck import Attck
+        attack = Attck()
 
-        if not url:
-            error("Unknown mitre type: {}. Valid types: {}".format(mitre_type, ",".join(MITRE_URLS.keys())))
-            sys.exit(2)
+        types = [args.type] if args.type else MITRE_TYPES
 
-        cache = notify_cache(args.notifycache)
+        for mitre_type in types:
+            if mitre_type not in MITRE_TYPES:
+                error(
+                    "Unknown mitre type: {}. Valid types: {}".format(
+                        mitre_type, ",".join(MITRE_TYPES)
+                    )
+                )
+                sys.exit(2)
 
-        # Get attack dataset as Stix Memory Store
-        attack = get_attack(url, args.proxy_string, args.http_timeout)
+            cache = notify_cache(args.notifycache)
 
-        techniques_notify = add_techniques(actapi, attack, args.output_format)
-        groups_notify = add_groups(actapi, attack, args.output_format)
-        software_notify = add_software(actapi, attack, args.output_format)
+            model = getattr(attack, mitre_type)
 
-        # filter revoked objects from those allready notified
-        notify = [
-            notify
-            for notify in techniques_notify + groups_notify + software_notify
-            if notify.id not in cache
-        ]
+            techniques_notify = add_techniques(actapi, model, args.output_format)
+            groups_notify = add_groups(actapi, model, args.output_format)
+            software_notify = add_software(actapi, model, args.output_format)
 
-        if notify:
-            notified = send_notification(notify, args.smtphost, args.sender, args.recipient, url)
+            # filter revoked objects from those allready notified
+            notify = [
+                notify
+                for notify in techniques_notify + groups_notify + software_notify
+                if notify.id not in cache
+            ]
 
-            for object_id in notified:
-                # Add object to cache, so we will not be notified on the same object on the next run
-                add_to_cache(args.notifycache, object_id)
+            if notify:
+                notified = send_notification(
+                    notify, args.smtphost, args.sender, args.recipient, mitre_type
+                )
+
+                for object_id in notified:
+                    # Add object to cache, so we will not be notified on the same object on the next run
+                    add_to_cache(args.notifycache, object_id)
 
 
 def main_log_error() -> None:
@@ -408,5 +474,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()
