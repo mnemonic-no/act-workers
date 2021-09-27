@@ -57,7 +57,7 @@ setup(
     namespace_packages=['act'],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=['act-api>=2.0.0,<3.0.0', 'act-types', 'caep', 'requests',
-                      'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser', 'pyattck'],
+                      'RashlyOutlaid>=0.15', 'virustotal-api', 'stix2', 'dateparser', 'pyattck>=4.0.0'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     classifiers=[
         "Development Status :: 4 - Beta",

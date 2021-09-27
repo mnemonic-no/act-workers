@@ -3,23 +3,24 @@
 """ Worker for Mitre ATT&CK """
 
 import argparse
-import contextlib
 import os
 import re
 import sys
 import traceback
-from functools import partialmethod
 from logging import error, info, warning
-from typing import Dict, Generator, List, Optional, Text, Union
+from typing import Dict, List, Optional, Text, Union
 
 import act.api
-import requests
-from act.api.helpers import handle_fact
+from act.api.helpers import Act, handle_fact
 from act.api.libs import cli
 from act.types.types import object_validates
+from pyattck import Attck
 
 from act.workers.libs import worker
 
+# This is only for typing
+# We can not import these matrices, because then they be loaded
+# by pyattack and it fails if you need proxy
 AttckMatrice = Union["Enterprise", "PreAttck", "MobileAttck"]
 
 MITRE_TYPES = ["enterprise", "preattack", "mobile"]
@@ -68,28 +69,8 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-@contextlib.contextmanager
-def request_proxy(proxy_string: Text) -> Generator[None, None, None]:
-    """
-    Monkey patch request to to use proxy argument in libraries that do not
-    support to set explicit proxy
-    """
-
-    proxies = {
-        'http': proxy_string,
-        'https': proxy_string
-    } if proxy_string else None
-
-    old_session = requests.Session.request
-    requests.Session.request = partialmethod(old_session, proxies=proxies)
-
-    yield
-
-    requests.Session.request = old_session
-
-
 def handle_techniques(
-        client,
+        client: Act,
         technique: "AttckTechnique",
         subtechniqueof: Optional["AttckTechnique"],
         output_format: Text = "json") -> List:
@@ -129,8 +110,9 @@ def handle_techniques(
 
 
 def add_techniques(
-    client, matrice: AttckMatrice, output_format: Text = "json"
-) -> List:
+        client: Act,
+        matrice: AttckMatrice,
+        output_format: Text = "json") -> List:
     """
         extract objects/facts related to ATT&CK techniques
 
@@ -182,7 +164,9 @@ def format_threat_actor(threat_actor: Text) -> Text:
 
 
 def add_groups(
-        client, matrice: AttckMatrice, output_format: Text = "json") -> List:
+        client: Act,
+        matrice: AttckMatrice,
+        output_format: Text = "json") -> List:
     """
         extract objects/facts related to ATT&CK Threat Actors
 
@@ -246,8 +230,9 @@ def add_groups(
 
 
 def add_software(
-    client, matrice: AttckMatrice, output_format: Text = "json"
-) -> List:
+        client: Act,
+        matrice: AttckMatrice,
+        output_format: Text = "json") -> List:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
@@ -423,46 +408,47 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    # Attck uses requests, so we set environment variable that will be used to update Attck
+    proxies = {
+        'http': args.proxy_string,
+        'https': args.proxy_string
+    } if args.proxy_string else None
 
-    with request_proxy(args.proxy_string):
-        from pyattck import Attck
-        attack = Attck()
+    attack = Attck(proxies=proxies)
 
-        types = [args.type] if args.type else MITRE_TYPES
+    types = [args.type] if args.type else MITRE_TYPES
 
-        for mitre_type in types:
-            if mitre_type not in MITRE_TYPES:
-                error(
-                    "Unknown mitre type: {}. Valid types: {}".format(
-                        mitre_type, ",".join(MITRE_TYPES)
-                    )
+    for mitre_type in types:
+        if mitre_type not in MITRE_TYPES:
+            error(
+                "Unknown mitre type: {}. Valid types: {}".format(
+                    mitre_type, ",".join(MITRE_TYPES)
                 )
-                sys.exit(2)
+            )
+            sys.exit(2)
 
-            cache = notify_cache(args.notifycache)
+        cache = notify_cache(args.notifycache)
 
-            model = getattr(attack, mitre_type)
+        model = getattr(attack, mitre_type)
 
-            techniques_notify = add_techniques(actapi, model, args.output_format)
-            groups_notify = add_groups(actapi, model, args.output_format)
-            software_notify = add_software(actapi, model, args.output_format)
+        techniques_notify = add_techniques(actapi, model, args.output_format)
+        groups_notify = add_groups(actapi, model, args.output_format)
+        software_notify = add_software(actapi, model, args.output_format)
 
-            # filter revoked objects from those allready notified
-            notify = [
-                notify
-                for notify in techniques_notify + groups_notify + software_notify
-                if notify.id not in cache
-            ]
+        # filter revoked objects from those allready notified
+        notify = [
+            notify
+            for notify in techniques_notify + groups_notify + software_notify
+            if notify.id not in cache
+        ]
 
-            if notify:
-                notified = send_notification(
-                    notify, args.smtphost, args.sender, args.recipient, mitre_type
-                )
+        if notify:
+            notified = send_notification(
+                notify, args.smtphost, args.sender, args.recipient, mitre_type
+            )
 
-                for object_id in notified:
-                    # Add object to cache, so we will not be notified on the same object on the next run
-                    add_to_cache(args.notifycache, object_id)
+            for object_id in notified:
+                # Add object to cache, so we will not be notified on the same object on the next run
+                add_to_cache(args.notifycache, object_id)
 
 
 def main_log_error() -> None:
