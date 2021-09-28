@@ -137,12 +137,12 @@ def add_techniques(
 def format_tool(tool: Text) -> Text:
     """Format tool name:
     * remove text in paranthesis
-    * replace double space with single space
+    * replace multiple whitespace with single space
     * lowercase
     * check that tool validates
     """
 
-    name = re.sub(r"\(.*\)", "", tool).replace("  ", " ").lower().strip()
+    name = re.sub(r"\s+", " ", re.sub(r"\(.*\)", "", tool)).lower().strip()
 
     if not object_validates("tool", name):
         raise ValidationError(f"Tool does not validate: {tool}")
