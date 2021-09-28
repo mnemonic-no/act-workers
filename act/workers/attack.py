@@ -75,7 +75,7 @@ def handle_techniques(
         subtechniqueof: Optional["AttckTechnique"],
         output_format: Text = "json") -> List:
 
-    if getattr(technique, "revoked", None) or getattr(technique, "deprecated", None):
+    if technique.revoked or technique.deprecated:
         # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
         return [technique]
 
@@ -127,7 +127,7 @@ def add_techniques(
     for technique in matrice.techniques:
         notify += handle_techniques(client, technique, None, output_format)
 
-        for subtechnique in getattr(technique, "subtechniques", []):
+        for subtechnique in technique.subtechniques:
             # Pre Attack does not have sub techniques
             notify += handle_techniques(client, subtechnique, technique, output_format)
 
@@ -179,7 +179,7 @@ def add_groups(
     notify: List = []
 
     for actor in matrice.actors:
-        if getattr(actor, "revoked", None) or getattr(actor, "deprecated", None):
+        if actor.revoked or actor.deprecated:
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(actor)
             continue
@@ -246,8 +246,8 @@ def add_software(
     notify: List = []
 
     # Enterprise matrice has malwares and tools, but preattack has none of them
-    for software in getattr(matrice, "malwares", []) + getattr(matrice, "tools", []):
-        if getattr(software, "revoked", None) or getattr(software, "deprecated", None):
+    for software in matrice.malwares + matrice.tools:
+        if software.revoked or software.deprecated:
             # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
             notify.append(software)
             continue
@@ -371,10 +371,10 @@ def send_notification(
     warning("[{}]".format(model))
 
     for obj in notify:
-        if getattr(obj, "revoked", None):
+        if obj.revoked:
             text = "revoked: {}:{}".format(obj.id, obj.name)
 
-        elif getattr(obj, "x_mitre_deprecated", None):
+        elif obj.deprecated:
             text = "deprecated: {}:{}".format(obj.id, obj.name)
 
         else:
