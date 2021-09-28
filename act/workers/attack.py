@@ -75,7 +75,7 @@ def handle_techniques(
         subtechniqueof: Optional["AttckTechnique"],
         output_format: Text = "json") -> List:
 
-    if technique.revoked or technique.deprecated:
+    if getattr(technique, "revoked", None) or getattr(technique, "deprecated", None):
         # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
         return [technique]
 
@@ -127,7 +127,7 @@ def add_techniques(
     for technique in matrice.techniques:
         notify += handle_techniques(client, technique, None, output_format)
 
-        for subtechnique in technique.subtechniques:
+        for subtechnique in getattr(technique, "subtechniques", []):
             # Pre Attack does not have sub techniques
             notify += handle_techniques(client, subtechnique, technique, output_format)
 
