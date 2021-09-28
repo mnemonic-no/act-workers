@@ -179,7 +179,7 @@ def add_groups(
     notify: List = []
 
     for actor in matrice.actors:
-        if actor.revoked or actor.deprecated:
+        if getattr(actor, "revoked", None) or getattr(actor, "deprecated", None):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(actor)
             continue
@@ -246,8 +246,8 @@ def add_software(
     notify: List = []
 
     # Enterprise matrice has malwares and tools, but preattack has none of them
-    for software in matrice.malwares + matrice.tools:
-        if software.revoked or software.deprecated:
+    for software in getattr(matrice, "malwares", []) + getattr(matrice, "tools", []):
+        if getattr(software, "revoked", None) or getattr(software, "deprecated", None):
             # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
             notify.append(software)
             continue
@@ -371,10 +371,10 @@ def send_notification(
     warning("[{}]".format(model))
 
     for obj in notify:
-        if obj.revoked:
+        if getattr(obj, "revoked", None):
             text = "revoked: {}:{}".format(obj.id, obj.name)
 
-        elif obj.deprecated:
+        elif getattr(obj, "deprecated", None):
             text = "deprecated: {}:{}".format(obj.id, obj.name)
 
         else:
