@@ -64,13 +64,21 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
+def deprecated_or_revoked(obj):
+    """
+        Return true if object has a truthy "revoked" or "deprecated" attribute,
+        otherwise False
+    """
+    return getattr(obj, "revoked", None) or getattr(obj, "deprecated", None)
+
+
 def handle_techniques(
         client: Act,
         technique: "AttckTechnique",
         subtechniqueof: Optional["AttckTechnique"],
         output_format: Text = "json") -> List:
 
-    if getattr(technique, "revoked", None) or getattr(technique, "deprecated", None):
+    if deprecated_or_revoked(technique):
         # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
         return [technique]
 
@@ -145,7 +153,7 @@ def add_groups(
     notify: List = []
 
     for actor in matrice.actors:
-        if getattr(actor, "revoked", None) or getattr(actor, "deprecated", None):
+        if deprecated_or_revoked(actor):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(actor)
             continue
@@ -213,7 +221,7 @@ def add_software(
 
     # Enterprise matrice has malwares and tools, but preattack has none of them
     for software in getattr(matrice, "malwares", []) + getattr(matrice, "tools", []):
-        if getattr(software, "revoked", None) or getattr(software, "deprecated", None):
+        if deprecated_or_revoked(software):
             # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
             notify.append(software)
             continue
