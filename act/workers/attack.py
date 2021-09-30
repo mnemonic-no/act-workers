@@ -4,7 +4,6 @@
 
 import argparse
 import os
-import re
 import sys
 import traceback
 from logging import error, info, warning
@@ -13,7 +12,7 @@ from typing import Dict, List, Optional, Text, Union
 import act.api
 from act.api.helpers import Act, handle_fact
 from act.api.libs import cli
-from act.types.types import object_validates
+from act.types.format import ValidationError, format_threat_actor, format_tool
 from pyattck import Attck
 
 from act.workers.libs import worker
@@ -29,10 +28,6 @@ DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify
 
 
 class NotificationError(Exception):
-    pass
-
-
-class ValidationError(Exception):
     pass
 
 
@@ -132,36 +127,6 @@ def add_techniques(
             notify += handle_techniques(client, subtechnique, technique, output_format)
 
     return notify
-
-
-def format_tool(tool: Text) -> Text:
-    """Format tool name:
-    * remove text in paranthesis
-    * replace multiple whitespace with single space
-    * lowercase
-    * check that tool validates
-    """
-
-    name = re.sub(r"\s+", " ", re.sub(r"\(.*\)", "", tool)).lower().strip()
-
-    if not object_validates("tool", name):
-        raise ValidationError(f"Tool does not validate: {tool}")
-
-    return name
-
-
-def format_threat_actor(threat_actor: Text) -> Text:
-    """Format Threat Actor:
-    * lowercase
-    * check that threat actor validates
-    """
-
-    name = re.sub(r"\(.*\)", "", threat_actor).lower().strip()
-
-    if not object_validates("threatActor", name):
-        raise ValidationError(f"ThreatActor does not validate: {threat_actor}")
-
-    return name
 
 
 def add_groups(
