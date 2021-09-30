@@ -75,18 +75,26 @@ def deprecated_or_revoked(obj):
 def handle_techniques(
         client: Act,
         technique: "AttckTechnique",
-        subtechniqueof: Optional["AttckTechnique"],
+        main_technique: Optional["AttckTechnique"],
         output_format: Text = "json") -> List:
+
+    """
+    Args:
+    client:                Act Client
+    technique (str):       Technique or subtechnique ID
+    main_technique (str):  If set, technique is a sub technique
+    output_format (str):   Fact output if sent to stdout (text | json)
+    """
 
     if deprecated_or_revoked(technique):
         # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
         return [technique]
 
-    if subtechniqueof:
+    if main_technique:
         handle_fact(
-            client.fact("subTechniqueOf")
+            client.fact("main_technique")
             .source("technique", technique.id)
-            .destination("technique", subtechniqueof.id),
+            .destination("technique", main_technique.id),
             output_format=output_format,
         )
 
