@@ -6,6 +6,13 @@ This repository contains workers for the [ACT platform](https://github.com/mnemo
 
 The source code the workers are available on [github](https://github.com/mnemonic-no/act-workers).
 
+# Changelog
+
+## 2.0.0
+
+* Configuration is moved from `~/.config/actworkers/actworkers.ini` to `~/.config/act/act.ini`
+* The old scio worker is removed and the new scio-worker (act-scio2) is renamed to act-scio
+
 # Setup
 
 To use the workers, install from PyPi:

@@ -5,6 +5,6 @@ dateparser
 pid
 pyattck
 RashlyOutlaid
-requests
-stix2
-virustotal-api
+pyattck
+dateparser
+caep

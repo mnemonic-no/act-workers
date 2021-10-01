@@ -110,7 +110,7 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not (args.privatekey and args.publickey):
-        worker.fatal("You must specify --privatekey and --publickey on command line or in config file")
+        cli.fatal("You must specify --privatekey and --publickey on command line or in config file")
 
     proxies = {
         'http': args.proxy_string,

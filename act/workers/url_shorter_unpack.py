@@ -22,6 +22,7 @@ from logging import error, warning
 
 import urllib3
 
+from act.api.libs import cli
 from act.workers.libs import worker
 from typing import Text, List, Dict
 from urllib.parse import urlparse
@@ -122,7 +123,7 @@ def main() -> None:
     try:
         shorteners = [x.strip() for x in args.url_shorteners.split(",")]
     except AttributeError:
-        worker.fatal("Empty list of shorteners?")
+        cli.fatal("Empty list of shorteners?")
 
     actapi = worker.init_act(args)
 

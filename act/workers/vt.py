@@ -41,6 +41,7 @@ from typing import Generator, List, Optional, Text, Tuple, Set
 import requests
 
 import act.api
+from act.api.libs import cli
 from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
 
@@ -452,7 +453,7 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not args.apikey:
-        worker.fatal("You must specify --apikey on command line or in config file")
+        cli.fatal("You must specify --apikey on command line or in config file")
 
     in_data = sys.stdin.read().strip()
 

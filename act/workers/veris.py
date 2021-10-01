@@ -33,6 +33,8 @@ import requests
 
 import act.api
 from act.api.helpers import handle_fact
+from act.api.libs import cli
+from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import urlcache, worker
 
 VERSION = "0.1"
@@ -143,12 +145,15 @@ def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], inci
         threat_actors = [ta.strip() for ta in incident.get("actor", {}).get("external", {}).get("name", [])]
 
         for ta in threat_actors:
-            handle_fact(
-                config["actapi"].fact("attributedTo")
-                .source("incident", incident_id)
-                .destination("threatActor", ta),
-                output_format=config["output_format"]
-            )
+            try:
+                handle_fact(
+                    config["actapi"].fact("attributedTo")
+                    .source("incident", incident_id)
+                    .destination("threatActor", format_threat_actor(ta)),
+                    output_format=config["output_format"]
+                )
+            except ValidationError as e:
+                error(str(e))
 
 
 def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
@@ -162,17 +167,18 @@ def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id:
         if malware]
 
     for tool in tools:
-        chain = act.api.fact.fact_chain(
-            config["actapi"].fact("classifiedAs")
-            .source("content", "*")
-            .destination("tool", tool),
-            config["actapi"].fact("observedIn")
-            .source("content", "*")
-            .destination("event", "*"),
-            config["actapi"].fact("attributedTo")
-            .source("event", "*")
-            .destination("incident", incident_id),
-        )
+        try:
+            chain = act.api.fact.fact_chain(
+                config["actapi"].fact("classifiedAs")
+                .source("content", "*")
+                .destination("tool", format_tool(tool)),
+                config["actapi"].fact("observedIn")
+                .source("content", "*")
+                .destination("incident", incident_id),
+            )
+        except ValidationError as e:
+            error(str(e))
+            continue
 
         for fact in chain:
             handle_fact(fact, output_format=config["output_format"])
@@ -285,18 +291,18 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not args.country_codes:
-        worker.fatal("You must specify --country-codes on command line or in config file")
+        cli.fatal("You must specify --country-codes on command line or in config file")
 
     if not args.veris_prefix:
-        worker.fatal("You must specify --veris-prefix")
+        cli.fatal("You must specify --veris-prefix")
 
     if not (args.veris_url or args.veris_file or args.stdin):
-        worker.fatal("You must specify --veris-url, --veris-file or --stdin")
+        cli.fatal("You must specify --veris-url, --veris-file or --stdin")
 
     args.veris_prefix = args.veris_prefix.upper()
 
     if not os.path.isfile(args.country_codes):
-        worker.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
+        cli.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
 
     args.threat_actor_variety = [variety.strip() for variety in args.threat_actor_variety.split(",")]
 
