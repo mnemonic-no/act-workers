@@ -11,6 +11,7 @@ import sys
 import traceback
 
 from act.api.helpers import handle_fact, handle_uri
+from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import worker
 from act.api.libs import cli
 import act.api
@@ -69,6 +70,8 @@ def report_mentions_fact(actapi: act.api.Act,
                 .destination(object_type, value),
                 output_format
             )
+        except ValidationError as e:
+            error(str(e))
         except act.api.base.ResponseError as e:
             error("Unable to create linked fact: %s" % e)
 
@@ -236,7 +239,7 @@ def add_to_act(actapi: act.api.Act,
     report_mentions_fact(
         actapi,
         "threatActor",
-        set(doc.get("threatactor", {}).get("ThreatActors", [])),
+        {format_threat_actor(ta) for ta in doc.get("threatactor", {}).get("ThreatActors", [])},
         report_id,
         output_format)
 
@@ -244,7 +247,7 @@ def add_to_act(actapi: act.api.Act,
     report_mentions_fact(
         actapi,
         "tool",
-        {tool.lower() for tool in doc.get("tools", {}).get("Tools", [])},
+        {format_tool(tool) for tool in doc.get("tools", {}).get("Tools", [])},
         report_id,
         output_format)
 
@@ -252,7 +255,7 @@ def add_to_act(actapi: act.api.Act,
     report_mentions_fact(
         actapi,
         "sector",
-        set(doc.get("sectors", []).get("sectors", [])),
+        set(doc.get("sectors", {}).get("sectors", [])),
         report_id,
         output_format)
 

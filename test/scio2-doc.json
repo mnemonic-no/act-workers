@@ -42800,7 +42800,9 @@
     ]
   },
   "sectors": {
-    "sectors": [],
+    "sectors": [
+        "finance"
+    ],
     "unknown_sectors": [
       "product",
       "product",
