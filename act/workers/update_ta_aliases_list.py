@@ -6,6 +6,8 @@ from act.workers.libs.ta_list_methods import get_all_ta_from_act, get_all_alias_
     add_ta_to_map, add_ta_alias_to_map, create_config
 
 from act.workers.libs import worker
+from act.api.libs import cli
+
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """

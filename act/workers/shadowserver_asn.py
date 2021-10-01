@@ -295,10 +295,10 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     if not args.country_codes:
-        worker.fatal("You must specify --country-codes on command line or in config file")
+        cli.fatal("You must specify --country-codes on command line or in config file")
 
     if not os.path.isfile(args.country_codes):
-        worker.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
+        cli.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
 
     # Get map of CC -> Country Name
     cn_map = get_cn_map(args.country_codes)

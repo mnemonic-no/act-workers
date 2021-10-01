@@ -332,7 +332,7 @@ def main() -> None:
     actapi = worker.init_act(args)
 
     # if not args.apikey:
-    #    worker.fatal("You must specify --apikey on command line or in config file")
+    #    cli.fatal("You must specify --apikey on command line or in config file")
 
     proxies = {
         'http': args.proxy_string,
