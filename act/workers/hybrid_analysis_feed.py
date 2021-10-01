@@ -30,6 +30,7 @@ from typing import Any, Dict, Generator, List, Optional, Text
 import requests
 
 import act.api
+from act.types.format import ValidationError, format_tool
 from act.workers.libs import worker
 from act.api.libs import cli
 
@@ -85,7 +86,7 @@ def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Te
 
     feed = download_feed(user_agent, proxies, verify_ssl)
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for report in feed['data']:
         if not (report.get('isinteresting', False) or report.get('threatlevel', 0)):
@@ -101,10 +102,10 @@ def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Te
         act.api.helpers.handle_fact(fact, output_format=output_format)
 
 
-def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[act.api.fact.FactType]:
+def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[act.api.fact.Fact]:
     """handle the hosts part of a hybrid-analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for host in hosts:
         (ip_type, ip) = act.api.helpers.ip_obj(host)
@@ -126,10 +127,10 @@ def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[
     return feeds_facts
 
 
-def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> List[act.api.fact.FactType]:
+def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> List[act.api.fact.Fact]:
     """Handle the domains part of a hybrid-analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for domain in domains:
 
@@ -147,10 +148,10 @@ def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> L
     return feeds_facts
 
 
-def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: List[Dict]) -> List[act.api.fact.FactType]:
+def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: List[Dict]) -> List[act.api.fact.Fact]:
     """Handle the extracted_files part of a hybrid_analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for file in extracted_files:
 
@@ -189,23 +190,26 @@ def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: 
     return feeds_facts
 
 
-def handle_classification_tags(actapi: act.api.Act, content: Text, classification_tags: List[Text]) -> List[act.api.fact.FactType]:
+def handle_classification_tags(actapi: act.api.Act, content: Text, classification_tags: List[Text]) -> List[act.api.fact.Fact]:
     """handle the classification_tags part or a hybrid_analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for tag in classification_tags:
-        feeds_facts.append(actapi.fact('classifiedAs')
-                           .source('content', content)
-                           .destination('tool', tag))
+        try:
+            feeds_facts.append(actapi.fact('classifiedAs')
+                               .source('content', content)
+                               .destination('tool', format_tool(tag)))
+        except ValidationError as e:
+            error(str(e))
 
     return feeds_facts
 
 
-def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[Dict]) -> List[act.api.fact.FactType]:
+def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[Dict]) -> List[act.api.fact.Fact]:
     """Handle the MITRE Att&ck part of the hybrid analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for attck in mitre_attcks:
         chain = []
@@ -222,10 +226,10 @@ def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[D
     return feeds_facts
 
 
-def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[Dict]) -> List[act.api.fact.FactType]:
+def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[Dict]) -> List[act.api.fact.Fact]:
     """Handle the process list part of the hybrid analysis report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     for proc in process_list:
 
@@ -245,10 +249,10 @@ def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[D
     return feeds_facts
 
 
-def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.fact.FactType]:
+def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.fact.Fact]:
     """Create facts from a report"""
 
-    feeds_facts: List[act.api.fact.FactType] = []
+    feeds_facts: List[act.api.fact.Fact] = []
 
     content = report['sha256']
     for hash_type in ['md5', 'sha1', 'sha256', 'ssdeep', 'imphash', 'sha512']:
