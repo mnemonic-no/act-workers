@@ -2,6 +2,6 @@ requests
 virustotal-api
 act-api
 RashlyOutlaid
-stix2
+pyattck
 dateparser
 caep
