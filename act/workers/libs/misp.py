@@ -7,7 +7,11 @@ import time
 import re
 import ipaddress
 
-from typing import Optional, Text, Any, Tuple, Dict, Callable
+from logging import error
+
+from typing import Optional, Text, Tuple, Dict, Callable
+
+from act.types.format import ValidationError, format_threat_actor
 
 
 class ThreatLevelID(enum.Enum):
@@ -155,7 +159,12 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
             mapper_fn = map_misp_to_act.get(attributedict["type"], lambda x: (None, None))
             self.act_type: Optional[Text] = None
             self.value: Optional[Text] = None
-            self.act_type, self.value = mapper_fn(attributedict["value"])
+
+            try:
+                self.act_type, self.value = mapper_fn(attributedict["value"])
+            except ValidationError as e:
+                error(str(e))
+
             if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
                 print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
         except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
@@ -179,7 +188,7 @@ def certificate_f(x: Text) -> Tuple[Text, Text]:
 
 def threat_actor_f(x: Text) -> Tuple[Text, Text]:
     """Translation function misp -> act"""
-    return "threatActor", x.lower()
+    return "threatActor", format_threat_actor(x)
 
 
 def campaign_f(x: Text) -> Tuple[Text, Text]:
