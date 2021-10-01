@@ -11,6 +11,7 @@ from typing import Callable, Dict, Set, Text, cast
 
 import act.api
 from act.api.helpers import handle_fact, handle_uri
+from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import worker
 from act.api.libs import cli
 
@@ -65,6 +66,8 @@ def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: 
                 .destination(object_type, value),
                 output_format
             )
+        except ValidationError as e:
+            error(str(e))
         except act.api.base.ResponseError as e:
             error("Unable to create linked fact: %s" % e)
 
@@ -168,7 +171,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     report_mentions_fact(
         actapi,
         "threatActor",
-        doc.get("threat-actor", {}).get("names", []),
+        {format_threat_actor(ta) for ta in doc.get("threat-actor", {}).get("names", [])},
         report_id,
         output_format)
 
@@ -176,7 +179,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     report_mentions_fact(
         actapi,
         "tool",
-        [tool.lower() for tool in doc.get("tools", {}).get("names", [])],
+        {format_tool(tool) for tool in doc.get("tools", {}).get("names", [])},
         report_id,
         output_format)
 

@@ -38,6 +38,8 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
         api.fact("componentOf").source("path", "/tlp.").destination("uri", uri),
         api.fact("scheme", "http").source("uri", uri),
         api.fact("mentions").source("report", report_id).destination("tool", "cobra"),
+        api.fact("mentions").source("report", report_id).destination("threatActor", "hidden cobra"),
+        api.fact("mentions").source("report", report_id).destination("sector", "finance"),
         api.fact("mentions").source("report", report_id).destination("uri", "email://redhat@gmail.com"),
         api.fact("mentions").source("report", report_id).destination("ipv4Network", "192.168.0.0/16"),
         api.fact("represents").source("hash", sha256).destination("content", sha256),
