@@ -59,18 +59,35 @@ def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> bool:
 
     return True
 
+
 def handle_argus_event_technique(
         actapi: act.api.Act,
         properties: defaultdict,
-        event_id: Text,
+        case_id: Text,
         output_format: Text) -> None:
     """ Handle MITRE ATT&CK technique in events """
 
-    for technique in properties["mitreAttack.technique"].split("\n"):
+    for technique in properties["mitreAttack.techniqueId"].split("\n"):
         handle_fact(
-            actapi.fact("classifiedAs")
-            .source("event", event_id)
-            .destination("technique", technique.strip()),
+            actapi.fact("observedIn")
+            .source("technique", technique.strip())
+            .destination("incident", case_id),
+            output_format=output_format
+        )
+
+
+def handle_argus_event_sub_technique(
+        actapi: act.api.Act,
+        properties: defaultdict,
+        case_id: Text,
+        output_format: Text) -> None:
+    """ Handle MITRE ATT&CK sub technique in events """
+
+    for sub_technique in properties["mitreAttack.subTechniqueId"].split("\n"):
+        handle_fact(
+            actapi.fact("observedIn")
+            .source("technique", sub_technique.strip())
+            .destination("incident", case_id),
             output_format=output_format
         )
 
@@ -78,14 +95,14 @@ def handle_argus_event_technique(
 def handle_argus_event_tactic(
         actapi: act.api.Act,
         properties: defaultdict,
-        event_id: Text,
+        case_id: Text,
         output_format: Text) -> None:
     """ Handle MITRE ATT&CK tactic in events """
 
     for tactic in properties["mitreAttack.tactic"].split("\n"):
         chain = act.api.fact.fact_chain(
-            actapi.fact("classifiedAs")
-            .source("event", event_id)
+            actapi.fact("observedIn")
+            .source("incident", case_id)
             .destination("technique", "*"),
             actapi.fact("implements")
             .source("technique", "*")
@@ -99,7 +116,7 @@ def handle_argus_event_tactic(
 def handle_argus_event_hash(
         actapi: act.api.Act,
         properties: defaultdict,
-        event_id: Text,
+        case_id: Text,
         content_props: List[Text],
         hash_props: List[Text],
         output_format: Text) -> None:
@@ -118,7 +135,7 @@ def handle_argus_event_hash(
                 handle_fact(
                     actapi.fact("observedIn")
                     .source("content", value)
-                    .destination("event", event_id),
+                    .destination("incident", case_id),
                     output_format=output_format
                 )
 
@@ -146,7 +163,7 @@ def handle_argus_event_hash(
                         .destination("content", "*"),
                         actapi.fact("observedIn")
                         .source("content", "*")
-                        .destination("event", event_id),
+                        .destination("incident", case_id),
                     )
 
                     for fact in chain:
@@ -167,7 +184,7 @@ def get_scheme(event: defaultdict) -> Text:
 def handle_argus_event_ip(
         actapi: act.api.Act,
         event: defaultdict,
-        event_id: Text,
+        case_id: Text,
         output_format: Text) -> None:
     "Create facts from source/destination IP address"
 
@@ -196,14 +213,14 @@ def handle_argus_event_ip(
 
         # Fact: uri -> event
         handle_fact(
-            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
             output_format=output_format)
 
 
 def handle_argus_event_fqdn(
         actapi: act.api.Act,
         event: defaultdict,
-        event_id: Text,
+        case_id: Text,
         output_format: Text) -> None:
     "Create fact from fqdn"
 
@@ -219,7 +236,7 @@ def handle_argus_event_fqdn(
 
         # Fact: uri -> event
         handle_fact(
-            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
             output_format=output_format)
 
 
@@ -235,41 +252,33 @@ def handle_argus_event(
     properties = defaultdict(lambda: None, event["properties"])
     event = defaultdict(lambda: None, event)
 
-    signature = event["attackInfo"]["signature"]
+    if not event["associatedCase"]:
+        # No incident.
+        return
 
-    # Use argus ID (AGGRid) as event_id
-    event_id = "ARGUS-{}".format(event["id"])
-
-    # Fact: event -> incident
-    if event["associatedCase"]:
-        case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
+    case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
+    subject = event["associatedCase"]["subject"]
+    if subject:
         handle_fact(
-            actapi.fact("attributedTo").source("event", event_id).destination("incident", case_id),
+            actapi.fact("name", subject).source("incident", case_id),
             output_format=output_format)
 
-        subject = event["associatedCase"]["subject"]
-        if subject:
-            handle_fact(
-                actapi.fact("name", subject).source("incident", case_id),
-                output_format=output_format)
-
-    if properties["mitreAttack.technique"]:
+    # For Mitre ATT&CK we use the most specific information we have
+    # SubTechnique > Technique > Tactic
+    if properties["mitreAttack.subTechniqueId"]:
+        handle_argus_event_sub_technique(actapi, properties, case_id, output_format)
+    elif properties["mitreAttack.techniqueId"]:
         # If we have technique -> we have an implicit connection to tactic (through technique)
-        handle_argus_event_technique(actapi, properties, event_id, output_format)
+        handle_argus_event_technique(actapi, properties, case_id, output_format)
     elif properties["mitreAttack.tactic"]:
         # If we have tactic (but not technique) we must go through placeholder technique
-        handle_argus_event_tactic(actapi, properties, event_id, output_format)
+        handle_argus_event_tactic(actapi, properties, case_id, output_format)
 
     # Facts: hash/content -> event
-    handle_argus_event_hash(actapi, properties, event_id, content_props, hash_props, output_format)
+    handle_argus_event_hash(actapi, properties, case_id, content_props, hash_props, output_format)
 
     # Facts: sourceIP -> event, destinationIP -> event
-    handle_argus_event_ip(actapi, event, event_id, output_format)
-
-    # Fact: signature -> event
-    handle_fact(
-        actapi.fact("detects").source("signature", signature).destination("event", event_id),
-        output_format=output_format)
+    handle_argus_event_ip(actapi, event, case_id, output_format)
 
     uris = set()
 
@@ -286,11 +295,11 @@ def handle_argus_event(
             continue
 
         handle_fact(
-            actapi.fact("observedIn").source("uri", uri).destination("event", event_id),
+            actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
             output_format=output_format)
 
     if not uris:
         # Only construct URI from fqdn if we do not have an uri on the event. The URI
         # Is normally more correct (e.g. scheme and path will be more correctly specified)
         # Facts: uri fqdn -> uri ->  event
-        handle_argus_event_fqdn(actapi, event, event_id, output_format)
+        handle_argus_event_fqdn(actapi, event, case_id, output_format)

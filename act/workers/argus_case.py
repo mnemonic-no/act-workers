@@ -21,6 +21,8 @@ from act.api.libs import cli
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+WORKER_NAME = "argus-case"
+
 
 def parseargs() -> argparse.ArgumentParser:
     """ Parse arguments """
@@ -99,7 +101,7 @@ def event_case_query(
 def get_last_update() -> int:
     "Get last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        caep.get_cache_dir(worker.worker_name(), create=True),
+        caep.get_cache_dir(WORKER_NAME, create=True),
         "last_update")
 
     if os.path.isfile(cache_filename):
@@ -118,7 +120,7 @@ def get_last_update() -> int:
 def update_last_update(last_update: int) -> None:
     "Write last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        caep.get_cache_dir(worker.worker_name(), create=True),
+        caep.get_cache_dir(WORKER_NAME, create=True),
         "last_update")
 
     # Write last update timestamp to disk
@@ -182,7 +184,7 @@ def main() -> None:
     args = cli.handle_args(parseargs())
 
     if not args.argus_apikey:
-        cli.fatal("You must specify --apikey on command line or in config file")
+        cli.fatal("You must specify --argus-apikey on command line or in config file")
 
     actapi = worker.init_act(args)
     process(actapi, args)
