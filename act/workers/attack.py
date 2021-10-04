@@ -92,7 +92,7 @@ def handle_techniques(
 
     if main_technique:
         handle_fact(
-            client.fact("main_technique")
+            client.fact("subTechniqueOf")
             .source("technique", technique.id)
             .destination("technique", main_technique.id),
             output_format=output_format,
