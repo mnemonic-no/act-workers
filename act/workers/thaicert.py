@@ -10,6 +10,7 @@ import traceback
 import act
 import act.api
 
+from collections import defaultdict
 from typing import Text, List
 from itertools import combinations
 from logging import error, warning
@@ -39,30 +40,55 @@ def parseargs() -> argparse.ArgumentParser:
 def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -> None:
     "Extract threat actor cards from ThaiCERT"
 
+    # Keep list of names with an alias points to
+    # There should only be one to have a meaningfull alias
+    ta_alias_names = defaultdict(set)
+    ta_aliases = {}
+
     for actor in ta_cards:
-        if len(actor["names"]) > 1:
-            for alias in actor["names"][1:]:
-                try:
-                    ta_name = format_threat_actor(actor["names"][0]["name"])
-                    alias_name = format_threat_actor(alias["name"])
-                except ValidationError as e:
-                    error(str(e))
-                    continue
+        try:
+            ta_name = format_threat_actor(actor["names"][0]["name"])
+        except ValidationError as e:
+            error(str(e))
+            continue
 
-                # names might be identical after format/normalization
-                if ta_name == alias_name:
-                    continue
+        ta_aliases[ta_name] = []
 
-                handle_fact(
-                    client.fact("alias").bidirectional(
-                        "threatActor",
-                        ta_name,
-                        "threatActor",
-                        alias_name
-                    ),
-                    output_format=output_format,
-                )
+        for alias in actor["names"][1:]:
+            try:
+                alias_name = format_threat_actor(alias["name"])
+            except ValidationError as e:
+                error(str(e))
+                continue
 
+            # names might be identical after format/normalization
+            if ta_name == alias_name:
+                continue
+
+            ta_alias_names[alias_name].add(ta_name)
+            ta_aliases[ta_name].append(alias_name)
+
+
+    for ta_name in ta_aliases:
+        for alias_name in ta_aliases[ta_name]:
+
+            # This alias is mentioned for multiple main threat
+            # actors so we skip this alias
+            if len(ta_alias_names[alias_name]) > 1:
+                warning(f"Skipping TA alias {alias_name} <-> {ta_name} since {alias_name} is alias for multiple names: {ta_alias_names[alias_name]}")
+                continue
+
+            handle_fact(
+                client.fact("alias").bidirectional(
+                    "threatActor",
+                    ta_name,
+                    "threatActor",
+                    alias_name
+                ),
+                output_format=output_format,
+            )
+
+    for actor in ta_cards:
         if "operations" in actor:
             for operation in actor["operations"]:
                 if len(operation["activity"].split("\n")[0].split()) < 4:
