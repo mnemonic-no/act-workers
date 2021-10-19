@@ -43,6 +43,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
     uri2 = "http://test-domain2.com/path.cgi"
     uri3 = "http://test-domain3.com/abc"
     case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
+    observationTime = event["startTimestamp"]
 
     signature = event["attackInfo"]["signature"]
 
@@ -68,7 +69,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
 
     sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
 
-    fact_assertions = [
+    fact_assertions = (
         api.fact("observedIn").source("content", sha256).destination("incident", case_id),
         api.fact("name", "Infected host").source("incident", case_id),
         api.fact("observedIn").source("uri", uri1).destination("incident", case_id),
@@ -78,6 +79,12 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         api.fact("componentOf").source("path", "/path.cgi").destination("uri", uri1),
         api.fact("scheme", "http").source("uri", uri1),
         api.fact("observedIn").source("uri", "tcp://1.2.3.4").destination("incident", case_id),
+    )
+
+    # All facts should have a corresponding meta fact observationTime
+    meta_fact_assertions = [
+        fact.meta("observationTime", str(observationTime))
+        for fact in fact_assertions + tactic_chain + md5_chain
     ]
 
     fact_negative_assertions = [
@@ -118,4 +125,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         assert str(fact_assertion) in facts
 
     for fact_assertion in tactic_chain:
+        assert str(fact_assertion) in facts
+
+    for fact_assertion in meta_fact_assertions:
         assert str(fact_assertion) in facts

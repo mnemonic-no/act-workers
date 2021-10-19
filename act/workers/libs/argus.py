@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from ipaddress import AddressValueError, IPv4Address
 from logging import debug, error, info, warning
-from typing import Dict, List, Text, cast
+from typing import Dict, List, Optional, Text, cast
 
 import act.api
 import act.api.helpers
@@ -33,20 +33,38 @@ def refang_uri(uri: Text) -> Text:
         .replace("%2f", "/")
 
 
-def handle_fact(fact: act.api.fact.Fact, output_format: Text) -> None:
+def handle_fact(
+    fact: act.api.fact.Fact,
+    output_format: Text,
+    observationTime: Optional[int] = None) -> None:
     """ wrap act.helpers.handle_fact and log all errors (and continue) """
     try:
-        act.api.helpers.handle_fact(fact, output_format)
+        f = act.api.helpers.handle_fact(fact, output_format)
+
+        if f and observationTime:
+            act.api.helpers.handle_fact(
+                f.meta("observationTime", str(observationTime)),
+                output_format)
+
     except act.api.base.ResponseError:
         error("Error adding fact (ResponseError): {}".format(fact, exc_info=True))
     except act.api.schema.MissingField:
         error("Error adding fact (missing field): {}".format(fact, exc_info=True))
 
 
-def handle_uri(actapi: act.api.Act, uri: Text, output_format: Text) -> bool:
+def handle_uri(
+    actapi: act.api.Act,
+    uri: Text,
+    output_format: Text,
+    observationTime: Optional[int] = None) -> bool:
     """ wrap act.helpers.handle_uri and log all errors. Return True on success and False on failure """
     try:
-        act.api.helpers.handle_uri(actapi, uri, output_format)
+
+        for f in act.api.helpers.handle_uri(actapi, uri, output_format):
+            act.api.helpers.handle_fact(
+                f.meta("observationTime", str(observationTime)),
+                output_format)
+
     except act.api.base.ValidationError:
         info("Error adding uri (ValidationError): {}".format(uri, exc_info=True))
         return False
@@ -64,7 +82,8 @@ def handle_argus_event_technique(
         actapi: act.api.Act,
         properties: defaultdict,
         case_id: Text,
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     """ Handle MITRE ATT&CK technique in events """
 
     for technique in properties["mitreAttack.techniqueId"].split("\n"):
@@ -72,7 +91,8 @@ def handle_argus_event_technique(
             actapi.fact("observedIn")
             .source("technique", technique.strip())
             .destination("incident", case_id),
-            output_format=output_format
+            output_format=output_format,
+            observationTime=observationTime
         )
 
 
@@ -80,7 +100,8 @@ def handle_argus_event_sub_technique(
         actapi: act.api.Act,
         properties: defaultdict,
         case_id: Text,
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     """ Handle MITRE ATT&CK sub technique in events """
 
     for sub_technique in properties["mitreAttack.subTechniqueId"].split("\n"):
@@ -88,7 +109,8 @@ def handle_argus_event_sub_technique(
             actapi.fact("observedIn")
             .source("technique", sub_technique.strip())
             .destination("incident", case_id),
-            output_format=output_format
+            output_format=output_format,
+            observationTime=observationTime
         )
 
 
@@ -96,7 +118,8 @@ def handle_argus_event_tactic(
         actapi: act.api.Act,
         properties: defaultdict,
         case_id: Text,
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     """ Handle MITRE ATT&CK tactic in events """
 
     for tactic in properties["mitreAttack.tactic"].split("\n"):
@@ -110,7 +133,10 @@ def handle_argus_event_tactic(
         )
 
         for fact in chain:
-            handle_fact(fact, output_format=output_format)
+            handle_fact(
+                fact,
+                output_format=output_format,
+                observationTime=observationTime)
 
 
 def handle_argus_event_hash(
@@ -119,7 +145,8 @@ def handle_argus_event_hash(
         case_id: Text,
         content_props: List[Text],
         hash_props: List[Text],
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     """ Handle file/process hash properties in events """
 
     # For all hash values that represents a content object (typically sha256)
@@ -136,7 +163,8 @@ def handle_argus_event_hash(
                     actapi.fact("observedIn")
                     .source("content", value)
                     .destination("incident", case_id),
-                    output_format=output_format
+                    output_format=output_format,
+                    observationTime=observationTime
                 )
 
                 # A SHA256 hash is represented by itself
@@ -144,7 +172,8 @@ def handle_argus_event_hash(
                     actapi.fact("represents")
                     .source("hash", value)
                     .destination("content", value),
-                    output_format=output_format
+                    output_format=output_format,
+                    observationTime=observationTime
                 )
 
     # For all hash values that needs a placeholder (unknown content/sha256)
@@ -167,7 +196,11 @@ def handle_argus_event_hash(
                     )
 
                     for fact in chain:
-                        handle_fact(fact, output_format=output_format)
+                        handle_fact(
+                            fact,
+                            output_format=output_format,
+                            observationTime=observationTime
+                        )
 
 
 def get_scheme(event: defaultdict) -> Text:
@@ -185,7 +218,8 @@ def handle_argus_event_ip(
         actapi: act.api.Act,
         event: defaultdict,
         case_id: Text,
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     "Create facts from source/destination IP address"
 
     scheme = get_scheme(event)
@@ -208,20 +242,26 @@ def handle_argus_event_ip(
         uri = "{}://{}".format(scheme, address)
 
         # Facts: uri components
-        if not handle_uri(actapi, uri, output_format=output_format):
+        if not handle_uri(
+            actapi,
+            uri,
+            output_format=output_format,
+            observationTime=observationTime):
             continue
 
         # Fact: uri -> event
         handle_fact(
             actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
-            output_format=output_format)
+            output_format=output_format,
+            observationTime=observationTime)
 
 
 def handle_argus_event_fqdn(
         actapi: act.api.Act,
         event: defaultdict,
         case_id: Text,
-        output_format: Text) -> None:
+        output_format: Text,
+        observationTime: Optional[int] = None) -> None:
     "Create fact from fqdn"
 
     scheme = get_scheme(event)
@@ -231,13 +271,15 @@ def handle_argus_event_fqdn(
         uri = "{}://{}".format(scheme, event["domain"]["fqdn"])
 
         # Facts, uri components
-        if not handle_uri(actapi, uri, output_format=output_format):
+        if not handle_uri(actapi, uri, output_format=output_format, observationTime=observationTime):
             return
 
         # Fact: uri -> event
         handle_fact(
             actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
-            output_format=output_format)
+            output_format=output_format,
+            observationTime=observationTime
+        )
 
 
 def handle_argus_event(
@@ -258,10 +300,14 @@ def handle_argus_event(
 
     case_id = "ARGUS-{}".format(event["associatedCase"]["id"])
     subject = event["associatedCase"]["subject"]
+    observationTime = event.get("startTimestamp")
+
     if subject:
         handle_fact(
             actapi.fact("name", subject).source("incident", case_id),
-            output_format=output_format)
+            output_format=output_format,
+            observationTime=observationTime
+        )
 
     # For Mitre ATT&CK we use the most specific information we have
     # SubTechnique > Technique > Tactic
@@ -275,10 +321,10 @@ def handle_argus_event(
         handle_argus_event_tactic(actapi, properties, case_id, output_format)
 
     # Facts: hash/content -> event
-    handle_argus_event_hash(actapi, properties, case_id, content_props, hash_props, output_format)
+    handle_argus_event_hash(actapi, properties, case_id, content_props, hash_props, output_format, observationTime)
 
     # Facts: sourceIP -> event, destinationIP -> event
-    handle_argus_event_ip(actapi, event, case_id, output_format)
+    handle_argus_event_ip(actapi, event, case_id, output_format, observationTime)
 
     uris = set()
 
@@ -296,7 +342,9 @@ def handle_argus_event(
 
         handle_fact(
             actapi.fact("observedIn").source("uri", uri).destination("incident", case_id),
-            output_format=output_format)
+            output_format=output_format,
+            observationTime=observationTime
+        )
 
     if not uris:
         # Only construct URI from fqdn if we do not have an uri on the event. The URI
