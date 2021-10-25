@@ -60,8 +60,8 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
     # Fact chain from event through technique to tactic
     tactic_chain = act.api.fact.fact_chain(
         api.fact("observedIn")
-        .destination("technique", "*")
-        .source("incident", case_id),
+        .source("technique", "*")
+        .destination("incident", case_id),
         api.fact("implements")
         .source("technique", "*")
         .destination("tactic", "Discovery")
