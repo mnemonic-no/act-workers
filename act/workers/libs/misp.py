@@ -102,8 +102,12 @@ class Event:  # pylint: disable=R0902
 
     def __init__(self, loads: Optional[Text] = None) -> None:
         self._uuid: uuid.UUID = uuid.uuid4()
-        self.timestamp: int = int(time.time())  # Timestamp of event creation or event/attribute last update
-        self.publish_timestamp: int = int(time.time())  # reference time when the event was published on the instance.
+        self.timestamp: int = int(
+            time.time()
+        )  # Timestamp of event creation or event/attribute last update
+        self.publish_timestamp: int = int(
+            time.time()
+        )  # reference time when the event was published on the instance.
 
         if loads:
             data = json.loads(loads)
@@ -156,7 +160,9 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
         try:
             self._uuid = attributedict["uuid"]
             self.id: Text = attributedict["uuid"]
-            mapper_fn = map_misp_to_act.get(attributedict["type"], lambda x: (None, None))
+            mapper_fn = map_misp_to_act.get(
+                attributedict["type"], lambda x: (None, None)
+            )
             self.act_type: Optional[Text] = None
             self.value: Optional[Text] = None
 
@@ -165,7 +171,10 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
             except ValidationError as e:
                 error(str(e))
 
-            if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
+            if (
+                "RelatedAttribute" in attributedict
+                and attributedict["RelatedAttribute"]
+            ):
                 print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
         except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
             print(attributedict)

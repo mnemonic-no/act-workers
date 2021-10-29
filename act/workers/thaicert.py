@@ -29,10 +29,11 @@ THAICERT_TOOLS_URL = "https://apt.thaicert.or.th/cgi-bin/getcard.cgi?t=all&o=j"
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments"""
+    """Parse arguments"""
     parser = worker.parseargs("ThaiCERT worker")
-    parser.add_argument('--url', dest="thaicert_url", default=THAICERT_URL,
-                        help='ThaiCERT data URL')
+    parser.add_argument(
+        "--url", dest="thaicert_url", default=THAICERT_URL, help="ThaiCERT data URL"
+    )
     return parser
 
 
@@ -67,22 +68,20 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
             ta_alias_names[alias_name].add(ta_name)
             ta_aliases[ta_name].append(alias_name)
 
-
     for ta_name in ta_aliases:
         for alias_name in ta_aliases[ta_name]:
 
             # This alias is mentioned for multiple main threat
             # actors so we skip this alias
             if len(ta_alias_names[alias_name]) > 1:
-                warning(f"Skipping TA alias {alias_name} <-> {ta_name} since {alias_name} is alias for multiple names: {ta_alias_names[alias_name]}")
+                warning(
+                    f"Skipping TA alias {alias_name} <-> {ta_name} since {alias_name} is alias for multiple names: {ta_alias_names[alias_name]}"
+                )
                 continue
 
             handle_fact(
                 client.fact("alias").bidirectional(
-                    "threatActor",
-                    ta_name,
-                    "threatActor",
-                    alias_name
+                    "threatActor", ta_name, "threatActor", alias_name
                 ),
                 output_format=output_format,
             )
@@ -96,10 +95,12 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                             chain = act.api.fact.fact_chain(
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("campaign", operation["activity"].split("\n")[0]),
+                                .destination(
+                                    "campaign", operation["activity"].split("\n")[0]
+                                ),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -109,10 +110,14 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                             try:
                                 handle_fact(fact, output_format=output_format)
                             except act.api.base.ValidationError as err:
-                                warning("ValidationError while storing objects: %s" % err)
+                                warning(
+                                    "ValidationError while storing objects: %s" % err
+                                )
 
 
-def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_format: Text = "json") -> None:
+def add_countries(
+    client: act.api.Act, ta_cards: List, countries: List, output_format: Text = "json"
+) -> None:
     """
     Only submit country if ISO-3166 country
     """
@@ -127,7 +132,7 @@ def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_f
                             .destination("country", country),
                             client.fact("attributedTo")
                             .source("threatActor", format_threat_actor(actor["actor"]))
-                            .destination("organization", "*")
+                            .destination("organization", "*"),
                         )
                     except ValidationError as e:
                         error(str(e))
@@ -150,7 +155,7 @@ def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_f
                                 .destination("organization", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -160,7 +165,9 @@ def add_countries(client: act.api.Act, ta_cards: List, countries: List, output_f
                             handle_fact(fact, output_format=output_format)
 
 
-def add_sectors(client: act.api.Act, ta_cards: List, vocab: List, output_format: Text = "json") -> None:
+def add_sectors(
+    client: act.api.Act, ta_cards: List, vocab: List, output_format: Text = "json"
+) -> None:
     """
     Only submit sectors if in STIX vocabulary
     """
@@ -179,7 +186,7 @@ def add_sectors(client: act.api.Act, ta_cards: List, vocab: List, output_format:
                                 .destination("organization", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -189,7 +196,9 @@ def add_sectors(client: act.api.Act, ta_cards: List, vocab: List, output_format:
                             handle_fact(fact, output_format=output_format)
 
 
-def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: Text = "json") -> None:
+def add_tools(
+    client: act.api.Act, ta_cards: List, tools: List, output_format: Text = "json"
+) -> None:
     """
     Submit tool aliases and actor tools
     """
@@ -209,7 +218,7 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
                                 .destination("incident", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -222,7 +231,9 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
                                 error("ResponseError while storing objects: %s" % err)
 
     for values in tools:
-        aliases = set([tool["name"].strip() for tool in values["names"]] + [values["tool"]])
+        aliases = set(
+            [tool["name"].strip() for tool in values["names"]] + [values["tool"]]
+        )
         for tool1, tool2 in combinations(aliases, 2):
             try:
                 tool1 = format_tool(tool1)
@@ -234,8 +245,7 @@ def add_tools(client: act.api.Act, ta_cards: List, tools: List, output_format: T
             if tool1 == tool2:
                 continue
 
-            fact = client.fact("alias") \
-                         .bidirectional("tool", tool1, "tool", tool2)
+            fact = client.fact("alias").bidirectional("tool", tool1, "tool", tool2)
             handle_fact(fact)
 
 
@@ -243,7 +253,9 @@ def main() -> None:
     """Main function"""
     args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
-    ta_cards = worker.fetch_json(args.thaicert_url, args.proxy_string, args.http_timeout)
+    ta_cards = worker.fetch_json(
+        args.thaicert_url, args.proxy_string, args.http_timeout
+    )
     process(actapi, ta_cards["values"])
 
     vocab = worker.fetch_json(STIX_VOCAB, args.proxy_string, args.http_timeout)
@@ -266,5 +278,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

@@ -27,30 +27,45 @@ FQDN = "fqdn"
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('PDNS enrichment')
-    parser.add_argument('--pdns-baseurl', dest='pdns_baseurl',
-                        default="https://api.mnemonic.no/", help="PassiveDNS API host")
-    parser.add_argument('--pdns-timeout', dest='timeout', type=int,
-                        default=299, help="Timeout")
-    parser.add_argument('--pdns-batch-size', dest='pdns_batch_size', type=int,
-                        default=100, help="Batch size of pdns queries")
-    parser.add_argument('--pdns-apikey', dest='apikey',
-                        help="PassiveDNS API key")
-    parser.add_argument('--limit', dest='limit', type=int, default=100,
-                        help="Maximum number of records to return from pdns")
+    """Parse arguments"""
+    parser = worker.parseargs("PDNS enrichment")
+    parser.add_argument(
+        "--pdns-baseurl",
+        dest="pdns_baseurl",
+        default="https://api.mnemonic.no/",
+        help="PassiveDNS API host",
+    )
+    parser.add_argument(
+        "--pdns-timeout", dest="timeout", type=int, default=299, help="Timeout"
+    )
+    parser.add_argument(
+        "--pdns-batch-size",
+        dest="pdns_batch_size",
+        type=int,
+        default=100,
+        help="Batch size of pdns queries",
+    )
+    parser.add_argument("--pdns-apikey", dest="apikey", help="PassiveDNS API key")
+    parser.add_argument(
+        "--limit",
+        dest="limit",
+        type=int,
+        default=100,
+        help="Maximum number of records to return from pdns",
+    )
 
     return parser
 
 
 def pdns_query(
-        pdns_baseurl: str,
-        apikey: str,
-        query: str,
-        timeout: int,
-        proxy_string: Optional[Text] = None,
-        batch_size: int = 1000,
-        limit: int = 0) -> Generator[Dict[str, Any], None, None]:
+    pdns_baseurl: str,
+    apikey: str,
+    query: str,
+    timeout: int,
+    proxy_string: Optional[Text] = None,
+    batch_size: int = 1000,
+    limit: int = 0,
+) -> Generator[Dict[str, Any], None, None]:
     """Query the passivedns result of an address.
     pdns_baseurl - the url to the passivedns api (https://api.mnemonic.no)
     apikey - PassiveDNS API key with the passivedns role (minimum)
@@ -59,10 +74,7 @@ def pdns_query(
     """
 
     try:
-        qmap = {
-            "baseurl": pdns_baseurl.strip("/"),
-            "query": query
-        }
+        qmap = {"baseurl": pdns_baseurl.strip("/"), "query": query}
 
         pdns_url = "{baseurl}/pdns/v3/{query}".format(**qmap)
 
@@ -78,14 +90,17 @@ def pdns_query(
             timeout=timeout,
             proxy_string=proxy_string,
             batch_size=batch_size,
-            limit=limit)
+            limit=limit,
+        )
 
     except worker.ResourceLimitExceeded as err:
         error("Resource limits exceeded ({0.__class__.__name__})".format(err))
 
-    except (urllib3.exceptions.ReadTimeoutError,
-            requests.exceptions.ReadTimeout,
-            socket.timeout) as err:
+    except (
+        urllib3.exceptions.ReadTimeoutError,
+        requests.exceptions.ReadTimeout,
+        socket.timeout,
+    ) as err:
         warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
@@ -104,14 +119,15 @@ def kind(s: Text):
 
 
 def process(
-        api: act.api.Act,
-        pdns_baseurl: str,
-        apikey: str,
-        timeout: int = 299,
-        proxy_string: Optional[Text] = None,
-        output_format: Text = "json",
-        batch_size: int = 1000,
-        limit: int = 0) -> None:
+    api: act.api.Act,
+    pdns_baseurl: str,
+    apikey: str,
+    timeout: int = 299,
+    proxy_string: Optional[Text] = None,
+    output_format: Text = "json",
+    batch_size: int = 1000,
+    limit: int = 0,
+) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
 
@@ -128,35 +144,40 @@ def process(
             query=query,
             proxy_string=proxy_string,
             batch_size=batch_size,
-            limit=limit):
+            limit=limit,
+        ):
             rrtype = row["rrtype"]
 
             i += 1
             if limit == i:
                 if kind(query) in (IPv4, IPv6):
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo")
-                        .source(*act.api.helpers.ip_obj(row["answer"])),
-                        output_format=output_format)
+                        api.fact("excessive", "resolvesTo").source(
+                            *act.api.helpers.ip_obj(row["answer"])
+                        ),
+                        output_format=output_format,
+                    )
                 else:
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo")
-                        .source("fqdn", query),
-                        output_format=output_format)
+                        api.fact("excessive", "resolvesTo").source("fqdn", query),
+                        output_format=output_format,
+                    )
 
             if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
                     api.fact("resolvesTo")
                     .source("fqdn", row["query"])
                     .destination(*act.api.helpers.ip_obj(row["answer"])),
-                    output_format=output_format)
+                    output_format=output_format,
+                )
 
             elif rrtype == "cname":
                 act.api.helpers.handle_fact(
                     api.fact("resolvesTo")
                     .source("fqdn", row["query"])
                     .destination("fqdn", row["answer"]),
-                    output_format=output_format)
+                    output_format=output_format,
+                )
 
             elif rrtype == "ptr":
                 pass  # We do not insert ptr to act
@@ -170,14 +191,16 @@ def main() -> None:
     args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
 
-    process(actapi,
-            args.pdns_baseurl,
-            args.apikey,
-            args.timeout,
-            args.proxy_string,
-            args.output_format,
-            args.pdns_batch_size,
-            args.limit)
+    process(
+        actapi,
+        args.pdns_baseurl,
+        args.apikey,
+        args.timeout,
+        args.proxy_string,
+        args.output_format,
+        args.pdns_batch_size,
+        args.limit,
+    )
 
 
 def main_log_error() -> None:
@@ -189,5 +212,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

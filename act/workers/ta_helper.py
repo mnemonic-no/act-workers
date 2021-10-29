@@ -29,24 +29,47 @@ class VocabularyException(Exception):
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Threat Actor helper')
-    parser.add_argument('--ta', '--threat-actor', help='Threat Actor')
-    parser.add_argument('--ta-located-in', help='Threat Actor located in')
-    parser.add_argument('--campaign', help='Campaign')
-    parser.add_argument('--techniques', type=worker_config.string_list, default=[], help='Techniques (Commaseparated list)')
-    parser.add_argument('--tools', type=worker_config.string_list, default=[], help='Tools (Commaseparated list)')
-    parser.add_argument('--sectors', type=worker_config.string_list, default=[], help='Sectors (Commaseparated list)')
-    parser.add_argument('--target-countries', type=worker_config.string_list, default=[], help='Target Countries (Commaseparated list)')
-    parser.add_argument('--country-region',
-                        default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
-                        help="Country region in json format (HTTP URL or file)")
+    """Parse arguments"""
+    parser = worker.parseargs("Threat Actor helper")
+    parser.add_argument("--ta", "--threat-actor", help="Threat Actor")
+    parser.add_argument("--ta-located-in", help="Threat Actor located in")
+    parser.add_argument("--campaign", help="Campaign")
+    parser.add_argument(
+        "--techniques",
+        type=worker_config.string_list,
+        default=[],
+        help="Techniques (Commaseparated list)",
+    )
+    parser.add_argument(
+        "--tools",
+        type=worker_config.string_list,
+        default=[],
+        help="Tools (Commaseparated list)",
+    )
+    parser.add_argument(
+        "--sectors",
+        type=worker_config.string_list,
+        default=[],
+        help="Sectors (Commaseparated list)",
+    )
+    parser.add_argument(
+        "--target-countries",
+        type=worker_config.string_list,
+        default=[],
+        help="Target Countries (Commaseparated list)",
+    )
+    parser.add_argument(
+        "--country-region",
+        default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
+        help="Country region in json format (HTTP URL or file)",
+    )
 
     # Stix Vocabulary
     parser.add_argument(
-        '--sector-vocabulary',
+        "--sector-vocabulary",
         default="https://raw.githubusercontent.com/mnemonic-no/act-scio2/master/act/scio/etc/plugins/sectors.cfg",
-        help="Sector vocabulary (STIX2, in scio format). Fetched from URL or file")
+        help="Sector vocabulary (STIX2, in scio format). Fetched from URL or file",
+    )
 
     return parser
 
@@ -85,7 +108,9 @@ def find_levenshtein_candiates(value: Text, vocabulary: List, n_items: int = 3) 
 
 
 @functools.lru_cache(32)
-def fetch_country_regions(country_region: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
+def fetch_country_regions(
+    country_region: Text, proxy_string: Text, http_timeout: int
+) -> Dict[Text, Text]:
     "Fetch ISO-3166 list of country/regions"
 
     vocabulary: Dict = {}
@@ -98,7 +123,9 @@ def fetch_country_regions(country_region: Text, proxy_string: Text, http_timeout
 
 
 @functools.lru_cache(32)
-def fetch_sector(sector_vocabulary: Text, proxy_string: Text, http_timeout: int) -> Dict[Text, Text]:
+def fetch_sector(
+    sector_vocabulary: Text, proxy_string: Text, http_timeout: int
+) -> Dict[Text, Text]:
     "Fetch STIX2 sector vocabulary"
 
     vocabulary: Dict = {}
@@ -117,7 +144,6 @@ def fetch_sector(sector_vocabulary: Text, proxy_string: Text, http_timeout: int)
             vocabulary[alias] = name
 
     return vocabulary
-
 
 
 @functools.lru_cache(32)
@@ -147,12 +173,16 @@ def technique_lookup(technique: Text) -> Text:
         raise VocabularyException(
             "Technique {} not found in MITRE ATT&CK. Nearest matches: {}".format(
                 technique,
-                ", ".join(find_levenshtein_candiates(technique, techniques.keys()))))
+                ", ".join(find_levenshtein_candiates(technique, techniques.keys())),
+            )
+        )
 
 
 def country_lookup(args: argparse.Namespace, country: Text) -> Text:
     "Lookup country and return name if exists, otherwise raise VocabularyException"
-    vocabulary = fetch_country_regions(args.country_region, args.proxy_string, args.http_timeout)
+    vocabulary = fetch_country_regions(
+        args.country_region, args.proxy_string, args.http_timeout
+    )
 
     try:
         return vocabulary[country.lower()]
@@ -160,25 +190,32 @@ def country_lookup(args: argparse.Namespace, country: Text) -> Text:
         raise VocabularyException(
             "Country {} not found in ISO 3166 database. Nearest matches: {}".format(
                 country,
-                ", ".join(find_levenshtein_candiates(country, vocabulary.values()))))
+                ", ".join(find_levenshtein_candiates(country, vocabulary.values())),
+            )
+        )
 
 
 def sector_lookup(args: argparse.Namespace, sector: Text) -> Text:
     "Lookup sector and return name if exists, otherwise raise VocabularyException"
 
-    vocabulary = fetch_sector(args.sector_vocabulary, args.proxy_string, args.http_timeout)
+    vocabulary = fetch_sector(
+        args.sector_vocabulary, args.proxy_string, args.http_timeout
+    )
 
     try:
         return vocabulary[sector.lower()]
     except KeyError:
         raise VocabularyException(
             "Sector {} not found in Stix vocabulary. Nearest matches: {}".format(
-                sector,
-                ", ".join(find_levenshtein_candiates(sector, vocabulary))))
+                sector, ", ".join(find_levenshtein_candiates(sector, vocabulary))
+            )
+        )
 
 
-def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]) -> None:
-    """ Threat Actor Techniques """
+def add_ta_techniques(
+    client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]
+) -> None:
+    """Threat Actor Techniques"""
 
     for technique in techniques:
         try:
@@ -188,7 +225,7 @@ def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, tech
                 .destination("threatActor", format_threat_actor(threat_actor)),
                 client.fact("observedIn")
                 .source("technique", technique)
-                .destination("incident", "*")
+                .destination("incident", "*"),
             )
         except ValidationError as e:
             error(str(e))
@@ -198,8 +235,10 @@ def add_ta_techniques(client: Act, output_format: Text, threat_actor: Text, tech
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: List[Text]) -> None:
-    """ Threat Actor Tools """
+def add_ta_tools(
+    client: Act, output_format: Text, threat_actor: Text, tools: List[Text]
+) -> None:
+    """Threat Actor Tools"""
 
     for tool in tools:
         try:
@@ -212,7 +251,7 @@ def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: Li
                 .destination("incident", "*"),
                 client.fact("attributedTo")
                 .source("incident", "*")
-                .destination("threatActor", format_threat_actor(threat_actor))
+                .destination("threatActor", format_threat_actor(threat_actor)),
             )
         except ValidationError as e:
             error(str(e))
@@ -222,8 +261,10 @@ def add_ta_tools(client: Act, output_format: Text, threat_actor: Text, tools: Li
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]) -> None:
-    """ Threat Actor Sectors """
+def add_ta_sectors(
+    client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]
+) -> None:
+    """Threat Actor Sectors"""
     for sector in sectors:
         try:
             chain = act.api.fact.fact_chain(
@@ -235,7 +276,7 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
                 .destination("sector", sector),
                 client.fact("attributedTo")
                 .source("incident", "*")
-                .destination("threatActor", format_threat_actor(threat_actor))
+                .destination("threatActor", format_threat_actor(threat_actor)),
             )
         except ValidationError as e:
             error(str(e))
@@ -245,8 +286,10 @@ def add_ta_sectors(client: Act, output_format: Text, threat_actor: Text, sectors
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]) -> None:
-    """ Threat actor target countries """
+def add_ta_target_country(
+    client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]
+) -> None:
+    """Threat actor target countries"""
     for target_country in target_countries:
         try:
             chain = act.api.fact.fact_chain(
@@ -258,7 +301,7 @@ def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, 
                 .destination("country", target_country),
                 client.fact("attributedTo")
                 .source("incident", "*")
-                .destination("threatActor", format_threat_actor(threat_actor))
+                .destination("threatActor", format_threat_actor(threat_actor)),
             )
         except ValidationError as e:
             error(str(e))
@@ -268,8 +311,10 @@ def add_ta_target_country(client: Act, output_format: Text, threat_actor: Text, 
             handle_fact(fact, output_format=output_format)
 
 
-def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, located_in: Text) -> None:
-    """ Threat actor located in """
+def add_ta_located_in(
+    client: Act, output_format: Text, threat_actor: Text, located_in: Text
+) -> None:
+    """Threat actor located in"""
     try:
         chain = act.api.fact.fact_chain(
             client.fact("locatedIn")
@@ -277,7 +322,7 @@ def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, loca
             .destination("country", located_in),
             client.fact("attributedTo")
             .source("threatActor", format_threat_actor(threat_actor))
-            .destination("organization", "*")
+            .destination("organization", "*"),
         )
     except ValidationError as e:
         error(str(e))
@@ -287,8 +332,10 @@ def add_ta_located_in(client: Act, output_format: Text, threat_actor: Text, loca
         handle_fact(fact, output_format=output_format)
 
 
-def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campaign: Text) -> None:
-    """ Threat Actor Campaign """
+def add_ta_campaign(
+    client: Act, output_format: Text, threat_actor: Text, campaign: Text
+) -> None:
+    """Threat Actor Campaign"""
     try:
         chain = act.api.fact.fact_chain(
             client.fact("attributedTo")
@@ -296,7 +343,7 @@ def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campai
             .destination("campaign", campaign),
             client.fact("attributedTo")
             .source("incident", "*")
-            .destination("threatActor", format_threat_actor(threat_actor))
+            .destination("threatActor", format_threat_actor(threat_actor)),
         )
     except ValidationError as e:
         error(str(e))
@@ -307,7 +354,7 @@ def add_ta_campaign(client: Act, output_format: Text, threat_actor: Text, campai
 
 
 def main() -> None:
-    """ Main function """
+    """Main function"""
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
@@ -324,7 +371,9 @@ def main() -> None:
     ok = True
 
     try:
-        args.target_countries = [country_lookup(args, country) for country in args.target_countries]
+        args.target_countries = [
+            country_lookup(args, country) for country in args.target_countries
+        ]
     except (VocabularyException, FileNotFoundError, worker.UnsupportedScheme) as e:
         sys.stderr.write(str(e))
         ok = False
@@ -352,7 +401,9 @@ def main() -> None:
         sys.exit(1)
 
     if args.target_countries:
-        add_ta_target_country(actapi, args.output_format, args.ta, args.target_countries)
+        add_ta_target_country(
+            actapi, args.output_format, args.ta, args.target_countries
+        )
 
     if args.campaign:
         add_ta_campaign(actapi, args.output_format, args.ta, args.campaign)
@@ -379,5 +430,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

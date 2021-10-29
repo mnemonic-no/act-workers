@@ -25,30 +25,49 @@ WORKER_NAME = "argus-case"
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('ARGUS Case enrichment')
-    parser.add_argument('--argus-baseurl', dest='argus_baseurl',
-                        default="https://api.mnemonic.no/", help="Argus API host")
-    parser.add_argument('--argus-timeout', dest='timeout', type=int,
-                        default=300, help="Timeout")
-    parser.add_argument('--content-props',
-                        default="file.sha256,process.sha256", help="Comma separated list of properties that represents a content object")
-    parser.add_argument('--hash-props',
-                        default="file.md5,process.md5,file.sha1,process.sha1,file.sha512,process.sha512", help="Comma separated list of properties that represents a hash")
-    parser.add_argument('--last-update', type=int, help="Last updated timestamp (epoc, seconds). Default - use now-1w first time, and start on last retrieved event at next run.")
-    parser.add_argument('--argus-apikey', dest='argus_apikey',
-                        help="Argus API key")
-    parser.add_argument('--organization-from-argus', action="store_true", help="Apply organization from argus event")
+    """Parse arguments"""
+    parser = worker.parseargs("ARGUS Case enrichment")
+    parser.add_argument(
+        "--argus-baseurl",
+        dest="argus_baseurl",
+        default="https://api.mnemonic.no/",
+        help="Argus API host",
+    )
+    parser.add_argument(
+        "--argus-timeout", dest="timeout", type=int, default=300, help="Timeout"
+    )
+    parser.add_argument(
+        "--content-props",
+        default="file.sha256,process.sha256",
+        help="Comma separated list of properties that represents a content object",
+    )
+    parser.add_argument(
+        "--hash-props",
+        default="file.md5,process.md5,file.sha1,process.sha1,file.sha512,process.sha512",
+        help="Comma separated list of properties that represents a hash",
+    )
+    parser.add_argument(
+        "--last-update",
+        type=int,
+        help="Last updated timestamp (epoc, seconds). Default - use now-1w first time, and start on last retrieved event at next run.",
+    )
+    parser.add_argument("--argus-apikey", dest="argus_apikey", help="Argus API key")
+    parser.add_argument(
+        "--organization-from-argus",
+        action="store_true",
+        help="Apply organization from argus event",
+    )
 
     return parser
 
 
 def event_case_query(
-        argus_baseurl: Text,
-        apikey: Text,
-        last_update: int,
-        timeout: int,
-        proxy_string: Optional[Text] = None) -> Generator[Dict[str, Any], None, None]:
+    argus_baseurl: Text,
+    apikey: Text,
+    last_update: int,
+    timeout: int,
+    proxy_string: Optional[Text] = None,
+) -> Generator[Dict[str, Any], None, None]:
     """Query the argus for events associated to cases.
     argus_baseurl - the url to the ARGUS api (https://api.mnemonic.no)
     apikey - Argus API key
@@ -73,12 +92,10 @@ def event_case_query(
             "includeFlags": ["NOTIFIED"],
             "limit": limit,
             # Do not include events that are associated to incidents from streaming filter
-            "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"]
+            "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"],
         }
 
-        headers = {
-            "Argus-API-Key": apikey
-        }
+        headers = {"Argus-API-Key": apikey}
 
         # Do query in batches and yield events
         yield from mnemonic.batch_query(
@@ -87,22 +104,25 @@ def event_case_query(
             headers=headers,
             timeout=timeout,
             json_params=criteria,
-            proxy_string=proxy_string)
+            proxy_string=proxy_string,
+        )
 
     except worker.ServiceTimeout as err:
         warning("Service timeout: {}".format(err))
 
-    except (urllib3.exceptions.ReadTimeoutError,
-            requests.exceptions.ReadTimeout,
-            socket.timeout) as err:
+    except (
+        urllib3.exceptions.ReadTimeoutError,
+        requests.exceptions.ReadTimeout,
+        socket.timeout,
+    ) as err:
         error("Timeout ({0.__class__.__name__})".format(err))
 
 
 def get_last_update() -> int:
     "Get last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        caep.get_cache_dir(WORKER_NAME, create=True),
-        "last_update")
+        caep.get_cache_dir(WORKER_NAME, create=True), "last_update"
+    )
 
     if os.path.isfile(cache_filename):
         # Read last_update from last recorded succsfully recieved event
@@ -120,8 +140,8 @@ def get_last_update() -> int:
 def update_last_update(last_update: int) -> None:
     "Write last update from disk (~/.cache/<worker_name>/last_update)"
     cache_filename: Text = os.path.join(
-        caep.get_cache_dir(WORKER_NAME, create=True),
-        "last_update")
+        caep.get_cache_dir(WORKER_NAME, create=True), "last_update"
+    )
 
     # Write last update timestamp to disk
     with open(cache_filename, "w") as f:
@@ -130,7 +150,7 @@ def update_last_update(last_update: int) -> None:
 
 # pylint: disable=too-many-arguments
 def process(api: act.api.Act, args: argparse.Namespace) -> None:
-    """ Get events associated to cases since last update """
+    """Get events associated to cases since last update"""
 
     last_update: Optional[int] = args.last_update
     content_props: List[Text] = [prop.strip() for prop in args.content_props.split(",")]
@@ -141,11 +161,15 @@ def process(api: act.api.Act, args: argparse.Namespace) -> None:
         last_update = get_last_update()
 
     # Get events
-    for counter, event in enumerate(event_case_query(
+    for counter, event in enumerate(
+        event_case_query(
             args.argus_baseurl,
             args.argus_apikey,
             last_update,
-            timeout=args.timeout, proxy_string=args.proxy_string)):
+            timeout=args.timeout,
+            proxy_string=args.proxy_string,
+        )
+    ):
 
         # Result is sorted by lastUpdateTimestamp, so we update
         # last_update from the event
@@ -161,13 +185,17 @@ def process(api: act.api.Act, args: argparse.Namespace) -> None:
                 continue
 
         # Create facts from event
-        argus.handle_argus_event(api, event, content_props, hash_props, args.output_format)
+        argus.handle_argus_event(
+            api, event, content_props, hash_props, args.output_format
+        )
 
         # For every Nth event, update last updated event
         if (counter % 1000) == 0:
-            info("Offset: {}, last_update: {}".format(
-                counter,
-                time.asctime(time.localtime(last_update / 1000))))
+            info(
+                "Offset: {}, last_update: {}".format(
+                    counter, time.asctime(time.localtime(last_update / 1000))
+                )
+            )
             update_last_update(last_update)
 
     # Make sure last_update is updated
@@ -175,7 +203,7 @@ def process(api: act.api.Act, args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    " main function "
+    "main function"
 
     # Look for default ini file in "/etc/actworkers.ini" and
     # ~/config/actworkers/actworkers.ini
@@ -199,5 +227,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

@@ -27,7 +27,7 @@ SCIO_GEONAMES_ACT_MAP = {
     "regions": "region",
     "regions-derived": "region",
     "sub-regions": "subRegion",
-    "sub-regions-derived": "subRegion"
+    "sub-regions-derived": "subRegion",
 }
 
 SCIO_INDICATOR_ACT_MAP = {
@@ -39,14 +39,12 @@ SCIO_INDICATOR_ACT_MAP = {
     "msid": "vulnerability",
 }
 
-ACT_FN_MAP: Dict[Text, Callable] = {
-    "vulnerability": lambda x: x.lower()
-}
+ACT_FN_MAP: Dict[Text, Callable] = {"vulnerability": lambda x: x.lower()}
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Get SCIO reports and IOCs from stdin')
+    """Parse arguments"""
+    parser = worker.parseargs("Get SCIO reports and IOCs from stdin")
     return parser
 
 
@@ -56,11 +54,13 @@ def get_scio_report() -> Dict:
     return cast(Dict, json.load(sys.stdin))
 
 
-def report_mentions_fact(actapi: act.api.Act,
-                         object_type: Text,
-                         object_values: Set[Text],
-                         report_id: Text,
-                         output_format: Text) -> None:
+def report_mentions_fact(
+    actapi: act.api.Act,
+    object_type: Text,
+    object_values: Set[Text],
+    report_id: Text,
+    output_format: Text,
+) -> None:
     """Add mentions fact to report"""
     for value in set(object_values):
         try:
@@ -68,7 +68,7 @@ def report_mentions_fact(actapi: act.api.Act,
                 actapi.fact("mentions")
                 .source("report", report_id)
                 .destination(object_type, value),
-                output_format
+                output_format,
             )
         except ValidationError as e:
             error(str(e))
@@ -76,29 +76,25 @@ def report_mentions_fact(actapi: act.api.Act,
             error("Unable to create linked fact: %s" % e)
 
 
-def add_indicators_to_act(actapi: act.api.Act,
-                          indicators: Dict,
-                          report_id: Text,
-                          output_format: Text) -> None:
+def add_indicators_to_act(
+    actapi: act.api.Act, indicators: Dict, report_id: Text, output_format: Text
+) -> None:
     """Create facts of indicators map"""
 
     # Loop over all items under indicators in report
     for scio_indicator_type in EXTRACT_INDICATORS:
         # Get object type from ACT (default to object type in SCIO)
-        act_indicator_type = SCIO_INDICATOR_ACT_MAP.get(scio_indicator_type,
-                                                        scio_indicator_type)
+        act_indicator_type = SCIO_INDICATOR_ACT_MAP.get(
+            scio_indicator_type, scio_indicator_type
+        )
 
         value_fn = ACT_FN_MAP.get(act_indicator_type, lambda x: x)
 
-        values = {value_fn(value) for value
-                  in indicators.get(scio_indicator_type, [])}
+        values = {value_fn(value) for value in indicators.get(scio_indicator_type, [])}
 
         report_mentions_fact(
-            actapi,
-            act_indicator_type,
-            values,
-            report_id,
-            output_format)
+            actapi, act_indicator_type, values, report_id, output_format
+        )
 
     # For IPv4+IPv6 addresses, create mention facts
     # Use ip_obj to return exploded, normalized IPv4 and IPv6 address
@@ -108,7 +104,7 @@ def add_indicators_to_act(actapi: act.api.Act,
                 actapi.fact("mentions")
                 .source("report", report_id)
                 .destination(*act.api.helpers.ip_obj(ip)),
-                output_format
+                output_format,
             )
         except ValueError as err:
             warning(f"Creating fact to {ip} fails on IP validation {err}")
@@ -119,7 +115,7 @@ def add_indicators_to_act(actapi: act.api.Act,
             actapi.fact("represents")
             .source("hash", sha256)
             .destination("content", sha256),
-            output_format
+            output_format,
         )
 
     # Add emails as URI components
@@ -132,7 +128,7 @@ def add_indicators_to_act(actapi: act.api.Act,
                 actapi.fact("mentions")
                 .source("report", report_id)
                 .destination("uri", email_uri),
-                output_format
+                output_format,
             )
         except act.api.base.ValidationError as err:
             warning(f"Fact from {email_uri} failes du to URI validation {err}")
@@ -149,49 +145,39 @@ def add_indicators_to_act(actapi: act.api.Act,
             warning(f"Unable to create facts from uri: {uri}")
 
 
-def add_locations_to_act(actapi: act.api.Act,
-                         locations_map: Dict,
-                         report_id: Text,
-                         output_format: Text) -> None:
+def add_locations_to_act(
+    actapi: act.api.Act, locations_map: Dict, report_id: Text, output_format: Text
+) -> None:
     """Create facts from locations map"""
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
-        locations = {x['name']
-                     for x in locations_map.get(location_type, [])}
+        locations = {x["name"] for x in locations_map.get(location_type, [])}
 
         report_mentions_fact(
             actapi,
             SCIO_GEONAMES_ACT_MAP[location_type],
             locations,
             report_id,
-            output_format)
+            output_format,
+        )
 
 
-def add_vulnerabilities_to_act(actapi: act.api.Act,
-                               vulnerabilities: Dict,
-                               report_id: Text,
-                               output_format: Text) -> None:
+def add_vulnerabilities_to_act(
+    actapi: act.api.Act, vulnerabilities: Dict, report_id: Text, output_format: Text
+) -> None:
     """Create facts from vulnerabilities map"""
 
     # Locations (countries, regions, sub regions)
     for vuln_type in EXTRACT_VULNERABILITIES:
         value_fn = ACT_FN_MAP.get("vulnerability", lambda x: x)
 
-        values = {value_fn(value) for value
-                  in vulnerabilities.get(vuln_type, [])}
+        values = {value_fn(value) for value in vulnerabilities.get(vuln_type, [])}
 
-        report_mentions_fact(
-            actapi,
-            "vulnerability",
-            values,
-            report_id,
-            output_format)
+        report_mentions_fact(actapi, "vulnerability", values, report_id, output_format)
 
 
-def add_to_act(actapi: act.api.Act,
-               doc: Dict,
-               output_format: Text = "json") -> None:
+def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
     report_id: Text = doc["hexdigest"]
@@ -205,9 +191,7 @@ def add_to_act(actapi: act.api.Act,
     try:
         # Report title
         handle_fact(
-            actapi.fact("name", title)
-            .source("report", report_id),
-            output_format
+            actapi.fact("name", title).source("report", report_id), output_format
         )
     except act.api.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
@@ -219,14 +203,14 @@ def add_to_act(actapi: act.api.Act,
                 actapi.fact("represents")
                 .source("report", report_id)
                 .destination("content", report_id),
-                output_format
+                output_format,
             )
             # URI reference
             handle_fact(
                 actapi.fact("at")
                 .source("content", report_id)
                 .destination("uri", doc["uri"]),
-                output_format
+                output_format,
             )
     except act.api.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
@@ -239,9 +223,13 @@ def add_to_act(actapi: act.api.Act,
     report_mentions_fact(
         actapi,
         "threatActor",
-        {format_threat_actor(ta) for ta in doc.get("threatactor", {}).get("ThreatActors", [])},
+        {
+            format_threat_actor(ta)
+            for ta in doc.get("threatactor", {}).get("ThreatActors", [])
+        },
         report_id,
-        output_format)
+        output_format,
+    )
 
     # Tools
     report_mentions_fact(
@@ -249,7 +237,8 @@ def add_to_act(actapi: act.api.Act,
         "tool",
         {format_tool(tool) for tool in doc.get("tools", {}).get("Tools", [])},
         report_id,
-        output_format)
+        output_format,
+    )
 
     # Sector
     report_mentions_fact(
@@ -257,7 +246,8 @@ def add_to_act(actapi: act.api.Act,
         "sector",
         set(doc.get("sectors", {}).get("sectors", [])),
         report_id,
-        output_format)
+        output_format,
+    )
 
 
 def main() -> None:
@@ -287,5 +277,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

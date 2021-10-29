@@ -13,13 +13,14 @@ from . import worker
 STATUS_CODE_TEMPLATES = {
     402: {
         "resource.limit.exceeded": lambda msg: worker.ResourceLimitExceeded(
-            "{message}".format(**msg)),
+            "{message}".format(**msg)
+        ),
     },
-
     503: {
         "service.timeout": lambda msg: worker.ServiceTimeout(
-            "{message} ({field}={parameter})".format(**msg)),
-    }
+            "{message} ({field}={parameter})".format(**msg)
+        ),
+    },
 }
 
 
@@ -49,23 +50,21 @@ def status_code_handler(req: requests.models.Response, res: Dict) -> None:
 
 
 def batch_query(
-        method: Text,
-        url: Text,
-        headers: Optional[Dict] = None,
-        timeout: int = 299,
-        json_params: Optional[Dict] = None,
-        proxy_string: Optional[Text] = None,
-        batch_size: int = 1000,
-        limit: int = 0) -> Generator[Dict[Text, Any], None, None]:
-    """ Execute query until we have all results """
+    method: Text,
+    url: Text,
+    headers: Optional[Dict] = None,
+    timeout: int = 299,
+    json_params: Optional[Dict] = None,
+    proxy_string: Optional[Text] = None,
+    batch_size: int = 1000,
+    limit: int = 0,
+) -> Generator[Dict[Text, Any], None, None]:
+    """Execute query until we have all results"""
 
     offset = 0
     count = 0
 
-    proxies = {
-        'http': proxy_string,
-        'https': proxy_string
-    }
+    proxies = {"http": proxy_string, "https": proxy_string}
 
     if limit and batch_size > limit:
         batch_size = limit
@@ -75,7 +74,7 @@ def batch_query(
         "verify": False,
         "timeout": timeout,
         "proxies": proxies,
-        "params": {}
+        "params": {},
     }
 
     while True:  # do - while offset < count
@@ -88,7 +87,11 @@ def batch_query(
             options["params"]["offset"] = offset  # type: ignore
             options["params"]["limit"] = batch_size
 
-        debug("Executing search: {}, json={}, options={}".format(url, json_params, options))
+        debug(
+            "Executing search: {}, json={}, options={}".format(
+                url, json_params, options
+            )
+        )
         req = requests.request(method, url, json=json_params, **options)  # type:ignore
 
         try:
@@ -121,16 +124,19 @@ def batch_query(
 
 
 def single_query(
-        method: Text,
-        url: Text,
-        headers: Optional[Dict] = None,
-        timeout: int = 299,
-        json_params: Optional[Dict] = None,
-        proxy_string: Optional[Text] = None) -> Dict[Text, Any]:
-    """ Execute query for single result, returns result """
+    method: Text,
+    url: Text,
+    headers: Optional[Dict] = None,
+    timeout: int = 299,
+    json_params: Optional[Dict] = None,
+    proxy_string: Optional[Text] = None,
+) -> Dict[Text, Any]:
+    """Execute query for single result, returns result"""
 
     try:
-        for res in batch_query(method, url, headers, timeout, json_params, proxy_string):
+        for res in batch_query(
+            method, url, headers, timeout, json_params, proxy_string
+        ):
             return res
     except worker.FetchError as e:
         if not str(e).startswith("Unknown error: 404"):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''hybrid-analysis.com worker for the ACT platform
+"""hybrid-analysis.com worker for the ACT platform
 
 Copyright 2021 the ACT project <opensource@mnemonic.no>
 
@@ -15,7 +15,7 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
-'''
+"""
 
 import argparse
 import contextlib
@@ -38,62 +38,76 @@ from act.api.libs import cli
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
-    parser = worker.parseargs('ACT hybrid-analysis.com Client')
+    parser = worker.parseargs("ACT hybrid-analysis.com Client")
 
-    parser.add_argument("--feed",
-                        action="store_true",
-                        help="Download the public feed only, no lookup")
+    parser.add_argument(
+        "--feed", action="store_true", help="Download the public feed only, no lookup"
+    )
 
-    parser.add_argument("--apikey",
-                        default="",
-                        help="community apikey for hybrid-analysis.com")
+    parser.add_argument(
+        "--apikey", default="", help="community apikey for hybrid-analysis.com"
+    )
 
-    parser.add_argument("--user-agent",
-                        default="Falcon Sandbox",
-                        help="User agent while talking to API")
+    parser.add_argument(
+        "--user-agent", default="Falcon Sandbox", help="User agent while talking to API"
+    )
 
-    parser.add_argument("--no-check-certificate",
-                        action="store_true",
-                        help="Do not check SSL certificate")
+    parser.add_argument(
+        "--no-check-certificate",
+        action="store_true",
+        help="Do not check SSL certificate",
+    )
 
     return parser
 
 
-def download_feed(user_agent: Text, proxies: Optional[Dict[Text, Text]], verify_ssl: bool = True) -> Dict[Text, Any]:
+def download_feed(
+    user_agent: Text, proxies: Optional[Dict[Text, Text]], verify_ssl: bool = True
+) -> Dict[Text, Any]:
     """Download the public feed and return a dictionary"""
 
-    url = 'https://hybrid-analysis.com/feed?json'
+    url = "https://hybrid-analysis.com/feed?json"
 
     with ssl_verification(verify=verify_ssl):
         headers = {"User-Agent": user_agent}
         response = requests.get(url, proxies=proxies, headers=headers)
 
     if response.status_code != 200:
-        raise CommunicationError(f"hybrid_analysis_feed.download_feed() could not download public feed, "
-                                 f"error calling {url}: Status = {response.status_code}")
+        raise CommunicationError(
+            f"hybrid_analysis_feed.download_feed() could not download public feed, "
+            f"error calling {url}: Status = {response.status_code}"
+        )
 
     try:
         data: Dict[Text, Any] = response.json()
     except json.decoder.JSONDecodeError as err:
-        raise CommunicationError(f"hybrid_analysis_feed.download_feed() could not load public feed, "
-                                 f"error decoding json result from {url}: {err}")
+        raise CommunicationError(
+            f"hybrid_analysis_feed.download_feed() could not load public feed, "
+            f"error decoding json result from {url}: {err}"
+        )
 
     return data
 
 
-def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Text, Text]] = None, verify_ssl: bool = True, output_format: Text = 'json') -> None:
+def handle_feed(
+    actapi: act.api.Act,
+    user_agent: Text,
+    proxies: Optional[Dict[Text, Text]] = None,
+    verify_ssl: bool = True,
+    output_format: Text = "json",
+) -> None:
     """Download, parse and provide facts from the public feed of hybrid-analysis.com"""
 
     feed = download_feed(user_agent, proxies, verify_ssl)
 
     feeds_facts: List[act.api.fact.Fact] = []
 
-    for report in feed['data']:
-        if not (report.get('isinteresting', False) or report.get('threatlevel', 0)):
+    for report in feed["data"]:
+        if not (report.get("isinteresting", False) or report.get("threatlevel", 0)):
             continue
         # store data if threatlevel > 0 or report is interesting
 
-        if 'sha256' not in report:
+        if "sha256" not in report:
             continue
 
         feeds_facts += handle_report(actapi, report)
@@ -102,7 +116,9 @@ def handle_feed(actapi: act.api.Act, user_agent: Text, proxies: Optional[Dict[Te
         act.api.helpers.handle_fact(fact, output_format=output_format)
 
 
-def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[act.api.fact.Fact]:
+def handle_hosts(
+    actapi: act.api.Act, content: Text, hosts: List[Text]
+) -> List[act.api.fact.Fact]:
     """handle the hosts part of a hybrid-analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
@@ -112,22 +128,24 @@ def handle_hosts(actapi: act.api.Act, content: Text, hosts: List[Text]) -> List[
 
         chain = []
 
-        chain.append(actapi.fact('connectsTo')
-                     .source('content', content)
-                     .destination('uri', '*'))
-        chain.append(actapi.fact('resolvesTo')
-                     .source('fqdn', '*')
-                     .destination(ip_type, ip))
-        chain.append(actapi.fact('componentOf')
-                     .source('fqdn', '*')
-                     .destination('uri', '*'))
+        chain.append(
+            actapi.fact("connectsTo").source("content", content).destination("uri", "*")
+        )
+        chain.append(
+            actapi.fact("resolvesTo").source("fqdn", "*").destination(ip_type, ip)
+        )
+        chain.append(
+            actapi.fact("componentOf").source("fqdn", "*").destination("uri", "*")
+        )
 
         feeds_facts += act.api.fact.fact_chain(*chain)
 
     return feeds_facts
 
 
-def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> List[act.api.fact.Fact]:
+def handle_domains(
+    actapi: act.api.Act, content: Text, domains: List[Text]
+) -> List[act.api.fact.Fact]:
     """Handle the domains part of a hybrid-analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
@@ -136,19 +154,21 @@ def handle_domains(actapi: act.api.Act, content: Text, domains: List[Text]) -> L
 
         chain = []
 
-        chain.append(actapi.fact('connectsTo')
-                     .source('content', content)
-                     .destination('uri', '*'))
-        chain.append(actapi.fact('componentOf')
-                     .source('fqdn', domain)
-                     .destination('uri', '*'))
+        chain.append(
+            actapi.fact("connectsTo").source("content", content).destination("uri", "*")
+        )
+        chain.append(
+            actapi.fact("componentOf").source("fqdn", domain).destination("uri", "*")
+        )
 
         feeds_facts += act.api.fact.fact_chain(*chain)
 
     return feeds_facts
 
 
-def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: List[Dict]) -> List[act.api.fact.Fact]:
+def handle_extracted_files(
+    actapi: act.api.Act, content: Text, extracted_files: List[Dict]
+) -> List[act.api.fact.Fact]:
     """Handle the extracted_files part of a hybrid_analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
@@ -157,56 +177,69 @@ def handle_extracted_files(actapi: act.api.Act, content: Text, extracted_files: 
 
         chain = []
 
-        if 'sha256' not in file:
+        if "sha256" not in file:
             continue
 
-        if not file['file_path']:
+        if not file["file_path"]:
             info(f"{file} is missing file_path using name instead")
 
-        path = file['file_path'] if file['file_path'] else file['name']
+        path = file["file_path"] if file["file_path"] else file["name"]
 
-        chain.append(actapi.fact('componentOf')
-                     .source('path', path)
-                     .destination('uri', '*'))
+        chain.append(
+            actapi.fact("componentOf").source("path", path).destination("uri", "*")
+        )
 
-        chain.append(actapi.fact('at')
-                     .source('content', file['sha256'])
-                     .destination('uri', '*'))
+        chain.append(
+            actapi.fact("at").source("content", file["sha256"]).destination("uri", "*")
+        )
 
         feeds_facts += act.api.fact.fact_chain(*chain)
 
-        for hash_type in ['md5', 'sha1', 'sha256']:
-            feeds_facts.append(actapi.fact('represents')
-                               .source('hash', file[hash_type])
-                               .destination('content', file['sha256']))
-            feeds_facts.append(actapi.fact('category', hash_type)
-                               .source('hash', file[hash_type]))
+        for hash_type in ["md5", "sha1", "sha256"]:
+            feeds_facts.append(
+                actapi.fact("represents")
+                .source("hash", file[hash_type])
+                .destination("content", file["sha256"])
+            )
+            feeds_facts.append(
+                actapi.fact("category", hash_type).source("hash", file[hash_type])
+            )
 
-        if content != file['sha256']:  # the act platform does not accept same object on source and destination for write
-            feeds_facts.append(actapi.fact('writes')
-                               .source('content', content)
-                               .destination('content', file['sha256']))
+        if (
+            content != file["sha256"]
+        ):  # the act platform does not accept same object on source and destination for write
+            feeds_facts.append(
+                actapi.fact("writes")
+                .source("content", content)
+                .destination("content", file["sha256"])
+            )
 
     return feeds_facts
 
 
-def handle_classification_tags(actapi: act.api.Act, content: Text, classification_tags: List[Text]) -> List[act.api.fact.Fact]:
+def handle_classification_tags(
+    actapi: act.api.Act, content: Text, classification_tags: List[Text]
+) -> List[act.api.fact.Fact]:
     """handle the classification_tags part or a hybrid_analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
 
     for tag in classification_tags:
         try:
-            feeds_facts.append(actapi.fact('classifiedAs')
-                               .source('content', content)
-                               .destination('tool', format_tool(tag)))
+            feeds_facts.append(
+                actapi.fact("classifiedAs")
+                .source("content", content)
+                .destination("tool", format_tool(tag))
+            )
         except ValidationError as e:
             error(str(e))
 
     return feeds_facts
 
 
-def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[Dict]) -> List[act.api.fact.Fact]:
+def handle_mitre_attcks(
+    actapi: act.api.Act, content: Text, mitre_attcks: List[Dict]
+) -> List[act.api.fact.Fact]:
     """Handle the MITRE Att&ck part of the hybrid analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
@@ -214,19 +247,25 @@ def handle_mitre_attcks(actapi: act.api.Act, content: Text, mitre_attcks: List[D
     for attck in mitre_attcks:
         chain = []
 
-        chain.append(actapi.fact('classifiedAs')
-                     .source('content', content)
-                     .destination('tool', '*'))
-        chain.append(actapi.fact('implements')
-                     .source('tool', '*')
-                     .destination('technique', attck['technique']))
+        chain.append(
+            actapi.fact("classifiedAs")
+            .source("content", content)
+            .destination("tool", "*")
+        )
+        chain.append(
+            actapi.fact("implements")
+            .source("tool", "*")
+            .destination("technique", attck["technique"])
+        )
 
         feeds_facts += act.api.fact.fact_chain(*chain)
 
     return feeds_facts
 
 
-def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[Dict]) -> List[act.api.fact.Fact]:
+def handle_process_list(
+    actapi: act.api.Act, content: Text, process_list: List[Dict]
+) -> List[act.api.fact.Fact]:
     """Handle the process list part of the hybrid analysis report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
@@ -235,53 +274,68 @@ def handle_process_list(actapi: act.api.Act, content: Text, process_list: List[D
 
         chain = []
 
-        path = proc['normalizedpath'] if 'normalizedpath' in proc else proc['name']
+        path = proc["normalizedpath"] if "normalizedpath" in proc else proc["name"]
 
-        chain.append(actapi.fact('executes')
-                     .source('content', content)
-                     .destination('uri', '*'))
-        chain.append(actapi.fact('componentOf')
-                     .source('path', path)
-                     .destination('uri', '*'))
+        chain.append(
+            actapi.fact("executes").source("content", content).destination("uri", "*")
+        )
+        chain.append(
+            actapi.fact("componentOf").source("path", path).destination("uri", "*")
+        )
 
         feeds_facts += act.api.fact.fact_chain(*chain)
 
     return feeds_facts
 
 
-def handle_report(actapi: act.api.Act, report: Dict[Text, Any]) -> List[act.api.fact.Fact]:
+def handle_report(
+    actapi: act.api.Act, report: Dict[Text, Any]
+) -> List[act.api.fact.Fact]:
     """Create facts from a report"""
 
     feeds_facts: List[act.api.fact.Fact] = []
 
-    content = report['sha256']
-    for hash_type in ['md5', 'sha1', 'sha256', 'ssdeep', 'imphash', 'sha512']:
-        if hash_type not in report or not report[hash_type] or report[hash_type] == "Unknown":
+    content = report["sha256"]
+    for hash_type in ["md5", "sha1", "sha256", "ssdeep", "imphash", "sha512"]:
+        if (
+            hash_type not in report
+            or not report[hash_type]
+            or report[hash_type] == "Unknown"
+        ):
             info(f"{hash_type} not set for content {content}")
             continue
-        feeds_facts.append(actapi.fact('represents')
-                           .source('hash', report[hash_type])
-                           .destination('content', content))
-        feeds_facts.append(actapi.fact('category', hash_type)
-                           .source('hash', report[hash_type]))
+        feeds_facts.append(
+            actapi.fact("represents")
+            .source("hash", report[hash_type])
+            .destination("content", content)
+        )
+        feeds_facts.append(
+            actapi.fact("category", hash_type).source("hash", report[hash_type])
+        )
 
-    feeds_facts += handle_hosts(actapi, content, report.get('hosts', []))
-    feeds_facts += handle_domains(actapi, content, report.get('domains', []))
-    feeds_facts += handle_extracted_files(actapi, content, report.get('extracted_files', []))
-    feeds_facts += handle_classification_tags(actapi, content, report.get('classification_tags', []))
-    feeds_facts += handle_mitre_attcks(actapi, content, report.get('mitre_attcks', []))
-    feeds_facts += handle_process_list(actapi, content, report.get('process_list', []))
+    feeds_facts += handle_hosts(actapi, content, report.get("hosts", []))
+    feeds_facts += handle_domains(actapi, content, report.get("domains", []))
+    feeds_facts += handle_extracted_files(
+        actapi, content, report.get("extracted_files", [])
+    )
+    feeds_facts += handle_classification_tags(
+        actapi, content, report.get("classification_tags", [])
+    )
+    feeds_facts += handle_mitre_attcks(actapi, content, report.get("mitre_attcks", []))
+    feeds_facts += handle_process_list(actapi, content, report.get("process_list", []))
 
     return feeds_facts
 
 
-def handle_hash(actapi: act.api.Act,
-                apikey: Text,
-                hashdigest: Text,
-                user_agent: Text,
-                proxies: Optional[Dict[Text, Text]] = None,
-                verify_ssl: bool = True,
-                output_format: Text = 'json') -> None:
+def handle_hash(
+    actapi: act.api.Act,
+    apikey: Text,
+    hashdigest: Text,
+    user_agent: Text,
+    proxies: Optional[Dict[Text, Text]] = None,
+    verify_ssl: bool = True,
+    output_format: Text = "json",
+) -> None:
     """Download, parse and provide facts from the public feed of hybrid-analysis.com"""
 
     data = search_hash(apikey, hashdigest, user_agent, proxies, verify_ssl)
@@ -291,37 +345,43 @@ def handle_hash(actapi: act.api.Act,
             act.api.helpers.handle_fact(fact, output_format=output_format)
 
 
-def search_hash(apikey: Text,
-                hashdigest: Text,
-                user_agent: Text,
-                proxies: Optional[Dict[Text, Text]] = None,
-                verify_ssl: bool = True) -> List[Dict[Text, Any]]:
+def search_hash(
+    apikey: Text,
+    hashdigest: Text,
+    user_agent: Text,
+    proxies: Optional[Dict[Text, Text]] = None,
+    verify_ssl: bool = True,
+) -> List[Dict[Text, Any]]:
     """Search the hybrid-analysis api for a specific hash"""
 
-    url = 'https://www.hybrid-analysis.com/api/v2/search/hash'
+    url = "https://www.hybrid-analysis.com/api/v2/search/hash"
 
     with ssl_verification(verify=verify_ssl):
         headers = {
-            'User-Agent': user_agent,
-            'accept': 'application/json',
-            'api-key': apikey,
-            'Content-Type': 'application/x-www-form-urlencoded'
+            "User-Agent": user_agent,
+            "accept": "application/json",
+            "api-key": apikey,
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
-        form_data = {'hash': hashdigest}
+        form_data = {"hash": hashdigest}
 
         response = requests.post(url, proxies=proxies, headers=headers, data=form_data)
 
     if response.status_code != 200:
         print(response.text)
-        raise CommunicationError(f"hybrid_analysis_feed.search_hash() could not search community API, "
-                                 f"error calling {url}: Status = {response.status_code}")
+        raise CommunicationError(
+            f"hybrid_analysis_feed.search_hash() could not search community API, "
+            f"error calling {url}: Status = {response.status_code}"
+        )
 
     try:
         data: List[Dict[Text, Any]] = response.json()
     except json.decoder.JSONDecodeError as err:
-        raise CommunicationError(f"hybrid_analysis_feed.search_hash() could not load search result, "
-                                 f"error decoding json result from {url}: {err}")
+        raise CommunicationError(
+            f"hybrid_analysis_feed.search_hash() could not load search result, "
+            f"error decoding json result from {url}: {err}"
+        )
 
     return data
 
@@ -338,25 +398,26 @@ def main() -> None:
     # if not args.apikey:
     #    cli.fatal("You must specify --apikey on command line or in config file")
 
-    proxies = {
-        'http': args.proxy_string,
-        'https': args.proxy_string
-    } if args.proxy_string else None
+    proxies = (
+        {"http": args.proxy_string, "https": args.proxy_string}
+        if args.proxy_string
+        else None
+    )
 
     params = {
-        'actapi': actapi,
-        'user_agent': args.user_agent,
-        'proxies': proxies,
-        'verify_ssl': args.no_check_certificate,
-        'output_format': args.output_format
+        "actapi": actapi,
+        "user_agent": args.user_agent,
+        "proxies": proxies,
+        "verify_ssl": args.no_check_certificate,
+        "output_format": args.output_format,
     }
 
     if args.feed:
         handle_feed(**params)
     else:
-        params['apikey'] = args.apikey
+        params["apikey"] = args.apikey
         for line in sys.stdin:
-            params['hashdigest'] = line.strip()
+            params["hashdigest"] = line.strip()
             handle_hash(**params)
 
 
@@ -368,7 +429,7 @@ def ssl_verification(verify: bool = True) -> Generator[None, None, None]:
     old_request = requests.Session.request
     requests.Session.request = partialmethod(old_request, verify=verify)  # type: ignore
 
-    warnings.filterwarnings('ignore', 'Unverified HTTPS request')
+    warnings.filterwarnings("ignore", "Unverified HTTPS request")
     yield
     warnings.resetwarnings()
 
@@ -391,5 +452,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

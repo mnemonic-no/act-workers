@@ -23,16 +23,23 @@ from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Country/region enrichment')
-    parser.add_argument('--country-region-url', dest='country_region_url',
-                        default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
-                        help="Country region URL in json format")
+    """Parse arguments"""
+    parser = worker.parseargs("Country/region enrichment")
+    parser.add_argument(
+        "--country-region-url",
+        dest="country_region_url",
+        default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
+        help="Country region URL in json format",
+    )
 
     return parser
 
 
-def process(actapi: act.api.Act, country_list: List[Dict[str, str]], output_format: Text = "json") -> None:
+def process(
+    actapi: act.api.Act,
+    country_list: List[Dict[str, str]],
+    output_format: Text = "json",
+) -> None:
     """
     Loop over all ISO-3166 countries and construct facts for
     county -memberOf-> subRegion and subRegion -memberOf-> region.
@@ -48,7 +55,7 @@ def process(actapi: act.api.Act, country_list: List[Dict[str, str]], output_form
                 actapi.fact("memberOf")
                 .source("country", country_name)
                 .destination("subRegion", sub_region),
-                output_format=output_format
+                output_format=output_format,
             )
         else:
             warning("Missing name or sub-region: {}".format(c_map))
@@ -58,7 +65,7 @@ def process(actapi: act.api.Act, country_list: List[Dict[str, str]], output_form
                 actapi.fact("memberOf")
                 .source("subRegion", sub_region)
                 .destination("region", region),
-                output_format=output_format
+                output_format=output_format,
             )
         else:
             warning("Missing sub-region or region: {}".format(c_map))
@@ -75,13 +82,15 @@ def main_log_error() -> None:
     try:
         process(
             actapi,
-            worker.fetch_json(args.country_region_url, args.proxy_string, args.http_timeout),
-            args.output_format
+            worker.fetch_json(
+                args.country_region_url, args.proxy_string, args.http_timeout
+            ),
+            args.output_format,
         )
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

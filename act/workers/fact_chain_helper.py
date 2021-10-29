@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''Fact chain creator helper worker for the ACT platform
+"""Fact chain creator helper worker for the ACT platform
 
 Copyright 2021 the ACT project <opensource@mnemonic.no>
 
@@ -15,7 +15,7 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
-'''
+"""
 
 import argparse
 import json
@@ -94,7 +94,9 @@ def dijkstra(graph: Set[Node], start: Node, stop: Node) -> List[Node]:
             return []
 
 
-def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text], avoid_value: int) -> Set[Node]:
+def graph_from_type_def(
+    typedef: TextIO, avoids: List[Text], includes: List[Text], avoid_value: int
+) -> Set[Node]:
     """Build a graph from a type definition file"""
 
     typedef.seek(0)
@@ -102,14 +104,17 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text
 
     nodes = dict()
     for fact in data:
-        for binding in fact['objectBindings']:
+        for binding in fact["objectBindings"]:
 
-            if 'destinationObjectType' not in binding or 'sourceObjectType' not in binding:
+            if (
+                "destinationObjectType" not in binding
+                or "sourceObjectType" not in binding
+            ):
                 continue  # No point in traversing one legged facts
 
-            fact_name = fact['name']
-            dest_objects = binding['destinationObjectType']
-            src_objects = binding['sourceObjectType']
+            fact_name = fact["name"]
+            dest_objects = binding["destinationObjectType"]
+            src_objects = binding["sourceObjectType"]
 
             if isinstance(dest_objects, str):
                 dest_objects = [dest_objects]
@@ -123,19 +128,31 @@ def graph_from_type_def(typedef: TextIO, avoids: List[Text], includes: List[Text
 
                     cost = 10
 
-                    if fact_name in includes or dest_object in includes or src_object in includes:
+                    if (
+                        fact_name in includes
+                        or dest_object in includes
+                        or src_object in includes
+                    ):
                         cost = -100
 
                     # Avoid overwrites and takes precedence over includes
-                    if fact_name in avoids or dest_object in avoids or src_object in avoids:
+                    if (
+                        fact_name in avoids
+                        or dest_object in avoids
+                        or src_object in avoids
+                    ):
                         cost = 10 * avoid_value
 
                     if dest_object not in nodes:
                         nodes[dest_object] = Node(dest_object)
                     if src_object not in nodes:
                         nodes[src_object] = Node(src_object)
-                    nodes[dest_object].neighbours.append((nodes[src_object], cost, fact_name, '<'))
-                    nodes[src_object].neighbours.append((nodes[dest_object], cost, fact_name, '>'))
+                    nodes[dest_object].neighbours.append(
+                        (nodes[src_object], cost, fact_name, "<")
+                    )
+                    nodes[src_object].neighbours.append(
+                        (nodes[dest_object], cost, fact_name, ">")
+                    )
 
     return set(nodes.values())
 
@@ -151,40 +168,46 @@ def fact_type_value(data: Text) -> Tuple[Text, Text]:
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
-    parser = worker.parseargs('ACT Fact Chain Helper')
+    parser = worker.parseargs("ACT Fact Chain Helper")
     parser.add_argument(
-        '--start',
+        "--start",
         type=fact_type_value,
-        help='Start type/value (i.e. threatActor/apt21)')
+        help="Start type/value (i.e. threatActor/apt21)",
+    )
     parser.add_argument(
-        '--end',
-        type=fact_type_value,
-        help='End type/value (i.e. tool/zeus)')
+        "--end", type=fact_type_value, help="End type/value (i.e. tool/zeus)"
+    )
     parser.add_argument(
-        '--avoid',
+        "--avoid",
         type=worker_config.string_list,
         default=[],
-        help='List of fact- or object- types to avoid')
+        help="List of fact- or object- types to avoid",
+    )
     parser.add_argument(
-        '--include',
+        "--include",
         type=worker_config.string_list,
         default=[],
-        help='List of fact- or object- types to include')
+        help="List of fact- or object- types to include",
+    )
     parser.add_argument(
-        '--fact-type-definition',
+        "--fact-type-definition",
         type=str,
-        default=types.etc_file('fact-types.json'),
-        help='fact definition file. default="fact-types.json"')
+        default=types.etc_file("fact-types.json"),
+        help='fact definition file. default="fact-types.json"',
+    )
     parser.add_argument(
-        '--avoid-cost',
+        "--avoid-cost",
         type=int,
         default=3,
-        help='multiplier used to increase cost of avoided objects or facts. Default=3')
+        help="multiplier used to increase cost of avoided objects or facts. Default=3",
+    )
 
     return parser
 
 
-def find_start_and_end_nodes(graph: Set[Node], start_name: Text, end_name: Text) -> Tuple[Optional[Node], Optional[Node]]:
+def find_start_and_end_nodes(
+    graph: Set[Node], start_name: Text, end_name: Text
+) -> Tuple[Optional[Node], Optional[Node]]:
     """search through graph looking for nodes with the provded names"""
 
     start = None
@@ -199,47 +222,57 @@ def find_start_and_end_nodes(graph: Set[Node], start_name: Text, end_name: Text)
     return start, end
 
 
-def fact_chain_from_path_result(actapi: act.api.Act,
-                                res: List[Node],
-                                start: Node,
-                                end: Node,
-                                start_value: Text,
-                                end_value: Text) -> List[act.api.fact.FactType]:
+def fact_chain_from_path_result(
+    actapi: act.api.Act,
+    res: List[Node],
+    start: Node,
+    end: Node,
+    start_value: Text,
+    end_value: Text,
+) -> List[act.api.fact.FactType]:
 
     facts: List[act.api.fact.FactType] = []
     prev = None
-    value = '*'
+    value = "*"
 
     for node in res:
         if prev is None:
             prev = node
-            value = start_value if prev.name == start.name else '*'
+            value = start_value if prev.name == start.name else "*"
             continue
 
         if end.name == node.name:
             value = end_value
 
-        if node.previous_direction == '>':
+        if node.previous_direction == ">":
             if node == end:
-                facts.append(actapi.fact(node.previous_fact)
-                             .source(prev.name, '*')
-                             .destination(node.name, value))
+                facts.append(
+                    actapi.fact(node.previous_fact)
+                    .source(prev.name, "*")
+                    .destination(node.name, value)
+                )
             else:
-                facts.append(actapi.fact(node.previous_fact)
-                             .source(prev.name, value)
-                             .destination(node.name, '*'))
+                facts.append(
+                    actapi.fact(node.previous_fact)
+                    .source(prev.name, value)
+                    .destination(node.name, "*")
+                )
         else:
             if node == end:
-                facts.append(actapi.fact(node.previous_fact)
-                             .destination(prev.name, '*')
-                             .source(node.name, value))
+                facts.append(
+                    actapi.fact(node.previous_fact)
+                    .destination(prev.name, "*")
+                    .source(node.name, value)
+                )
             else:
-                facts.append(actapi.fact(node.previous_fact)
-                             .destination(prev.name, value)
-                             .source(node.name, '*'))
+                facts.append(
+                    actapi.fact(node.previous_fact)
+                    .destination(prev.name, value)
+                    .source(node.name, "*")
+                )
         prev = node
 
-        value = '*'
+        value = "*"
 
     fact_chain: List[act.api.fact.FactType] = act.api.fact.fact_chain(*facts)
 
@@ -255,7 +288,9 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    fact_type_definition_path = pathlib.Path(args.fact_type_definition).expanduser().resolve()
+    fact_type_definition_path = (
+        pathlib.Path(args.fact_type_definition).expanduser().resolve()
+    )
 
     if not fact_type_definition_path.is_file():
         print(f"{fact_type_definition_path} is not a file.")
@@ -293,5 +328,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

@@ -5,12 +5,34 @@ import json
 import uuid
 
 
-@pytest.mark.server(url='/manifest.json', response=json.load(open("test/data/misp_dir/manifest.json")), method='GET')
-@pytest.mark.server(url='/57e27c3d-17a8-4c3b-8195-493e950d210f.json', response=json.load(open("test/data/misp_dir/57e27c3d-17a8-4c3b-8195-493e950d210f.json")), method='GET')
-@pytest.mark.server(url='/5721c2e4-05ec-4af3-9264-411b950d210f.json', response=json.load(open("test/data/misp_dir/5721c2e4-05ec-4af3-9264-411b950d210f.json")), method='GET')
+@pytest.mark.server(
+    url="/manifest.json",
+    response=json.load(open("test/data/misp_dir/manifest.json")),
+    method="GET",
+)
+@pytest.mark.server(
+    url="/57e27c3d-17a8-4c3b-8195-493e950d210f.json",
+    response=json.load(
+        open("test/data/misp_dir/57e27c3d-17a8-4c3b-8195-493e950d210f.json")
+    ),
+    method="GET",
+)
+@pytest.mark.server(
+    url="/5721c2e4-05ec-4af3-9264-411b950d210f.json",
+    response=json.load(
+        open("test/data/misp_dir/5721c2e4-05ec-4af3-9264-411b950d210f.json")
+    ),
+    method="GET",
+)
 def test_event() -> None:
-    info = ["Malspam (2016-04-28) - Locky (#2)", "Malspam 2016-09-21 (.wsf in .zip) - campaign: \"E-TICKET {integer}\""]
-    uuids = ["5721c2e4-05ec-4af3-9264-411b950d210f", "57e27c3d-17a8-4c3b-8195-493e950d210f"]
+    info = [
+        "Malspam (2016-04-28) - Locky (#2)",
+        'Malspam 2016-09-21 (.wsf in .zip) - campaign: "E-TICKET {integer}"',
+    ]
+    uuids = [
+        "5721c2e4-05ec-4af3-9264-411b950d210f",
+        "57e27c3d-17a8-4c3b-8195-493e950d210f",
+    ]
     dates = ["2016-04-28", "2016-09-21"]
 
     for event in misp_feeds.handle_feed("NODIR", "http://localhost:5000"):
@@ -26,7 +48,10 @@ def test_event() -> None:
 def test_load_event() -> None:
     with open("test/misp_event.json") as event_f:
         a = misp.Event(loads=event_f.read())
-    assert a.info == 'M2M -  Dridex 2017-11-14 : botnet 7200 : "Invoice No.\n 123456" - "Invoice-123456-06.doc"'
+    assert (
+        a.info
+        == 'M2M -  Dridex 2017-11-14 : botnet 7200 : "Invoice No.\n 123456" - "Invoice-123456-06.doc"'
+    )
     assert a.uuid == uuid.UUID("5a0f0fb1-0b54-4ace-bb7b-429f950d210f")
     assert a.date == "2017-11-17"
     assert a.published is False

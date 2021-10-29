@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''Shadowserver ASN worker for the ACT platform
+"""Shadowserver ASN worker for the ACT platform
 
 Copyright 2019 the ACT project <opensource@mnemonic.no>
 
@@ -15,7 +15,7 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
-'''
+"""
 
 import argparse
 import json
@@ -41,33 +41,40 @@ from act.workers.libs import worker
 from act.api.libs import cli
 
 CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
-ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
-    "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
+ISO_3166_FILE = (
+    "https://raw.githubusercontent.com/lukes/"
+    + "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
+)
 
 # Blacklists of IPs record values
 # If value matches blacklist it should not be used
 BLACKLIST = {
     "ip": [  # Blacklist IP addresses. Values is IP
-        lambda ip: not ip.strip(),                             # Empty values
-        lambda ip: ip.strip().lstrip("0").startswith("."),     # IP addreses starting with "0."
-        lambda ip: ip == "255.255.255.255",                    # broadcast
+        lambda ip: not ip.strip(),  # Empty values
+        lambda ip: ip.strip()
+        .lstrip("0")
+        .startswith("."),  # IP addreses starting with "0."
+        lambda ip: ip == "255.255.255.255",  # broadcast
         lambda ip: IPv4Address(ip).is_multicast,
         lambda ip: IPv4Address(ip).is_private,
         lambda ip: IPv4Address(ip).is_loopback,
         lambda ip: IPv4Address(ip).is_unspecified,
     ],
     "isp": [  # Blacklist ISPs. Values is asn_record
-        lambda asn_record: not asn_record.isp.strip(),         # Exclude Empty values
-        lambda asn_record: asn_record.isp == asn_record.cn,    # Exclude values where ISP name == Country Name
-        lambda asn_record: asn_record.isp == "AS, {}".format(asn_record.cn),  # Exclude values where ISP name == AS, <CN>
-        lambda asn_record: asn_record.isp == ", {}".format(asn_record.cn)     # Exclude values where ISP name == , <CN>
+        lambda asn_record: not asn_record.isp.strip(),  # Exclude Empty values
+        lambda asn_record: asn_record.isp
+        == asn_record.cn,  # Exclude values where ISP name == Country Name
+        lambda asn_record: asn_record.isp
+        == "AS, {}".format(asn_record.cn),  # Exclude values where ISP name == AS, <CN>
+        lambda asn_record: asn_record.isp
+        == ", {}".format(asn_record.cn),  # Exclude values where ISP name == , <CN>
     ],
     "asname": [  # Blacklist ASNAMES. Values is asn_record
-        lambda asn_record: not asn_record.asname.strip(),         # Exclude Empty values
+        lambda asn_record: not asn_record.asname.strip(),  # Exclude Empty values
     ],
     "cn": [  # Blacklist ASNAMES. Values is asn_record
-        lambda asn_record: not asn_record.cn.strip(),         # Exclude Empty values
-    ]
+        lambda asn_record: not asn_record.cn.strip(),  # Exclude Empty values
+    ],
 }
 
 
@@ -86,20 +93,23 @@ def get_cn_map(filename: str) -> Dict:
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Shadowserver ASN enrichment')
+    """Parse arguments"""
+    parser = worker.parseargs("Shadowserver ASN enrichment")
     parser.add_argument(
-        '--country-codes',
-        help="Should point to file downloaded from {}".format(ISO_3166_FILE))
+        "--country-codes",
+        help="Should point to file downloaded from {}".format(ISO_3166_FILE),
+    )
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--bulk', help='bulk query from file. File must contain one IP per line.')
-    group.add_argument('--stdin', action='store_true', help='query ip on stdin')
+    group.add_argument(
+        "--bulk", help="bulk query from file. File must contain one IP per line."
+    )
+    group.add_argument("--stdin", action="store_true", help="query ip on stdin")
     return parser
 
 
 def blacklisted(value: Union[shadowserver.ASNRecord, str], blacklist_type: str) -> bool:
-    """ Return true if value is blacklisted for the specified type """
+    """Return true if value is blacklisted for the specified type"""
     return any([b(value) for b in BLACKLIST[blacklist_type]])  # type: ignore
 
 
@@ -111,7 +121,8 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     cache_file = os.path.join(cache_dir, "cache.sqlite3")
     conn = sqlite3.connect(cache_file)
     cursor = conn.cursor()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS asn (
+    cursor.execute(
+        """CREATE TABLE IF NOT EXISTS asn (
         ip string unique,
         asn int,
         prefix string,
@@ -120,40 +131,49 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
         isp string,
         peers string,
         added int)
-    """)
+    """
+    )
     cursor.execute("CREATE INDEX IF NOT EXISTS asn_ip on ASN(ip)")
 
     return conn
 
 
-def query_cache(cache: sqlite3.Connection, ip_list: List[str]) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
-    """ Query cache for all IPs in list """
+def query_cache(
+    cache: sqlite3.Connection, ip_list: List[str]
+) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
+    """Query cache for all IPs in list"""
     cursor = cache.cursor()
 
     in_list = ",".join(['"{}"'.format(ip) for ip in ip_list])
 
-    for res in cursor.execute("SELECT * FROM asn WHERE ip in ({})".format(in_list)).fetchall():
+    for res in cursor.execute(
+        "SELECT * FROM asn WHERE ip in ({})".format(in_list)
+    ).fetchall():
         asn_tuple = list(res[1:7])
         asn_tuple[5] = str(asn_tuple[5]).split(",")  # Split peers into list
         yield (res[0], shadowserver.ASNRecord(*asn_tuple))
 
 
-def add_to_cache(cache: sqlite3.Connection, ip: str, asn_record: shadowserver.ASNRecord) -> None:
-    """ ADD IP/ASNRecord to cache """
+def add_to_cache(
+    cache: sqlite3.Connection, ip: str, asn_record: shadowserver.ASNRecord
+) -> None:
+    """ADD IP/ASNRecord to cache"""
     cursor = cache.cursor()
 
     # flatten peer list to comma separated list
     asn_flattened = list(asn_record)
     asn_flattened[5] = ",".join(asn_record.peers)
 
-    cursor.execute("INSERT INTO asn VALUES (?,?,?,?,?,?,?,?)",
-                   ([ip] + list(asn_flattened) + [str(int(time.time()))]))
+    cursor.execute(
+        "INSERT INTO asn VALUES (?,?,?,?,?,?,?,?)",
+        ([ip] + list(asn_flattened) + [str(int(time.time()))]),
+    )
     cache.commit()
 
 
-def asn_query(ip_list: List[str],
-              cache: sqlite3.Connection,
-              proxy_string: Text) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
+def asn_query(
+    ip_list: List[str], cache: sqlite3.Connection, proxy_string: Text
+) -> Generator[Tuple[str, shadowserver.ASNRecord], None, None]:
     """
     Query shadowserver ASN usingi IP
     Return cached result if the IP is in the cace
@@ -177,8 +197,9 @@ def asn_query(ip_list: List[str],
             while not success:
                 try:
                     if proxy_string:
-                        asn_records = shadowserver.peer([ip], proxies={'http': proxy_string,
-                                                                       'https': proxy_string})
+                        asn_records = shadowserver.peer(
+                            [ip], proxies={"http": proxy_string, "https": proxy_string}
+                        )
                     else:
                         asn_records = shadowserver.peer([ip])
                     success = True
@@ -211,12 +232,13 @@ def asn_query(ip_list: List[str],
 
 
 def handle_ip(
-        actapi: act.api.Act,
-        cn_map: Dict[str, str],
-        ip_list: List[str],
-        cache: sqlite3.Connection,
-        proxy_string: Text,
-        output_format: Text = "json") -> None:
+    actapi: act.api.Act,
+    cn_map: Dict[str, str],
+    ip_list: List[str],
+    cache: sqlite3.Connection,
+    proxy_string: Text,
+    output_format: Text = "json",
+) -> None:
     """
     Read ip from stdin and query shadowserver - asn.
     if actapi is set, result is added to the ACT platform,
@@ -247,19 +269,22 @@ def handle_ip(
             actapi.fact("memberOf")
             .source("ipv4", ip)
             .destination("ipv4Network", res.prefix),
-            output_format=output_format
+            output_format=output_format,
         )
         handle_fact(
             actapi.fact("memberOf")
             .source("ipv4Network", res.prefix)
             .destination("asn", res.asn),
-            output_format=output_format
+            output_format=output_format,
         )
 
         if blacklisted(res, "asname"):
             debug('asname "{}" for ip {} is blacklisted, skipping'.format(res.asn, ip))
         else:
-            handle_fact(actapi.fact("name", res.asname).source("asn", res.asn), output_format=output_format)
+            handle_fact(
+                actapi.fact("name", res.asname).source("asn", res.asn),
+                output_format=output_format,
+            )
 
         if blacklisted(res, "isp"):
             debug('isp "{}" for ip {} is blacklisted, skipping'.format(res.isp, ip))
@@ -269,7 +294,7 @@ def handle_ip(
                 actapi.fact("owns", "asn")
                 .source("organization", organization)
                 .destination("asn", res.asn),
-                output_format=output_format
+                output_format=output_format,
             )
 
             if blacklisted(res, "cn"):
@@ -281,7 +306,7 @@ def handle_ip(
                     actapi.fact("locatedIn")
                     .source("organization", organization)
                     .destination("country", cn_map[res.cn]),
-                    output_format=output_format
+                    output_format=output_format,
                 )
 
 
@@ -298,7 +323,12 @@ def main() -> None:
         cli.fatal("You must specify --country-codes on command line or in config file")
 
     if not os.path.isfile(args.country_codes):
-        cli.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
+        cli.fatal(
+            "Country/region file not found at specified location: {}".format(
+                args.country_codes
+            ),
+            2,
+        )
 
     # Get map of CC -> Country Name
     cn_map = get_cn_map(args.country_codes)
@@ -308,12 +338,9 @@ def main() -> None:
     # Read IPs from stdin
     if args.stdin:
         in_data = sys.stdin.read().split("\n")
-        handle_ip(actapi,
-                  cn_map,
-                  in_data,
-                  db_cache,
-                  args.proxy_string,
-                  args.output_format)
+        handle_ip(
+            actapi, cn_map, in_data, db_cache, args.proxy_string, args.output_format
+        )
 
     # Bulk lookup
     elif args.bulk:
@@ -321,12 +348,14 @@ def main() -> None:
         batch_size = 50
         i = 0
         while i < len(all_ips):
-            handle_ip(actapi,
-                      cn_map,
-                      (all_ips[i:i + batch_size]),
-                      db_cache,
-                      args.proxy_string,
-                      args.output_format)
+            handle_ip(
+                actapi,
+                cn_map,
+                (all_ips[i : i + batch_size]),
+                db_cache,
+                args.proxy_string,
+                args.output_format,
+            )
             i += batch_size
             time.sleep(1)
 
@@ -342,5 +371,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

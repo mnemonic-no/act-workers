@@ -36,15 +36,16 @@ WORKER_NAME = "ip-asn-history"
 def lookup_ip(ip: Text, proxy: Optional[Text] = None) -> List[Tuple[Text, Text]]:
     """Lookup historc ASN registration for an IP against the CIRCL online ASN database"""
 
-    proxies = {
-        'http': proxy,
-        'https': proxy} if proxy else None
+    proxies = {"http": proxy, "https": proxy} if proxy else None
 
-    r = requests.get('https://bgpranking-ng.circl.lu/ipasn_history/?ip={}'.format(ip), proxies=proxies)
+    r = requests.get(
+        "https://bgpranking-ng.circl.lu/ipasn_history/?ip={}".format(ip),
+        proxies=proxies,
+    )
 
     data = r.json()
 
-    return [(x['asn'], x['prefix']) for x in data['response'].values()]
+    return [(x["asn"], x["prefix"]) for x in data["response"].values()]
 
 
 def process(api: act.api.Act, proxy=None, output_format: Text = "json") -> None:
@@ -58,14 +59,18 @@ def process(api: act.api.Act, proxy=None, output_format: Text = "json") -> None:
 
         for asn, network in lookup_ip(query, proxy):
             act.api.helpers.handle_fact(
-                api.fact('memberOf')
-                .source('ipv4', query)
-                .destination('ipv4Network', network), output_format=output_format)
+                api.fact("memberOf")
+                .source("ipv4", query)
+                .destination("ipv4Network", network),
+                output_format=output_format,
+            )
 
             act.api.helpers.handle_fact(
-                api.fact('memberOf')
-                .source('ipv4Network', network)
-                .destination('asn', asn), output_format=output_format)
+                api.fact("memberOf")
+                .source("ipv4Network", network)
+                .destination("asn", asn),
+                output_format=output_format,
+            )
 
 
 def main() -> None:
@@ -88,5 +93,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

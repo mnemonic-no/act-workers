@@ -7,7 +7,7 @@ from act.api.libs import cli
 
 
 def test_args_origin_name(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
-    """ test argument origin-name """
+    """test argument origin-name"""
 
     origin_name = "test-origin"
 
@@ -18,15 +18,15 @@ def test_args_origin_name(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
 
     assert actapi.config.origin_name == origin_name
 
-    fact = actapi.fact("mentions") \
-        .source("report", "xyz")\
-        .destination("fqdn", "test.com")
+    fact = (
+        actapi.fact("mentions").source("report", "xyz").destination("fqdn", "test.com")
+    )
 
     assert fact.origin.name == origin_name
 
 
 def test_args_origin_id(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
-    """ test argument origin-id """
+    """test argument origin-id"""
 
     origin_id = "00000000-0000-0000-0000-000000000001"
 
@@ -37,8 +37,8 @@ def test_args_origin_id(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
 
     assert actapi.config.origin_id == origin_id
 
-    fact = actapi.fact("mentions") \
-        .source("report", "xyz")\
-        .destination("fqdn", "test.com")
+    fact = (
+        actapi.fact("mentions").source("report", "xyz").destination("fqdn", "test.com")
+    )
 
     assert fact.origin.id == origin_id

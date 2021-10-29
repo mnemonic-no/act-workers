@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''Veris worker for the ACT platform
+"""Veris worker for the ACT platform
 
 Copyright 2019 the ACT project <opensource@mnemonic.no>
 
@@ -15,7 +15,7 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
-'''
+"""
 
 import argparse
 import csv
@@ -38,8 +38,10 @@ from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import urlcache, worker
 
 VERSION = "0.1"
-ISO_3166_FILE = "https://raw.githubusercontent.com/lukes/" + \
-    "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
+ISO_3166_FILE = (
+    "https://raw.githubusercontent.com/lukes/"
+    + "ISO-3166-Countries-with-Regional-Codes/master/all/all.json"
+)
 
 
 def get_cn_map(filename: Text) -> Dict:
@@ -57,22 +59,40 @@ def get_cn_map(filename: Text) -> Dict:
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Shadowserver ASN enrichment')
+    """Parse arguments"""
+    parser = worker.parseargs("Shadowserver ASN enrichment")
     parser.add_argument(
-        '--country-codes',
-        help="Should point to file downloaded from {}".format(ISO_3166_FILE))
-    parser.add_argument('--veris-campaign', help='Read mapping of veris campaign from (CSV) file')
-    parser.add_argument('--threat-actor-variety', help='Varieties to use as Threat Actors', default="Activist, Organized crime, Nation-state")
-    parser.add_argument('--hash-url-matching', help='Download and hash references matching regular expression', default=r'^(.*pdf)$')
-    parser.add_argument('--veris-prefix', help='Prefix for incidents and campaign IDs. E.g use "VCDB" for Veris Community Database"')
-    parser.add_argument('--veris-url', help='Read veris incidents from URL.')
-    parser.add_argument('--veris-file', help='Read veris incidents from File.')
-    parser.add_argument('--stdin', action='store_true', help='Read veris incidents on stdin.')
+        "--country-codes",
+        help="Should point to file downloaded from {}".format(ISO_3166_FILE),
+    )
+    parser.add_argument(
+        "--veris-campaign", help="Read mapping of veris campaign from (CSV) file"
+    )
+    parser.add_argument(
+        "--threat-actor-variety",
+        help="Varieties to use as Threat Actors",
+        default="Activist, Organized crime, Nation-state",
+    )
+    parser.add_argument(
+        "--hash-url-matching",
+        help="Download and hash references matching regular expression",
+        default=r"^(.*pdf)$",
+    )
+    parser.add_argument(
+        "--veris-prefix",
+        help='Prefix for incidents and campaign IDs. E.g use "VCDB" for Veris Community Database"',
+    )
+    parser.add_argument("--veris-url", help="Read veris incidents from URL.")
+    parser.add_argument("--veris-file", help="Read veris incidents from File.")
+    parser.add_argument(
+        "--stdin", action="store_true", help="Read veris incidents on stdin."
+    )
     return parser
 
 
-def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+def handle_reports(
+    config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text
+) -> None:
     """
     Extract all references in incident. For each (URL-)reference, check whether we should
     download the content and creaa a sha256 hash digest of it (must match config["hash_url_matching"]).
@@ -80,7 +100,9 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
     """
 
     # Split references by ";"
-    references = [ref.strip() for ref in incident.get("reference", "").split(";") if ref.strip()]
+    references = [
+        ref.strip() for ref in incident.get("reference", "").split(";") if ref.strip()
+    ]
 
     if references:
         for ref in references:
@@ -91,14 +113,17 @@ def handle_reports(config: Dict[Text, Any], incident: Dict[Text, Any], incident_
 
             if report_hash:
                 handle_fact(
-                    config["actapi"].fact("mentions")
+                    config["actapi"]
+                    .fact("mentions")
                     .source("report", report_hash)
                     .destination("incident", incident_id),
-                    output_format=config["output_format"]
+                    output_format=config["output_format"],
                 )
 
 
-def handle_organizations(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+def handle_organizations(
+    config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text
+) -> None:
     """
     Create facts:
         * incident -targets-> organization
@@ -110,10 +135,11 @@ def handle_organizations(config: Dict[Text, Any], incident: Dict[Text, Any], inc
         return
 
     handle_fact(
-        config["actapi"].fact("targets")
+        config["actapi"]
+        .fact("targets")
         .source("incident", incident_id)
         .destination("organization", victim),
-        output_format=config["output_format"]
+        output_format=config["output_format"],
     )
 
     for country_code in incident.get("victim", {}).get("country", []):
@@ -121,14 +147,17 @@ def handle_organizations(config: Dict[Text, Any], incident: Dict[Text, Any], inc
 
         if country:
             handle_fact(
-                config["actapi"].fact("locatedIn")
+                config["actapi"]
+                .fact("locatedIn")
                 .source("organization", victim)
                 .destination("country", country),
-                output_format=config["output_format"]
+                output_format=config["output_format"],
             )
 
 
-def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+def handle_threat_actor(
+    config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text
+) -> None:
     """
     Creat facts from actor->external, where the variety includes at least on variety specified in config["threat_actor_variety"]
 
@@ -141,38 +170,54 @@ def handle_threat_actor(config: Dict[Text, Any], incident: Dict[Text, Any], inci
 
     # Varieties are "tags" on actors and we do not want to include all type of actors
     # Make sure at least one of the varieties are in the list of the configured varieties to include
-    if any([variety in config["threat_actor_variety"] for variety in external_actor.get("variety", [])]):
-        threat_actors = [ta.strip() for ta in incident.get("actor", {}).get("external", {}).get("name", [])]
+    if any(
+        [
+            variety in config["threat_actor_variety"]
+            for variety in external_actor.get("variety", [])
+        ]
+    ):
+        threat_actors = [
+            ta.strip()
+            for ta in incident.get("actor", {}).get("external", {}).get("name", [])
+        ]
 
         for ta in threat_actors:
             try:
                 handle_fact(
-                    config["actapi"].fact("attributedTo")
+                    config["actapi"]
+                    .fact("attributedTo")
                     .source("incident", incident_id)
                     .destination("threatActor", format_threat_actor(ta)),
-                    output_format=config["output_format"]
+                    output_format=config["output_format"],
                 )
             except ValidationError as e:
                 error(str(e))
 
 
-def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
-    "Create content -classifiedAs-> tool, and fact chain from content to incident. "
+def handle_tool(
+    config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text
+) -> None:
+    "Create content -classifiedAs-> tool, and fact chain from content to incident."
 
     # Both "," and ";" are used to separate tools :(
 
     tools = [
         malware.strip().lower()
-        for malware in re.split(r';|,', incident.get("action", {}).get("malware", {}).get("name", ""))
-        if malware]
+        for malware in re.split(
+            r";|,", incident.get("action", {}).get("malware", {}).get("name", "")
+        )
+        if malware
+    ]
 
     for tool in tools:
         try:
             chain = act.api.fact.fact_chain(
-                config["actapi"].fact("classifiedAs")
+                config["actapi"]
+                .fact("classifiedAs")
                 .source("content", "*")
                 .destination("tool", format_tool(tool)),
-                config["actapi"].fact("observedIn")
+                config["actapi"]
+                .fact("observedIn")
                 .source("content", "*")
                 .destination("incident", incident_id),
             )
@@ -184,42 +229,49 @@ def handle_tool(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id:
             handle_fact(fact, output_format=config["output_format"])
 
 
-def handle_campaign(config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text) -> None:
+def handle_campaign(
+    config: Dict[Text, Any], incident: Dict[Text, Any], incident_id: Text
+) -> None:
     """
     Create incident -attributedTo-> campaign facts
     If we have a mapping from campaign (UUID) to name, a campaign -name-> will also be created
     """
 
-    campaign = "{}-{}".format(
-        config["veris_prefix"],
-        incident["campaign_id"]) if incident.get("campaign_id") else None
+    campaign = (
+        "{}-{}".format(config["veris_prefix"], incident["campaign_id"])
+        if incident.get("campaign_id")
+        else None
+    )
 
     if not campaign:
         return
 
     handle_fact(
-        config["actapi"].fact("attributedTo")
+        config["actapi"]
+        .fact("attributedTo")
         .source("incident", incident_id)
         .destination("campaign", campaign),
-        output_format=config["output_format"]
+        output_format=config["output_format"],
     )
 
     name = config["campaign_map"].get(format(campaign))
 
     if name:
         handle_fact(
-            config["actapi"].fact("name", name)
-            .source("campaign", campaign),
-            output_format=config["output_format"]
+            config["actapi"].fact("name", name).source("campaign", campaign),
+            output_format=config["output_format"],
         )
 
     else:
-        warning("No name found for campaign {}. Make sure veris-campaign is provided and the ID is included in csv field (without prefix)".format(campaign))
+        warning(
+            "No name found for campaign {}. Make sure veris-campaign is provided and the ID is included in csv field (without prefix)".format(
+                campaign
+            )
+        )
 
 
 def handle_incident(config: Dict[Text, Any], incident: Dict[Text, Any]) -> None:
-    """ handle veris incidents
-    """
+    """handle veris incidents"""
 
     incident_id = "{}-{}".format(config["veris_prefix"], incident["incident_id"])
 
@@ -237,7 +289,7 @@ def handle_zip_file(config: Dict[Text, Any], zfile: Union[Text, io.BytesIO]) -> 
     zf = zipfile.ZipFile(zfile, "r")
 
     for fileinfo in zf.infolist():
-        for incident in json.loads(zf.read(fileinfo).decode('utf-8')):
+        for incident in json.loads(zf.read(fileinfo).decode("utf-8")):
             handle_incident(config, incident)
 
 
@@ -253,7 +305,11 @@ def process(config: Dict[Text, Any]) -> None:
 
     # Download incidents from URL
     if config["veris_url"]:
-        req = requests.get(config["veris_url"], proxies=config["proxies"], timeout=config["http_timeout"])
+        req = requests.get(
+            config["veris_url"],
+            proxies=config["proxies"],
+            timeout=config["http_timeout"],
+        )
         if config["veris_url"].endswith(".zip"):
             handle_zip_file(config, io.BytesIO(req.content))
         else:
@@ -279,7 +335,10 @@ def get_campaigns(veris_prefix: Text, filename: Text) -> Optional[Dict[Text, Tex
     Get mapping from campaign (UUID) to name
     """
     with open(filename) as csvfile:
-        return {"{}-{}".format(veris_prefix, row[0]): row[1] for row in csv.reader(csvfile, delimiter=',')}
+        return {
+            "{}-{}".format(veris_prefix, row[0]): row[1]
+            for row in csv.reader(csvfile, delimiter=",")
+        }
 
 
 def main() -> None:
@@ -302,36 +361,37 @@ def main() -> None:
     args.veris_prefix = args.veris_prefix.upper()
 
     if not os.path.isfile(args.country_codes):
-        cli.fatal("Country/region file not found at specified location: {}".format(args.country_codes), 2)
+        cli.fatal(
+            "Country/region file not found at specified location: {}".format(
+                args.country_codes
+            ),
+            2,
+        )
 
-    args.threat_actor_variety = [variety.strip() for variety in args.threat_actor_variety.split(",")]
+    args.threat_actor_variety = [
+        variety.strip() for variety in args.threat_actor_variety.split(",")
+    ]
 
     # Configuration object that will be passed around to functions
     config = {
         # act API
         "actapi": actapi,
-
         # Map of CC -> Country Name
         "cn_map": get_cn_map(args.country_codes),
-
         # Map of CC -> Country Name
-        "campaign_map": get_campaigns(args.veris_prefix, args.veris_campaign) if args.veris_campaign else {},
-
+        "campaign_map": get_campaigns(args.veris_prefix, args.veris_campaign)
+        if args.veris_campaign
+        else {},
         # Cache of url > sha256
         "db_cache": urlcache.URLCache(
             requests_common_kwargs={
-                "proxies": {
-                    'http': args.proxy_string,
-                    'https': args.proxy_string
-                },
-                "timeout": args.http_timeout
-            }),
-
-        "proxies": {
-            'http': args.proxy_string,
-            'https': args.proxy_string
-        } if args.proxy_string else None,
-
+                "proxies": {"http": args.proxy_string, "https": args.proxy_string},
+                "timeout": args.http_timeout,
+            }
+        ),
+        "proxies": {"http": args.proxy_string, "https": args.proxy_string}
+        if args.proxy_string
+        else None,
     }
 
     # Add all arguments from args to config
@@ -349,5 +409,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

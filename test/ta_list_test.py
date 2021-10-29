@@ -8,7 +8,7 @@ from act.workers.update_ta_aliases_list import add_ta_to_map, add_ta_alias_to_ma
 
 def test_add_ta_to_map():
     # reads file with objects from ACT
-    with open('test/objects.json', 'r') as infile:
+    with open("test/objects.json", "r") as infile:
         ta = set(json.loads(infile.read()))
 
     ta_map = add_ta_to_map(ta)  # adds all objects to map.
@@ -20,13 +20,13 @@ def test_add_ta_to_map():
 def test_add_ta_alias_to_map():
 
     # reads file with objects from ACT
-    with open('test/objects.json', 'r') as infile:
+    with open("test/objects.json", "r") as infile:
         ta = set(json.loads(infile.read()))
 
     ta_map = add_ta_to_map(ta)  # adds all objects to map.
 
     # reads file with facts from ACT
-    with open('test/facts.json', 'r') as infile:
+    with open("test/facts.json", "r") as infile:
         data = json.loads(infile.read())
         ta_aliases = set()
         for i in data:
