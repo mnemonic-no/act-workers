@@ -106,5 +106,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

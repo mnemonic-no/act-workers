@@ -38,33 +38,44 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MAX_RECURSIVE = 10  # max number of redirects to attempt to follow (failsafe)
 
 
-def check_redirect(url: Text, url_shorteners: List[Text], user_agent: Text,
-                   proxies: Dict[Text, Text], timeout: int = 30) -> Text:
+def check_redirect(
+    url: Text,
+    url_shorteners: List[Text],
+    user_agent: Text,
+    proxies: Dict[Text, Text],
+    timeout: int = 30,
+) -> Text:
     """Take a url. Attempt to make it a http:// url and check if it is to one
     of the known url shortening services. If it is.. find the first redirect"""
 
-    headers = {'User-agent': user_agent}
+    headers = {"User-agent": user_agent}
 
     org_url = url
 
     p = urlparse(url)
-    if p.scheme == '':
+    if p.scheme == "":
         url = "http://{}".format(url)
     p = urlparse(url)
 
     if p.hostname not in url_shorteners:
         return org_url
 
-    r = requests.get(url, allow_redirects=False, timeout=timeout, headers=headers, proxies=proxies)
+    r = requests.get(
+        url, allow_redirects=False, timeout=timeout, headers=headers, proxies=proxies
+    )
     if r.is_redirect:
         return str(r.next.url)  # type: ignore
 
     return org_url
 
 
-def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
-            proxies: Dict[Text, Text],
-            output_format: Text = "json") -> None:
+def process(
+    api: act.api.Act,
+    shorteners: List[Text],
+    user_agent: Text,
+    proxies: Dict[Text, Text],
+    output_format: Text = "json",
+) -> None:
     """Read queries from stdin, resolve each one through passivedns printing
     generic_uploader data to stdout"""
 
@@ -95,7 +106,9 @@ def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
             act.api.helpers.handle_fact(
                 api.fact("redirectsTo")
                 .source("uri", query)
-                .destination("uri", redirect), output_format=output_format)
+                .destination("uri", redirect),
+                output_format=output_format,
+            )
 
             query = redirect
 
@@ -103,12 +116,18 @@ def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
 def parseargs() -> argparse.Namespace:
     parser = worker.parseargs("URL unshortener worker")
 
-    parser.add_argument("--url-shorteners", dest="url_shorteners",
-                        default="adf.ly, bit.ly, bitly.com, cc.uz, evassmat.com, goo.gl, is.gd, lnkd.in, smarturl.it, www.t2m.io, tiny.cc, tinyurl.com, x.co",
-                        help="Comma separated list of shortener-domains")
-    parser.add_argument("--user-agent", dest="user_agent",
-                        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
-                        help="User-agent to present to the redirect services")
+    parser.add_argument(
+        "--url-shorteners",
+        dest="url_shorteners",
+        default="adf.ly, bit.ly, bitly.com, cc.uz, evassmat.com, goo.gl, is.gd, lnkd.in, smarturl.it, www.t2m.io, tiny.cc, tinyurl.com, x.co",
+        help="Comma separated list of shortener-domains",
+    )
+    parser.add_argument(
+        "--user-agent",
+        dest="user_agent",
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
+        help="User-agent to present to the redirect services",
+    )
 
     return cli.handle_args(parser)
 
@@ -127,10 +146,11 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    proxies = {
-        'http': args.proxy_string,
-        'https': args.proxy_string
-    } if args.proxy_string else None
+    proxies = (
+        {"http": args.proxy_string, "https": args.proxy_string}
+        if args.proxy_string
+        else None
+    )
 
     process(actapi, shorteners, args.user_agent, proxies, args.output_format)
 
@@ -144,5 +164,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

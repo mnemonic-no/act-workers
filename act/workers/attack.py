@@ -32,7 +32,7 @@ class NotificationError(Exception):
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
+    """Parse arguments"""
     parser = worker.parseargs("Mitre ATT&CK worker")
     parser.add_argument(
         "--smtphost",
@@ -66,17 +66,18 @@ def parseargs() -> argparse.ArgumentParser:
 
 def deprecated_or_revoked(obj):
     """
-        Return true if object has a truthy "revoked" or "deprecated" attribute,
-        otherwise False
+    Return true if object has a truthy "revoked" or "deprecated" attribute,
+    otherwise False
     """
     return getattr(obj, "revoked", None) or getattr(obj, "deprecated", None)
 
 
 def handle_techniques(
-        client: Act,
-        technique: "AttckTechnique",
-        main_technique: Optional["AttckTechnique"],
-        output_format: Text = "json") -> List:
+    client: Act,
+    technique: "AttckTechnique",
+    main_technique: Optional["AttckTechnique"],
+    output_format: Text = "json",
+) -> List:
 
     """
     Args:
@@ -121,9 +122,8 @@ def handle_techniques(
 
 
 def add_techniques(
-        client: Act,
-        matrice: AttckMatrice,
-        output_format: Text = "json") -> List:
+    client: Act, matrice: AttckMatrice, output_format: Text = "json"
+) -> List:
     """
         extract objects/facts related to ATT&CK techniques
 
@@ -146,9 +146,8 @@ def add_techniques(
 
 
 def add_groups(
-        client: Act,
-        matrice: AttckMatrice,
-        output_format: Text = "json") -> List:
+    client: Act, matrice: AttckMatrice, output_format: Text = "json"
+) -> List:
     """
         extract objects/facts related to ATT&CK Threat Actors
 
@@ -170,7 +169,10 @@ def add_groups(
             if actor.name != alias:
                 handle_fact(
                     client.fact("alias").bidirectional(
-                        "threatActor", format_threat_actor(actor.name), "threatActor", format_threat_actor(alias)
+                        "threatActor",
+                        format_threat_actor(actor.name),
+                        "threatActor",
+                        format_threat_actor(alias),
                     ),
                     output_format=output_format,
                 )
@@ -212,9 +214,8 @@ def add_groups(
 
 
 def add_software(
-        client: Act,
-        matrice: AttckMatrice,
-        output_format: Text = "json") -> List:
+    client: Act, matrice: AttckMatrice, output_format: Text = "json"
+) -> List:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
@@ -382,7 +383,7 @@ def send_notification(
 
 
 def main() -> None:
-    """ Main function """
+    """Main function"""
 
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
@@ -390,10 +391,11 @@ def main() -> None:
 
     actapi = worker.init_act(args)
 
-    proxies = {
-        'http': args.proxy_string,
-        'https': args.proxy_string
-    } if args.proxy_string else None
+    proxies = (
+        {"http": args.proxy_string, "https": args.proxy_string}
+        if args.proxy_string
+        else None
+    )
 
     attack = Attck(proxies=proxies)
 

@@ -22,7 +22,9 @@ from act.api.libs import cli
 # Inspect object search function to get list of valid arguments and their defaults
 VALID_SEARCH_OPTIONS: Dict[str, Any] = {
     arg: parameter.default
-    for arg, parameter in inspect.signature(act.api.Act.object_search).parameters.items()
+    for arg, parameter in inspect.signature(
+        act.api.Act.object_search
+    ).parameters.items()
     if arg != "self"
 }
 
@@ -33,18 +35,18 @@ SEARCH_OPTIONS_FUNC: Dict = {
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Search Graph')
-    parser.add_argument('--search-jobs', help="Search jobs (ini-file)")
+    """Parse arguments"""
+    parser = worker.parseargs("Search Graph")
+    parser.add_argument("--search-jobs", help="Search jobs (ini-file)")
     parser.add_argument(
-        '--output-path',
-        help="Output-path for result files (default=.)",
-        default=".")
+        "--output-path", help="Output-path for result files (default=.)", default="."
+    )
     parser.add_argument(
-        '--workers',
+        "--workers",
         type=int,
         default=4,
-        help="Number of parallel workers for graph search")
+        help="Number of parallel workers for graph search",
+    )
 
     return parser
 
@@ -56,20 +58,28 @@ def parse_search_jobs(config_filename: Text) -> Dict:
     return {section: dict(config.items(section)) for section in config.sections()}
 
 
-def traverse(api: act.api.Act, name: Text, weburl: Text, obj: act.api.obj.Object, query: Text, minfacts: int) -> Text:
+def traverse(
+    api: act.api.Act,
+    name: Text,
+    weburl: Text,
+    obj: act.api.obj.Object,
+    query: Text,
+    minfacts: int,
+) -> Text:
     output = ""
     try:
         # Replace all whitespace that is not within quotes
         # https://stackoverflow.com/questions/9577930/regular-expression-to-select-all-whitespace-that-isnt-in-quotes
 
-        query_url = re.sub(r'\s+(?=([^"]*"[^"]*")*[^"]*$)', '', query)
+        query_url = re.sub(r'\s+(?=([^"]*"[^"]*")*[^"]*$)', "", query)
         info("{} -> {}".format(obj, query_url))
         res = api.object(obj.type, obj.value).traverse(query)
 
         facts = {str(obj) for obj in res if isinstance(obj, act.api.fact.Fact)}
         if len(facts) >= minfacts:
             output += """[{}:{}]\n{}/graph-query/{}/{}/{}\n""".format(
-                name, obj, weburl, obj.type.name, obj.value, query_url)
+                name, obj, weburl, obj.type.name, obj.value, query_url
+            )
 
             # String representation of all facts (joined with newlines)
             output += "\n".join(facts)
@@ -80,7 +90,9 @@ def traverse(api: act.api.Act, name: Text, weburl: Text, obj: act.api.obj.Object
     return output
 
 
-def process(actapi: act.api.Act, output_path: Text, name: Text, options: Dict, workers: int) -> None:
+def process(
+    actapi: act.api.Act, output_path: Text, name: Text, options: Dict, workers: int
+) -> None:
     if "query" not in options:
         error("No query specified in {}, skipping".format(name))
         return
@@ -88,13 +100,14 @@ def process(actapi: act.api.Act, output_path: Text, name: Text, options: Dict, w
     # Extract query as separate option
     query = options["query"]
     blacklist = options.get("blacklist", "").split(",")
-    object_value_re = options.get("object_value_re", r'.*')
+    object_value_re = options.get("object_value_re", r".*")
     weburl = options.get("weburl", actapi.config.act_baseurl)
     minfacts = int(options.get("minfacts", 1))
 
     filename = os.path.join(
         output_path,
-        "{}-{}.result".format(datetime.datetime.now().strftime("%Y-%m-%d-%H-%m"), name))
+        "{}-{}.result".format(datetime.datetime.now().strftime("%Y-%m-%d-%H-%m"), name),
+    )
 
     info("Result will be written to {}".format(filename))
 
@@ -110,14 +123,20 @@ def process(actapi: act.api.Act, output_path: Text, name: Text, options: Dict, w
                 continue
 
             if key not in VALID_SEARCH_OPTIONS:
-                error("Illegal query option ({}) specified in {}, skipping".format(key, name))
+                error(
+                    "Illegal query option ({}) specified in {}, skipping".format(
+                        key, name
+                    )
+                )
                 return
 
             if key in SEARCH_OPTIONS_FUNC:
                 search_options[key] = SEARCH_OPTIONS_FUNC[key](value)
             elif VALID_SEARCH_OPTIONS[key] == []:
                 # Split values on comma (except escaped commas)
-                search_options[key] = [value.strip() for value in re.split(r'(?<!\\),', value) if value]
+                search_options[key] = [
+                    value.strip() for value in re.split(r"(?<!\\),", value) if value
+                ]
             else:
                 search_options[key] = value
 
@@ -126,7 +145,10 @@ def process(actapi: act.api.Act, output_path: Text, name: Text, options: Dict, w
         try:
             objects = actapi.object_search(**search_options)
         except Exception:
-            error("Fatal: object search exception: {}".format(search_options), exc_info=True)
+            error(
+                "Fatal: object search exception: {}".format(search_options),
+                exc_info=True,
+            )
             return
 
         if objects.size != objects.count:
@@ -137,12 +159,16 @@ def process(actapi: act.api.Act, output_path: Text, name: Text, options: Dict, w
         with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
 
             future_traverse = {
-                executor.submit(traverse, actapi, name, weburl, obj, query, minfacts): str(obj)
+                executor.submit(
+                    traverse, actapi, name, weburl, obj, query, minfacts
+                ): str(obj)
                 for obj in objects
                 if (str(obj) not in blacklist) and re.search(object_value_re, obj.value)
             }
 
-            for idx, future in enumerate(concurrent.futures.as_completed(future_traverse)):
+            for idx, future in enumerate(
+                concurrent.futures.as_completed(future_traverse)
+            ):
                 obj = future_traverse[future]
                 try:
                     data = future.result()
@@ -186,5 +212,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

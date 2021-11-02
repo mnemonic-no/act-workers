@@ -15,23 +15,21 @@ from act.workers.libs import worker
 from act.api.libs import cli
 import os
 
+
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Map tool aliases')
+    """Parse arguments"""
+    parser = worker.parseargs("Map tool aliases")
     parser.add_argument(
-        '--threshold',
-        type=float,
-        default=0.5,
-        help="Threshold for Jaccard index")
+        "--threshold", type=float, default=0.5, help="Threshold for Jaccard index"
+    )
     parser.add_argument(
-        '--submit',
-        default=False,
-        action="store_true",
-        help="Submit alias to platform")
+        "--submit", default=False, action="store_true", help="Submit alias to platform"
+    )
     parser.add_argument(
-        '--exclude_tools',
+        "--exclude_tools",
         default="^\[placeholder\[[a-f0-9]{64}\]\]$",
-        help="Tool patterns to exclude")
+        help="Tool patterns to exclude",
+    )
     return parser
 
 
@@ -45,7 +43,9 @@ def search_tools(api: act.api.Act, ignore_pattern: Text) -> Dict:
     tools = defaultdict(list)
     objects = api.object_search(object_type="tool", limit=10000)
     for obj in objects:
-        facts = api.fact_search(object_type="content", object_value=obj.value, limit=10000)
+        facts = api.fact_search(
+            object_type="content", object_value=obj.value, limit=10000
+        )
         for fact in facts:
             if re.match(ignore_pattern, fact.source_object.value):
                 continue
@@ -56,16 +56,23 @@ def search_tools(api: act.api.Act, ignore_pattern: Text) -> Dict:
 def get_aliases(api: act.api.Act, tool_names: List) -> Dict:
     aliases = defaultdict(list)
     for tool in tool_names:
-        result = api.fact_search(object_type="tool", fact_type="alias", object_value=tool)
+        result = api.fact_search(
+            object_type="tool", fact_type="alias", object_value=tool
+        )
         for fact in result:
             aliases[tool].append(fact.destination_object.value)
     return aliases
 
 
-def handle_alias(api: act.api.Act, tool1: Text, tool2: Text, submit: bool, output_format: Text = "json"):
+def handle_alias(
+    api: act.api.Act,
+    tool1: Text,
+    tool2: Text,
+    submit: bool,
+    output_format: Text = "json",
+):
     try:
-        fact = api.fact("alias") \
-                    .bidirectional("tool", tool1, "tool", tool2)
+        fact = api.fact("alias").bidirectional("tool", tool1, "tool", tool2)
         if submit:
             handle_fact(fact)
         elif output_format == "json":
@@ -108,5 +115,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

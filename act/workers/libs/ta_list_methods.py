@@ -4,17 +4,18 @@ import act
 
 
 def create_api_agent(baseurl, userid):
-    """ creates an ACT API agent """
+    """creates an ACT API agent"""
     c = act.Act(baseurl, userid, log_level="info")
     return c
 
 
 def get_all_ta_from_act(baseurl, userid):
-    """ gets set of all threat actor names in the ACT platform.
-    Note that limit is set to 1000. """
+    """gets set of all threat actor names in the ACT platform.
+    Note that limit is set to 1000."""
 
-    objects = create_api_agent(baseurl,
-                               userid).object_search(object_type=["threatActor"], limit=1000)
+    objects = create_api_agent(baseurl, userid).object_search(
+        object_type=["threatActor"], limit=1000
+    )
 
     ta_set = set()
 
@@ -25,12 +26,12 @@ def get_all_ta_from_act(baseurl, userid):
 
 
 def get_all_alias_facts_from_act(baseurl, userid):
-    """ gets set of all bindings between threat actor and threat actor aliases
-    from ACT. Note that limit is set to 1000. """
+    """gets set of all bindings between threat actor and threat actor aliases
+    from ACT. Note that limit is set to 1000."""
 
-    facts = create_api_agent(baseurl, userid).\
-        fact_search(object_type=["threatActor"],
-                    fact_type=["threatActorAlias"], limit=1000)
+    facts = create_api_agent(baseurl, userid).fact_search(
+        object_type=["threatActor"], fact_type=["threatActorAlias"], limit=1000
+    )
 
     ta_set_facts = set()
     for fa in facts:
@@ -41,9 +42,9 @@ def get_all_alias_facts_from_act(baseurl, userid):
 
 
 def add_ta_to_map(ta_set):
-    """ adds all threat actor names given in a set to a map.
+    """adds all threat actor names given in a set to a map.
     The map is a defaultdict with sets, each set containing a key and all
-    relevant aliases for that key as values. """
+    relevant aliases for that key as values."""
 
     ta_map = defaultdict(set)
     for ta in ta_set:
@@ -52,9 +53,9 @@ def add_ta_to_map(ta_set):
 
 
 def add_ta_alias_to_map(ta_aliases, ta_map):
-    """ adds alias to the ta_map. Needs arguments ta_map defaultdict with sets,
+    """adds alias to the ta_map. Needs arguments ta_map defaultdict with sets,
     and tuples with two strings in each. Assumes that all threat actors are
-    already in the ta_map. """
+    already in the ta_map."""
 
     for tup in ta_aliases:
         ta1, ta2 = tup
@@ -68,7 +69,7 @@ def add_ta_alias_to_map(ta_aliases, ta_map):
 
 
 def decide_on_key(k_decide, v_decide, config_dict):
-    """ checks with old config file to decide on key in new config file. """
+    """checks with old config file to decide on key in new config file."""
 
     # if key is within the keys in the current configfile,
     # then return that value from v as key and the rest as aliases.
@@ -92,7 +93,8 @@ def decide_on_key(k_decide, v_decide, config_dict):
 
 
 def create_config(ta_map, aliasfile, newaliasfile):
-    """ creates config file from ta_map, defaultdict with set."""
+    """creates config file from ta_map, defaultdict with set."""
+
     def config_split(l):
         k, v = l.split(":")
         return k, [x.strip() for x in v.split(",")]
@@ -116,8 +118,9 @@ def create_config(ta_map, aliasfile, newaliasfile):
             else:
                 k_decide_key = k[:]
                 v_decide_key = set(v)
-                ta_name, ta_aliases = decide_on_key(k_decide_key, v_decide_key,
-                                                    config_dict)
+                ta_name, ta_aliases = decide_on_key(
+                    k_decide_key, v_decide_key, config_dict
+                )
                 config.write("{}: {}\n".format(ta_name, ",".join(ta_aliases)))
                 v.remove(k)
                 for x in v:

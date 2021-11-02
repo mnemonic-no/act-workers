@@ -17,21 +17,21 @@ from act.workers.libs import worker
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Generic uploader')
-    parser.add_argument('--allow-default-origin',
-                        action="store_true",
-                        help="Allow facts without origin")
-    parser.add_argument('--timing',
-                        action="store_true",
-                        help="Add timing operations at warn level")
+    """Parse arguments"""
+    parser = worker.parseargs("Generic uploader")
+    parser.add_argument(
+        "--allow-default-origin", action="store_true", help="Allow facts without origin"
+    )
+    parser.add_argument(
+        "--timing", action="store_true", help="Add timing operations at warn level"
+    )
 
     return parser
 
 
-def main(actapi: act.api.Act,
-         timing: bool = False,
-         allow_default_origin: bool = False) -> None:
+def main(
+    actapi: act.api.Act, timing: bool = False, allow_default_origin: bool = False
+) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
     be the on the form accepted by the ACT Rest API fact API."""
@@ -49,7 +49,9 @@ def main(actapi: act.api.Act,
             continue
 
         # Create either Fact or MetaFact, if we have the inReferenceTo field populated or not
-        fact = actapi.meta_fact(**data) if "inReferenceTo" in data else actapi.fact(**data)
+        fact = (
+            actapi.meta_fact(**data) if "inReferenceTo" in data else actapi.fact(**data)
+        )
 
         if not allow_default_origin:
             if not (fact.origin and (fact.origin.id or fact.origin.name)):
@@ -91,9 +93,11 @@ def main(actapi: act.api.Act,
 
     for fact in metafacts:
         if fact.in_reference_to not in facts:
-            error("Recieved metafact that references unknown fact. "
-                  "This error can occur if the fact is not submitted in the same file "
-                  "or the fact fails to validate.")
+            error(
+                "Recieved metafact that references unknown fact. "
+                "This error can occur if the fact is not submitted in the same file "
+                "or the fact fails to validate."
+            )
             continue
 
         # Update ID of referenced fact from cache
@@ -115,7 +119,7 @@ def main(actapi: act.api.Act,
             round(sum(handle_fact_time) / len(handle_fact_time), 2),
             round(min(handle_fact_time), 2),
             round(max(handle_fact_time), 2),
-            "+".join(origins)
+            "+".join(origins),
         )
 
 
@@ -133,5 +137,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

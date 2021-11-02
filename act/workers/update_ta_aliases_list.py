@@ -2,24 +2,44 @@
 import json
 import os
 import argparse
-from act.workers.libs.ta_list_methods import get_all_ta_from_act, get_all_alias_facts_from_act, \
-    add_ta_to_map, add_ta_alias_to_map, create_config
+from act.workers.libs.ta_list_methods import (
+    get_all_ta_from_act,
+    get_all_alias_facts_from_act,
+    add_ta_to_map,
+    add_ta_alias_to_map,
+    create_config,
+)
 
 from act.workers.libs import worker
 from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Updates list of threat actor aliases from an ACT platform')
-    parser.add_argument('--aliasfile', required=True, help=".cfg-file with \
-        existing threat actor aliases")
-    parser.add_argument('--newaliasfile', required=True, help="name of \
-        .cfg-file with updated list of threat actor aliases")
-    parser.add_argument('--output-json', action='store_true', help="Enable \
-        this flag if json testfiles should be created.")
+    """Parse arguments"""
+    parser = worker.parseargs(
+        "Updates list of threat actor aliases from an ACT platform"
+    )
+    parser.add_argument(
+        "--aliasfile",
+        required=True,
+        help=".cfg-file with \
+        existing threat actor aliases",
+    )
+    parser.add_argument(
+        "--newaliasfile",
+        required=True,
+        help="name of \
+        .cfg-file with updated list of threat actor aliases",
+    )
+    parser.add_argument(
+        "--output-json",
+        action="store_true",
+        help="Enable \
+        this flag if json testfiles should be created.",
+    )
 
     return parser
+
 
 def main():
     """main function"""
@@ -39,10 +59,10 @@ def main():
 
     # save ta and ta_aliases to json test file
     if args.output_json:
-        with open('test/objects.json', 'w') as outfile:
+        with open("test/objects.json", "w") as outfile:
             outfile.write(json.dumps(list(threatactors)))
 
-        with open('test/facts.json', 'w') as outfile:
+        with open("test/facts.json", "w") as outfile:
             outfile.write(json.dumps(list(ta_aliases)))
 
     # adds all ta names from threatActor objects from ACT into ta_map

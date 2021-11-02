@@ -26,11 +26,14 @@ except ModuleNotFoundError:  # Python3
 
 
 def parseargs() -> argparse.ArgumentParser:
-    """ Parse arguments """
-    parser = worker.parseargs('Get MISP feeds from MISP sharing directories')
+    """Parse arguments"""
+    parser = worker.parseargs("Get MISP feeds from MISP sharing directories")
 
-    parser.add_argument('--manifest-dir', default=caep.get_cache_dir('misp_manifest'),
-                        help='The directory to store latest manifests')
+    parser.add_argument(
+        "--manifest-dir",
+        default=caep.get_cache_dir("misp_manifest"),
+        help="The directory to store latest manifests",
+    )
 
     return parser
 
@@ -40,8 +43,8 @@ def verify_manifest_dir(manifest_dir: Text) -> None:
     always a feed file (Even empty)"""
 
     # Manifest is at default location - create directory if it does not exists
-    if manifest_dir == caep.get_cache_dir('misp_manifest'):
-        caep.get_cache_dir('misp_manifest', create=True)
+    if manifest_dir == caep.get_cache_dir("misp_manifest"):
+        caep.get_cache_dir("misp_manifest", create=True)
 
     # If there is specified a manifest directory in the .ini file we
     # verify that it exists (or fail hard). If no such directory
@@ -53,13 +56,18 @@ def verify_manifest_dir(manifest_dir: Text) -> None:
 
     # Check that the misp_feeds.txt file actually exists. If not 'touch'
     # the file to make sure there is at least some default config present.
-    feed_file = os.path.join(manifest_dir, 'misp_feeds.txt')
+    feed_file = os.path.join(manifest_dir, "misp_feeds.txt")
     if not os.path.isfile(feed_file):
-        with open(feed_file, 'w') as feed_h:
+        with open(feed_file, "w") as feed_h:
             feed_h.write("https://www.circl.lu/doc/misp/feed-osint/")
 
 
-def handle_event_file(feed_url: Text, uuid: Text, proxy_string: Optional[Text] = None, cert_file: Optional[Text] = None) -> misp.Event:
+def handle_event_file(
+    feed_url: Text,
+    uuid: Text,
+    proxy_string: Optional[Text] = None,
+    cert_file: Optional[Text] = None,
+) -> misp.Event:
     """Download, parse and store single event file"""
 
     info("Handling {0} from {1}".format(uuid, feed_url))
@@ -67,30 +75,26 @@ def handle_event_file(feed_url: Text, uuid: Text, proxy_string: Optional[Text] =
     proxies: Optional[Dict[Text, Text]] = None
 
     if proxy_string:
-        proxies = {
-            'http': proxy_string,
-            'https': proxy_string
-        }
+        proxies = {"http": proxy_string, "https": proxy_string}
 
     url = urlparse.urljoin(feed_url, "{0}.json".format(uuid))
     req = requests.get(url, proxies=proxies, verify=cert_file)
     return misp.Event(loads=req.text)
 
 
-def handle_feed(manifest_dir: Text,
-                feed_url: Text,
-                proxy_string: Optional[Text] = None,
-                cert_file: Optional[Text] = None) -> Generator[misp.Event, None, None]:
+def handle_feed(
+    manifest_dir: Text,
+    feed_url: Text,
+    proxy_string: Optional[Text] = None,
+    cert_file: Optional[Text] = None,
+) -> Generator[misp.Event, None, None]:
     """Get the manifest file, check if an event file is downloaded
     before (cache) and dispatch event handling of separate files"""
 
     proxies: Optional[Dict[Text, Text]] = None
 
     if proxy_string:
-        proxies = {
-            'http': proxy_string,
-            'https': proxy_string
-        }
+        proxies = {"http": proxy_string, "https": proxy_string}
 
     manifest_url = urlparse.urljoin(feed_url, "manifest.json")
     req = requests.get(manifest_url, proxies=proxies, verify=cert_file)
@@ -132,15 +136,17 @@ def main() -> None:
 
     with open(misp_feeds_file) as f:
         for line in f:
-            feed_data = handle_feed(manifest_dir, line.strip(), args.proxy_string, args.cert_file)
+            feed_data = handle_feed(
+                manifest_dir, line.strip(), args.proxy_string, args.cert_file
+            )
             for event in feed_data:
                 n = 0
                 e = 0
 
                 act.api.helpers.handle_fact(
-                    actapi.fact("name", event.info)
-                    .source("report", str(event.uuid)),
-                    output_format=args.output_format)
+                    actapi.fact("name", event.info).source("report", str(event.uuid)),
+                    output_format=args.output_format,
+                )
 
                 n += 1
 
@@ -149,12 +155,17 @@ def main() -> None:
                         actapi.fact("externalLink")
                         .source("uri", "{0}/{1}.json".format(line.strip(), event.uuid))
                         .destination("report", str(event.uuid)),
-                        output_format=args.output_format)
+                        output_format=args.output_format,
+                    )
 
                     n += 1
                 except act.api.base.ResponseError as err:
                     e += 1
-                    error("misp_feeds, main unable to add fact to platform, error calling actapi: %s" % err, exc_info=True)
+                    error(
+                        "misp_feeds, main unable to add fact to platform, error calling actapi: %s"
+                        % err,
+                        exc_info=True,
+                    )
 
                 for attribute in event.attributes:
                     if not attribute.act_type:
@@ -164,11 +175,16 @@ def main() -> None:
                             actapi.fact("mentions")
                             .source("report", str(event.uuid))
                             .destination(attribute.act_type, attribute.value),
-                            output_format=args.output_format)
+                            output_format=args.output_format,
+                        )
                         n += 1
                     except act.api.base.ResponseError as err:
                         e += 1
-                        error("misp_feeds: main unable to add attribute fact to platform, error calling actapi: %s" % err, exc_info=True)
+                        error(
+                            "misp_feeds: main unable to add attribute fact to platform, error calling actapi: %s"
+                            % err,
+                            exc_info=True,
+                        )
                 info("{0} facts. {1} errors.".format(n, e))
 
 
@@ -181,5 +197,5 @@ def main_log_error() -> None:
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_log_error()

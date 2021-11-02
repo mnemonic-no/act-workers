@@ -68,22 +68,20 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
             ta_alias_names[alias_name].add(ta_name)
             ta_aliases[ta_name].append(alias_name)
 
-
     for ta_name in ta_aliases:
         for alias_name in ta_aliases[ta_name]:
 
             # This alias is mentioned for multiple main threat
             # actors so we skip this alias
             if len(ta_alias_names[alias_name]) > 1:
-                warning(f"Skipping TA alias {alias_name} <-> {ta_name} since {alias_name} is alias for multiple names: {ta_alias_names[alias_name]}")
+                warning(
+                    f"Skipping TA alias {alias_name} <-> {ta_name} since {alias_name} is alias for multiple names: {ta_alias_names[alias_name]}"
+                )
                 continue
 
             handle_fact(
                 client.fact("alias").bidirectional(
-                    "threatActor",
-                    ta_name,
-                    "threatActor",
-                    alias_name
+                    "threatActor", ta_name, "threatActor", alias_name
                 ),
                 output_format=output_format,
             )
@@ -97,10 +95,12 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                             chain = act.api.fact.fact_chain(
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("campaign", operation["activity"].split("\n")[0]),
+                                .destination(
+                                    "campaign", operation["activity"].split("\n")[0]
+                                ),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -110,7 +110,9 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                             try:
                                 handle_fact(fact, output_format=output_format)
                             except act.api.base.ValidationError as err:
-                                warning("ValidationError while storing objects: %s" % err)
+                                warning(
+                                    "ValidationError while storing objects: %s" % err
+                                )
 
 
 def add_countries(
@@ -130,7 +132,7 @@ def add_countries(
                             .destination("country", country),
                             client.fact("attributedTo")
                             .source("threatActor", format_threat_actor(actor["actor"]))
-                            .destination("organization", "*")
+                            .destination("organization", "*"),
                         )
                     except ValidationError as e:
                         error(str(e))
@@ -153,7 +155,7 @@ def add_countries(
                                 .destination("organization", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -184,7 +186,7 @@ def add_sectors(
                                 .destination("organization", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -216,7 +218,7 @@ def add_tools(
                                 .destination("incident", "*"),
                                 client.fact("attributedTo")
                                 .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta))
+                                .destination("threatActor", format_threat_actor(ta)),
                             )
                         except ValidationError as e:
                             error(str(e))
@@ -243,8 +245,7 @@ def add_tools(
             if tool1 == tool2:
                 continue
 
-            fact = client.fact("alias") \
-                         .bidirectional("tool", tool1, "tool", tool2)
+            fact = client.fact("alias").bidirectional("tool", tool1, "tool", tool2)
             handle_fact(fact)
 
 
