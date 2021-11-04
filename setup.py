@@ -57,6 +57,7 @@ setup(
         "act-api>=2.0.0,<3.0.0",
         "act-types",
         "caep",
+        "pid",
         "requests",
         "RashlyOutlaid>=0.15",
         "virustotal-api",
