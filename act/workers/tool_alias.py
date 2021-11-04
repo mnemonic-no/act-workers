@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import json
+import os
 import pprint
 import re
 import sys
@@ -9,11 +10,11 @@ from collections import defaultdict
 from logging import error, info
 from typing import Dict, List, Text
 
-import act
 import act.api
-from act.workers.libs import worker
 from act.api.libs import cli
-import os
+
+import act
+from act.workers.libs import worker
 
 
 def parseargs() -> argparse.ArgumentParser:

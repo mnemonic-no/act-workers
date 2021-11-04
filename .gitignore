@@ -1,5 +1,6 @@
 *swp
 *old
+*py~
 .*
 !.flake8
 __pycache__

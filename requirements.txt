@@ -1,7 +1,16 @@
-requests
-virustotal-api
 act-api
+act-types
+caep
+dateparser
+pid
+pyattck
 RashlyOutlaid
+<<<<<<< HEAD
 pyattck
 dateparser
 caep
+=======
+requests
+stix2
+virustotal-api
+>>>>>>> upstream/master
