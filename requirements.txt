@@ -1,10 +1,8 @@
 act-api
 act-types
 caep
-dateparser
-pid
+requests
 pyattck
 RashlyOutlaid
-pyattck
+virustotal-api
 dateparser
-caep

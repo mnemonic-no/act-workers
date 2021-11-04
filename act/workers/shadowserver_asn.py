@@ -32,9 +32,12 @@ from typing import Dict, Generator, List, Text, Tuple, Union
 
 import act.api
 import caep
+import RashlyOutlaid.api as shadowserver
 from act.api.helpers import handle_fact
-from act.workers.libs import worker
 from act.api.libs import cli
+from RashlyOutlaid.libwhois import QueryError
+
+from act.workers.libs import worker
 
 import RashlyOutlaid.api as shadowserver
 from RashlyOutlaid.libwhois import QueryError
@@ -143,10 +146,9 @@ def query_cache(
     """Query cache for all IPs in list"""
     cursor = cache.cursor()
 
-    in_list = ",".join(['"{}"'.format(ip) for ip in ip_list])
-
     for res in cursor.execute(
-        "SELECT * FROM asn WHERE ip in ({})".format(in_list)
+        "SELECT * FROM asn WHERE ip in ({})".format(",".join("?" * len(ip_list))),
+        ip_list,
     ).fetchall():
         asn_tuple = list(res[1:7])
         asn_tuple[5] = str(asn_tuple[5]).split(",")  # Split peers into list
