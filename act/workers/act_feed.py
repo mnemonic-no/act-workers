@@ -85,7 +85,7 @@ def handle_bundle(
     bundle: Text,
     actapi: act.api.Act,
     dump_dir: Path,
-    proxies: Optional[Dict] = None,
+    proxies: Optional[Dict[Text, Text]] = None,
     cert_file: Optional[Text] = None,
 ) -> None:
     """Retrieve and handle bundle file"""
@@ -112,7 +112,7 @@ def handle_feed(
     feed_uri: Text,
     actapi: act.api.Act,
     dump_dir: Path,
-    proxies: Optional[Dict] = None,
+    proxies: Optional[Dict[Text, Text]] = None,
     cert_file: Optional[Text] = None,
 ) -> int:
     """Get the manifest file, and handle new bundles"""
