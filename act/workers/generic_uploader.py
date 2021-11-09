@@ -13,6 +13,8 @@ from logging import error, warning
 import act.api
 from act.api.libs import cli
 
+from typing import Iterable
+
 from act.workers.libs import worker
 
 
@@ -30,7 +32,7 @@ def parseargs() -> argparse.ArgumentParser:
 
 
 def uploader(
-    actapi: act.api.Act, iterator, timing: bool = False, allow_default_origin: bool = False
+        actapi: act.api.Act, iterator: Iterable, timing: bool = False, allow_default_origin: bool = False
 ) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
