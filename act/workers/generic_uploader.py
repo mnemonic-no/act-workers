@@ -29,8 +29,8 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def main(
-    actapi: act.api.Act, timing: bool = False, allow_default_origin: bool = False
+def uploader(
+    actapi: act.api.Act, iterator, timing: bool = False, allow_default_origin: bool = False
 ) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
@@ -41,7 +41,7 @@ def main(
     facts = {}
     metafacts = set()
 
-    for line in sys.stdin:
+    for line in iterator:
         try:
             data = json.loads(line)
         except json.decoder.JSONDecodeError:
@@ -131,7 +131,7 @@ def main_log_error() -> None:
         args = cli.handle_args(parseargs())
         actapi = worker.init_act(args)
 
-        main(actapi, args.timing, args.allow_default_origin)
+        uploader(actapi, sys.stdin, args.timing, args.allow_default_origin)
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
