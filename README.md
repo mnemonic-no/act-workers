@@ -27,6 +27,7 @@ This will install scripts for all workers:
 * act-attack
 * act-country-regions
 * act-fact-chain-helper (see usage below)
+* act-feed
 * act-ip-filter
 * act-misp-feeds
 * act-mnemonic-pdns
