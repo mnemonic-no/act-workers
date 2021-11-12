@@ -10,6 +10,7 @@ or
 
 import argparse
 import gzip
+import hashlib
 import io
 import os
 import traceback
@@ -27,8 +28,6 @@ from act.api.libs import cli
 
 from act.workers.generic_uploader import uploader
 from act.workers.libs import worker
-
-LAST_RUN_FILENAME = "last_run"
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -56,10 +55,12 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def get_last_run_filename(feed_cache: Path) -> Path:
+def get_last_run_filename(feed_cache: Path, feed_uri: Text) -> Path:
+    """Use hash of feed as cache file, so you can run multiple processes with feed"""
     if str(feed_cache) == caep.get_cache_dir("act_feed_cache"):
         caep.get_cache_dir("act_feed_cache", create=True)
-    return feed_cache / Path(LAST_RUN_FILENAME)
+
+    return feed_cache / Path(hashlib.sha256(feed_uri.encode()).hexdigest())
 
 
 def get_last_run(last_run_file: Path) -> int:
@@ -149,7 +150,7 @@ def handle_feed(
 
     # Return "updated" from manifest. On next run - only
     # fetch files which are newer than this timestamp
-    return manifest["updated"]
+    return max(manifest["bundles"].values())
 
 
 def main() -> None:
@@ -173,7 +174,7 @@ def main() -> None:
 
     try:
         # Get "updated" from last successful run
-        last_run_filename = get_last_run_filename(args.feed_cache)
+        last_run_filename = get_last_run_filename(args.feed_cache, args.feed_uri)
 
         with pid.PidFile(force_tmpdir=True, pidname="act_feed.pid"):
             last_run = handle_feed(
