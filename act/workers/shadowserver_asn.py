@@ -289,7 +289,7 @@ def handle_ip(
         else:
             organization = re.sub(r",.*", "", res.isp).lower()
             handle_fact(
-                actapi.fact("owns", "asn")
+                actapi.fact("owns")
                 .source("organization", organization)
                 .destination("asn", res.asn),
                 output_format=output_format,
