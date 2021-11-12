@@ -168,6 +168,41 @@ A worker to run graph queries is also included. A sample search config is insclu
 act-search-graph etc/search_jobs.ini
 ```
 
+# act-feed
+
+`act-feed` can be used to download feed bundles from a remote uri. Feed uri must have a file, manifest.json, that lists all bundle files that can be download by the feed worker:
+
+```json
+{
+     "bundles": {
+          "000bd93b8ce1fa2acfa448fa916083d76e64b008e336d6f54ad89f12f4232dcf.gz": 1636355543,
+          "0598e898979bc851d58b440a3ea248fe64d9df4d2ab1665da3be73c6d13df411.gz": 1636681082,
+          "0c03f87d142345a1bbea0867c145608e70ab2c0ea8282b5e06833f5f2b0f5f04.gz": 1636366321,
+     },
+     "updated": 1636699081
+}
+```
+
+A local cache will be stored stored to keep track of the last bundle download, so bundles will not be downloaded multiple times.
+
+You can either let act-feed download files to a local directory:
+
+```bash
+act-feed --feed-uri https://act.mnemonic.no/feed --dump-dir [path]
+```
+
+output all facts to stdout:
+
+```bash
+act-feed --feed-uri https://act.mnemonic.no/feed 
+```
+
+or upload facts directory to the platform
+
+```bash
+act-feed --feed-uri https://act.mnemonic.no/feed --act-baseurl [platform UR] --user-id [USERID]
+```
+
 # act-fact-chain-helper
 
 The act-fact-chain-helper is a utility that can be used to add facts chains based on known start and end nodes. This can be usefull when adding
