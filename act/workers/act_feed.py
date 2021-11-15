@@ -52,6 +52,12 @@ def parseargs() -> argparse.ArgumentParser:
         help="The directory to store information about last run",
     )
 
+    parser.add_argument(
+        "--no-exit-on-error",
+        action="store_true",
+        help="Log errors and continue on platform upload errors",
+    )
+
     return parser
 
 
@@ -88,6 +94,7 @@ def handle_bundle(
     dump_dir: Path,
     proxies: Optional[Dict[Text, Text]] = None,
     cert_file: Optional[Text] = None,
+    no_exit_on_error: bool = False,
 ) -> None:
     """Retrieve and handle bundle file"""
 
@@ -105,18 +112,21 @@ def handle_bundle(
 
         # uploader will print facts to stdout unless act_baseurl is set
         with gzip.open(io.BytesIO(req.content), "rb") as facts:
-            uploader(actapi, facts)
+            uploader(actapi, facts, no_exit_on_error=no_exit_on_error)
 
 
 def handle_feed(
-    last_run: int,
+    last_run_filename: Path,
     feed_uri: Text,
     actapi: act.api.Act,
     dump_dir: Path,
     proxies: Optional[Dict[Text, Text]] = None,
     cert_file: Optional[Text] = None,
+    no_exit_on_error: bool = False,
 ) -> int:
     """Get the manifest file, and handle new bundles"""
+
+    last_run = get_last_run(last_run_filename)
 
     # Ensure URI ends with "/" so it can be joined with manifests/bundles
     if not feed_uri.endswith("/"):
@@ -131,7 +141,11 @@ def handle_feed(
         with open(dump_dir / Path("manifest.json"), "w") as f:
             f.write(req.text)
 
-    for bundle, updated in manifest["bundles"].items():
+    # for each bundle handled, the update time will be stored to disk
+    # so it needs to be sorted by update time
+    manifests = sorted(manifest["bundles"].items(), key=lambda item: item[1])
+
+    for bundle, updated in manifests:
         # Skip if the file is modified *before* last run
         if updated <= last_run:
             info(
@@ -146,11 +160,11 @@ def handle_feed(
             dump_dir,
             proxies,
             cert_file,
+            no_exit_on_error,
         )
 
-    # Return "updated" from manifest. On next run - only
-    # fetch files which are newer than this timestamp
-    return max(manifest["bundles"].values())
+        # update last run after sucessfull handling of bundle file
+        update_last_run(last_run_filename, updated)
 
 
 def main() -> None:
@@ -160,6 +174,9 @@ def main() -> None:
     # ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = cli.handle_args(parseargs())
+
+    if not args.feed_uri:
+        cli.fatal("--feed-uri not specified")
 
     if args.dump_dir and not args.dump_dir.is_dir():
         os.makedirs(args.dump_dir)
@@ -177,16 +194,16 @@ def main() -> None:
         last_run_filename = get_last_run_filename(args.feed_cache, args.feed_uri)
 
         with pid.PidFile(force_tmpdir=True, pidname="act_feed.pid"):
-            last_run = handle_feed(
-                get_last_run(last_run_filename),
+            handle_feed(
+                last_run_filename,
                 args.feed_uri,
                 actapi,
                 args.dump_dir,
                 proxies,
                 args.cert_file,
+                args.no_exit_on_error,
             )
 
-            update_last_run(last_run_filename, last_run)
     except pid.base.PidFileAlreadyLockedError:
         error("pid file found - feed is already running")
 

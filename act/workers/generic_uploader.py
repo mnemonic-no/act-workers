@@ -9,11 +9,11 @@ import sys
 import time
 import traceback
 from logging import error, warning
+from typing import Iterable
+from typing import Text
 
 import act.api
 from act.api.libs import cli
-
-from typing import Iterable
 
 from act.workers.libs import worker
 
@@ -28,11 +28,19 @@ def parseargs() -> argparse.ArgumentParser:
         "--timing", action="store_true", help="Add timing operations at warn level"
     )
 
+    parser.add_argument(
+        "--no-exit-on-error", action="store_true", help="Log errors and continue"
+    )
+
     return parser
 
 
 def uploader(
-        actapi: act.api.Act, iterator: Iterable, timing: bool = False, allow_default_origin: bool = False
+    actapi: act.api.Act,
+    iterator: Iterable[Text],
+    timing: bool = False,
+    allow_default_origin: bool = False,
+    no_exit_on_error: bool = False,
 ) -> None:
     """Process stdin, parse each separat line as a JSON structure and
     register a fact based on the structure. The form of input should
@@ -78,7 +86,9 @@ def uploader(
             continue
         except act.api.base.ResponseError as err:
             error("ResponseError while storing objects: %s" % err)
-            sys.exit(1)
+
+            if not no_exit_on_error:
+                sys.exit(1)
 
         # Add cache for facts to be used to populate id in meta facts
         if isinstance(fact, act.api.fact.Fact):
@@ -133,7 +143,13 @@ def main_log_error() -> None:
         args = cli.handle_args(parseargs())
         actapi = worker.init_act(args)
 
-        uploader(actapi, sys.stdin, args.timing, args.allow_default_origin)
+        uploader(
+            actapi,
+            sys.stdin,
+            args.timing,
+            args.allow_default_origin,
+            args.no_exit_on_error,
+        )
     except Exception:
         error("Unhandled exception: {}".format(traceback.format_exc()))
         raise
