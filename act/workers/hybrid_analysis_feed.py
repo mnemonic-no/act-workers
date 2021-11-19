@@ -30,9 +30,9 @@ from typing import Any, Dict, Generator, List, Optional, Text
 import requests
 
 import act.api
+from act.api.libs import cli
 from act.types.format import ValidationError, format_tool
 from act.workers.libs import worker
-from act.api.libs import cli
 
 
 def parseargs() -> argparse.ArgumentParser:
@@ -321,7 +321,10 @@ def handle_report(
     feeds_facts += handle_classification_tags(
         actapi, content, report.get("classification_tags", [])
     )
-    feeds_facts += handle_mitre_attcks(actapi, content, report.get("mitre_attcks", []))
+
+    # DISABLED DUE TO EXCESSIVE FACT CHAIN OBJECT. TO BE DISCUSSED
+    # feeds_facts += handle_mitre_attcks(actapi, content, report.get("mitre_attcks", []))
+
     feeds_facts += handle_process_list(actapi, content, report.get("process_list", []))
 
     return feeds_facts
