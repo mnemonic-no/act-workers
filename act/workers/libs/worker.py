@@ -4,17 +4,15 @@ import argparse
 import json
 import smtplib
 import socket
-import urllib.parse
 import sys
-from logging import warning
+import urllib.parse
 from email.mime.text import MIMEText
+from logging import warning
 from typing import Any, Optional
 
-
+import act.api
 import requests
 import urllib3
-
-import act.api
 
 
 class FetchError(Exception):
@@ -54,6 +52,13 @@ class ResourceLimitExceeded(Exception):
 
 class ServiceTimeout(Exception):
     """Internal service timeouts"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
+class AuthenticationError(Exception):
+    """Authentication Errors"""
 
     def __init__(self, *args: Any) -> None:
         Exception.__init__(self, *args)

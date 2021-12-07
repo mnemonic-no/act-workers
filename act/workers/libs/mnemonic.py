@@ -37,6 +37,12 @@ def status_code_handler(req: requests.models.Response, res: Dict) -> None:
 
     """
 
+    if req.status_code == 401:
+        raise worker.AuthenticationError
+
+    if req.status_code == 404:
+        raise worker.NoResult
+
     if req.status_code in (402, 503):
         # Example output on Timeout:
         # {"responseCode":503,"limit":0,"offset":0,"count":0,"metaData":{},"messages":[{"message":null,"messageTemplate":null,"type":"ACTION_ERROR","field":null,"parameter":null,"timestamp":1606137003885},{"message":"Request timed out, service may be overloaded or unavailable","messageTemplate":"service.timeout","type":"ACTION_ERROR","field":null,"parameter":null,"timestamp":1606137003993}],"data":null,"size":0}
