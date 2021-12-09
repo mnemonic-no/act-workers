@@ -36,15 +36,16 @@ import urllib.parse
 import warnings
 from functools import partialmethod
 from logging import error, info, warning
-from typing import Generator, List, Optional, Text, Tuple, Set
-
-import requests
+from typing import Generator, List, Optional, Set, Text, Tuple
 
 import act.api
+import requests
 from act.api.libs import cli
 from act.types.format import ValidationError, format_tool
-from act.workers.libs import worker
+from act.types.types import object_validates
 from virus_total_apis import PublicApi as VirusTotalApi
+
+from act.workers.libs import worker
 
 ADWARE_OVERRIDES = ["opencandy", "monetize", "adload", "somoto"]
 
@@ -228,21 +229,28 @@ def handle_hexdigest(
             urllib.parse.urlparse, [x["url"] for x in results["detected_urls"]]
         ):
             my_uri = add_uri(actapi, "fqdn", u.netloc, list(u))
-            act.api.helpers.handle_fact(
-                actapi.fact("at")
-                .source("content", content_id)
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("at")
+                    .source("content", content_id)
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
     if "undetected_urls" in results:
         for u in map(urllib.parse.urlparse, [x[0] for x in results["undetected_urls"]]):
             my_uri = add_uri(actapi, "fqdn", u.netloc, list(u))
-            act.api.helpers.handle_fact(
-                actapi.fact("at")
-                .source("content", content_id)
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("at")
+                    .source("content", content_id)
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
 
 
 def handle_ip(
@@ -305,12 +313,15 @@ def handle_ip(
 
             my_uri = add_uri(actapi, ip_type, ip, ["network", ip, "", "", "", ""])
 
-            act.api.helpers.handle_fact(
-                actapi.fact("at")
-                .source("content", sample["sha256"])
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("at")
+                    .source("content", sample["sha256"])
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
 
             act.api.helpers.handle_fact(
                 actapi.fact("represents")
@@ -327,12 +338,15 @@ def handle_ip(
         for sample in results["detected_communicating_samples"]:
             my_uri = add_uri(actapi, ip_type, ip, ["network", ip, "", "", "", ""])
 
-            act.api.helpers.handle_fact(
-                actapi.fact("connectsTo")
-                .source("content", sample["sha256"])
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("connectsTo")
+                    .source("content", sample["sha256"])
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
 
             act.api.helpers.handle_fact(
                 actapi.fact("represents")
@@ -359,10 +373,14 @@ def add_uri(
     Return: The URI added"""
     try:
         my_uri = str(urllib.parse.urlunparse(url))
+
         if my_uri in cache:
             return my_uri
 
         cache[my_uri] = True
+
+        if not object_validates("uri", my_uri):
+            return my_uri
 
         act.api.helpers.handle_fact(
             actapi.fact("componentOf")
@@ -453,12 +471,15 @@ def handle_domain(
             my_uri = add_uri(
                 actapi, "fqdn", domain, ["network", domain, "", "", "", ""]
             )
-            act.api.helpers.handle_fact(
-                actapi.fact("at")
-                .source("content", sample["sha256"])
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("at")
+                    .source("content", sample["sha256"])
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
             act.api.helpers.handle_fact(
                 actapi.fact("represents")
                 .source("hash", sample["sha256"])
@@ -474,12 +495,15 @@ def handle_domain(
             my_uri = add_uri(
                 actapi, "fqdn", domain, ["network", domain, "", "", "", ""]
             )
-            act.api.helpers.handle_fact(
-                actapi.fact("connectsTo")
-                .source("content", sample["sha256"])
-                .destination("uri", my_uri),
-                output_format=output_format,
-            )
+            if object_validates("uri", my_uri):
+                act.api.helpers.handle_fact(
+                    actapi.fact("connectsTo")
+                    .source("content", sample["sha256"])
+                    .destination("uri", my_uri),
+                    output_format=output_format,
+                )
+            else:
+                warning("uri does not pass validation: %s", my_uri)
             act.api.helpers.handle_fact(
                 actapi.fact("represents")
                 .source("hash", sample["sha256"])
