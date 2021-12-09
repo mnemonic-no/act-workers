@@ -69,8 +69,6 @@ def report_mentions_fact(
             .destination(object_type, value),
             output_format,
         )
-        except act.api.base.ResponseError as e:
-            error("Unable to create linked fact: %s" % e)
 
 
 def add_indicators_to_act(

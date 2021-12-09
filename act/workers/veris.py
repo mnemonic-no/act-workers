@@ -32,7 +32,7 @@ from typing import Any, Dict, Optional, Text, Union, cast
 import requests
 
 import act.api
-from act.api.helpers import handle_fact
+from act.api.helpers import handle_fact, handle_facts
 from act.api.libs import cli
 from act.workers.libs import urlcache, worker
 
@@ -206,19 +206,19 @@ def handle_tool(
     ]
 
     for tool in tools:
-        chain = act.api.fact.fact_chain(
-            config["actapi"]
-            .fact("classifiedAs")
-            .source("content", "*")
-            .destination("tool", tool),
-            config["actapi"]
-            .fact("observedIn")
-            .source("content", "*")
-            .destination("incident", incident_id),
+        handle_facts(
+            act.api.fact.fact_chain(
+                config["actapi"]
+                .fact("classifiedAs")
+                .source("content", "*")
+                .destination("tool", tool),
+                config["actapi"]
+                .fact("observedIn")
+                .source("content", "*")
+                .destination("incident", incident_id),
+            ), 
+            output_format=config["output_format"]
         )
-
-        for fact in chain:
-            handle_fact(fact, output_format=config["output_format"])
 
 
 def handle_campaign(

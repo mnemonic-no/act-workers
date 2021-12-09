@@ -10,7 +10,7 @@ from logging import error, info, warning
 from typing import Dict, List, Optional, Text, Union
 
 import act.api
-from act.api.helpers import Act, handle_fact
+from act.api.helpers import Act, handle_fact, handle_facts
 from act.api.libs import cli
 from pyattck import Attck
 
@@ -190,8 +190,7 @@ def add_groups(
                 .destination("threatActor", actor.name),
             )
 
-            for fact in chain:
-                handle_fact(fact, output_format=output_format)
+            handle_facts(chain, output_format=output_format)
 
         for technique in actor.techniques:
             chain = act.api.fact.fact_chain(
@@ -203,8 +202,7 @@ def add_groups(
                 .destination("threatActor", actor.name),
             )
 
-            for fact in chain:
-                handle_fact(fact, output_format=output_format)
+            handle_facts(chain, output_format=output_format)
 
     return notify
 

@@ -16,7 +16,7 @@ from itertools import combinations
 from logging import error, warning
 
 from act.workers.libs import worker
-from act.api.helpers import handle_fact
+from act.api.helpers import handle_fact, handle_facts
 from act.api.libs import cli
 
 
@@ -82,24 +82,18 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
             for operation in actor["operations"]:
                 if len(operation["activity"].split("\n")[0].split()) < 4:
                     for ta in actor["actor"].split(","):
-                        chain = act.api.fact.fact_chain(
-                            client.fact("attributedTo")
-                            .source("incident", "*")
-                            .destination(
-                                "campaign", operation["activity"].split("\n")[0]
-                            ),
-                            client.fact("attributedTo")
-                            .source("incident", "*")
-                            .destination("threatActor", ta),
-                        )
-
-                        for fact in chain:
-                            try:
-                                handle_fact(fact, output_format=output_format)
-                            except act.api.base.ValidationError as err:
-                                warning(
-                                    "ValidationError while storing objects: %s" % err
-                                )
+                        handle_facts(
+                            act.api.fact.fact_chain(
+                                client.fact("attributedTo")
+                                .source("incident", "*")
+                                .destination(
+                                    "campaign", operation["activity"].split("\n")[0]
+                                ),
+                                client.fact("attributedTo")
+                                .source("incident", "*")
+                                .destination("threatActor", ta),
+                        ), 
+                        output_format=output_format)
 
 
 def add_countries(
@@ -112,36 +106,32 @@ def add_countries(
         if "country" in actor:
             for country in actor["country"]:
                 if country.lower() in countries:
-                    chain = act.api.fact.fact_chain(
-                        client.fact("locatedIn")
-                        .source("organization", "*")
-                        .destination("country", country),
-                        client.fact("attributedTo")
-                        .source("threatActor", actor["actor"])
-                        .destination("organization", "*"),
-                    )
-
-                    for fact in chain:
-                        handle_fact(fact, output_format=output_format)
+                    handle_facts(
+                        act.api.fact.fact_chain(
+                            client.fact("locatedIn")
+                            .source("organization", "*")
+                            .destination("country", country),
+                            client.fact("attributedTo")
+                            .source("threatActor", actor["actor"])
+                            .destination("organization", "*"),
+                    ), output_format=output_format)
 
         if "observed-countries" in actor:
             for country in actor["observed-countries"]:
                 if country.lower() in countries:
                     for ta in actor["actor"].split(","):
-                        chain = act.api.fact.fact_chain(
-                            client.fact("locatedIn")
-                            .source("organization", "*")
-                            .destination("country", country),
-                            client.fact("targets")
-                            .source("incident", "*")
-                            .destination("organization", "*"),
-                            client.fact("attributedTo")
-                            .source("incident", "*")
-                            .destination("threatActor", ta),
-                        )
-
-                        for fact in chain:
-                            handle_fact(fact, output_format=output_format)
+                        handle_facts(
+                            act.api.fact.fact_chain(
+                                client.fact("locatedIn")
+                                .source("organization", "*")
+                                .destination("country", country),
+                                client.fact("targets")
+                                .source("incident", "*")
+                                .destination("organization", "*"),
+                                client.fact("attributedTo")
+                                .source("incident", "*")
+                                .destination("threatActor", ta),
+                        ), output_format=output_format)
 
 
 def add_sectors(
@@ -155,20 +145,18 @@ def add_sectors(
             for sector in actor["observed-sectors"]:
                 if sector.lower() in vocab["definitions"]["industry-sector-ov"]["enum"]:
                     for ta in actor["actor"].split(","):
-                        chain = act.api.fact.fact_chain(
-                            client.fact("memberOf")
-                            .source("organization", "*")
-                            .destination("sector", sector.lower()),
-                            client.fact("targets")
-                            .source("incident", "*")
-                            .destination("organization", "*"),
-                            client.fact("attributedTo")
-                            .source("incident", "*")
-                            .destination("threatActor", ta),
-                        )
-
-                        for fact in chain:
-                            handle_fact(fact, output_format=output_format)
+                        handle_facts(
+                            act.api.fact.fact_chain(
+                                client.fact("memberOf")
+                                .source("organization", "*")
+                                .destination("sector", sector.lower()),
+                                client.fact("targets")
+                                .source("incident", "*")
+                                .destination("organization", "*"),
+                                client.fact("attributedTo")
+                                .source("incident", "*")
+                                .destination("threatActor", ta),
+                        ), output_format=output_format)
 
 
 def add_tools(
@@ -183,23 +171,18 @@ def add_tools(
             for tool in actor["tools"]:
                 if tool in tool_vocab:
                     for ta in actor["actor"].split(","):
-                        chain = act.api.fact.fact_chain(
-                            client.fact("classifiedAs")
-                            .source("content", "*")
-                            .destination("tool", tool),
-                            client.fact("observedIn")
-                            .source("content", "*")
-                            .destination("incident", "*"),
-                            client.fact("attributedTo")
-                            .source("incident", "*")
-                            .destination("threatActor", ta),
-                        )
-
-                        for fact in chain:
-                            try:
-                                handle_fact(fact, output_format=output_format)
-                            except act.api.base.ValidationError as err:
-                                error("ResponseError while storing objects: %s" % err)
+                        handle_facts(
+                            act.api.fact.fact_chain(
+                                client.fact("classifiedAs")
+                                .source("content", "*")
+                                .destination("tool", tool),
+                                client.fact("observedIn")
+                                .source("content", "*")
+                                .destination("incident", "*"),
+                                client.fact("attributedTo")
+                                .source("incident", "*")
+                                .destination("threatActor", ta),
+                        ), output_format=output_format)
 
     for values in tools:
         aliases = set(
