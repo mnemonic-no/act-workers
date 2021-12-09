@@ -178,31 +178,29 @@ def add_groups(
 
         for tool in actor.known_tools:
 
-            chain = act.api.fact.fact_chain(
-                client.fact("classifiedAs")
-                .source("content", "*")
-                .destination("tool", tool),
-                client.fact("observedIn")
-                .source("content", "*")
-                .destination("incident", "*"),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", actor.name),
-            )
-
-            handle_facts(chain, output_format=output_format)
+            handle_facts(
+                act.api.fact.fact_chain(
+                    client.fact("classifiedAs")
+                    .source("content", "*")
+                    .destination("tool", tool),
+                    client.fact("observedIn")
+                    .source("content", "*")
+                    .destination("incident", "*"),
+                    client.fact("attributedTo")
+                    .source("incident", "*")
+                    .destination("threatActor", actor.name),
+                ) , output_format=output_format)
 
         for technique in actor.techniques:
-            chain = act.api.fact.fact_chain(
-                client.fact("observedIn")
-                .source("technique", technique.id)
-                .destination("incident", "*"),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", actor.name),
-            )
-
-            handle_facts(chain, output_format=output_format)
+            handle_facts(
+                act.api.fact.fact_chain(
+                    client.fact("observedIn")
+                    .source("technique", technique.id)
+                    .destination("incident", "*"),
+                    client.fact("attributedTo")
+                    .source("incident", "*")
+                    .destination("threatActor", actor.name),
+                ), output_format=output_format)
 
     return notify
 
