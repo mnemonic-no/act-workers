@@ -5,19 +5,19 @@ stdin, writing result in a format understandable by
 generic_uploader.py to stdout"""
 
 import argparse
+import ipaddress
 import socket
 import sys
 import traceback
-import ipaddress
 from logging import error, warning
 from typing import Any, Dict, Generator, Optional, Text
 
+import act.api
 import requests
 import urllib3
-
-import act.api
-from act.workers.libs import mnemonic, worker
 from act.api.libs import cli
+
+from act.workers.libs import mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -162,6 +162,10 @@ def process(
                         api.fact("excessive", "resolvesTo").source("fqdn", query),
                         output_format=output_format,
                     )
+
+            if row["query"] == row["answer"]:
+                warning(f'{row["query"]} resolves to itself, skipping: {row}')
+                continue
 
             if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
