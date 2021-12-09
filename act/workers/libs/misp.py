@@ -11,7 +11,6 @@ from logging import error
 
 from typing import Optional, Text, Tuple, Dict, Callable
 
-from act.types.format import ValidationError, format_threat_actor
 
 
 class ThreatLevelID(enum.Enum):
@@ -197,7 +196,7 @@ def certificate_f(x: Text) -> Tuple[Text, Text]:
 
 def threat_actor_f(x: Text) -> Tuple[Text, Text]:
     """Translation function misp -> act"""
-    return "threatActor", format_threat_actor(x)
+    return "threatActor", x
 
 
 def campaign_f(x: Text) -> Tuple[Text, Text]:

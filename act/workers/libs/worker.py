@@ -13,6 +13,8 @@ from typing import Any, Optional
 import act.api
 import requests
 import urllib3
+from act.types.format import object_format
+from act.types.types import object_validates
 
 
 class FetchError(Exception):
@@ -82,7 +84,11 @@ def init_act(args: argparse.Namespace) -> act.api.Act:
 
     """Initialize act api from arguments"""
 
-    api = act.api.libs.cli.init_act(args)
+    api = act.api.libs.cli.init_act(
+        args,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
 
     # This check is done here to make sure logging is set up
     if args.disabled:

@@ -31,7 +31,6 @@ import requests
 
 import act.api
 from act.api.libs import cli
-from act.types.format import ValidationError, format_tool
 from act.workers.libs import worker
 
 
@@ -225,14 +224,11 @@ def handle_classification_tags(
     feeds_facts: List[act.api.fact.Fact] = []
 
     for tag in classification_tags:
-        try:
-            feeds_facts.append(
-                actapi.fact("classifiedAs")
-                .source("content", content)
-                .destination("tool", format_tool(tag))
-            )
-        except ValidationError as e:
-            error(str(e))
+        feeds_facts.append(
+            actapi.fact("classifiedAs")
+            .source("content", content)
+            .destination("tool", tag)
+        )
 
     return feeds_facts
 

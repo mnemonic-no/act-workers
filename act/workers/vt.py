@@ -42,7 +42,6 @@ import requests
 
 import act.api
 from act.api.libs import cli
-from act.types.format import ValidationError, format_tool
 from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
 
@@ -199,29 +198,21 @@ def handle_hexdigest(
         )
 
     for name, toolType in names:
-        try:
-            act.api.helpers.handle_fact(
-                actapi.fact("classifiedAs")
-                .source("content", content_id)
-                .destination("tool", format_tool(name)),
-                output_format=output_format,
-            )
-        except ValidationError as e:
-            error(str(e))
-            continue
+        act.api.helpers.handle_fact(
+            actapi.fact("classifiedAs")
+            .source("content", content_id)
+            .destination("tool", name),
+            output_format=output_format,
+        )
 
         # toolType may be None (as not all nameing schemes include toolType)
         if toolType:
-            try:
-                act.api.helpers.handle_fact(
-                    actapi.fact("classifiedAs")
-                    .source("tool", format_tool(name))
-                    .destination("toolType", toolType),
-                    output_format=output_format,
-                )
-            except ValidationError as e:
-                error(str(e))
-                continue
+            act.api.helpers.handle_fact(
+                actapi.fact("classifiedAs")
+                .source("tool", name)
+                .destination("toolType", toolType),
+                output_format=output_format,
+            )
 
     if "detected_urls" in results:
         for u in map(

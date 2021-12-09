@@ -2,19 +2,19 @@
 
 """NiFi worker to pass Scio produced data to the ACT platform"""
 
-from logging import error, warning
-from typing import Callable, Dict, Set, Text, cast
 import argparse
 import json
 import os
 import sys
 import traceback
+from logging import error, warning
+from typing import Callable, Dict, Set, Text, cast
 
-from act.api.helpers import handle_fact, handle_uri
-from act.types.format import ValidationError, format_threat_actor, format_tool
-from act.workers.libs import worker
-from act.api.libs import cli
 import act.api
+from act.api.helpers import handle_fact, handle_uri
+from act.api.libs import cli
+
+from act.workers.libs import worker
 
 EXTRACT_GEONAMES = ["countries"]
 
@@ -63,15 +63,12 @@ def report_mentions_fact(
 ) -> None:
     """Add mentions fact to report"""
     for value in set(object_values):
-        try:
-            handle_fact(
-                actapi.fact("mentions")
-                .source("report", report_id)
-                .destination(object_type, value),
-                output_format,
-            )
-        except ValidationError as e:
-            error(str(e))
+        handle_fact(
+            actapi.fact("mentions")
+            .source("report", report_id)
+            .destination(object_type, value),
+            output_format,
+        )
         except act.api.base.ResponseError as e:
             error("Unable to create linked fact: %s" % e)
 
@@ -223,10 +220,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     report_mentions_fact(
         actapi,
         "threatActor",
-        {
-            format_threat_actor(ta)
-            for ta in doc.get("threatactor", {}).get("ThreatActors", [])
-        },
+        doc.get("threatactor", {}).get("ThreatActors", []),
         report_id,
         output_format,
     )
@@ -235,7 +229,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     report_mentions_fact(
         actapi,
         "tool",
-        {format_tool(tool) for tool in doc.get("tools", {}).get("Tools", [])},
+        doc.get("tools", {}).get("Tools", []),
         report_id,
         output_format,
     )

@@ -12,7 +12,6 @@ from typing import Dict, List, Optional, Text, Union
 import act.api
 from act.api.helpers import Act, handle_fact
 from act.api.libs import cli
-from act.types.format import ValidationError, format_threat_actor, format_tool
 from pyattck import Attck
 
 from act.workers.libs import worker
@@ -170,32 +169,29 @@ def add_groups(
                 handle_fact(
                     client.fact("alias").bidirectional(
                         "threatActor",
-                        format_threat_actor(actor.name),
+                        actor.name,
                         "threatActor",
-                        format_threat_actor(alias),
+                        alias,
                     ),
                     output_format=output_format,
                 )
 
         for tool in actor.known_tools:
 
-            try:
-                chain = act.api.fact.fact_chain(
-                    client.fact("classifiedAs")
-                    .source("content", "*")
-                    .destination("tool", format_tool(tool)),
-                    client.fact("observedIn")
-                    .source("content", "*")
-                    .destination("incident", "*"),
-                    client.fact("attributedTo")
-                    .source("incident", "*")
-                    .destination("threatActor", format_threat_actor(actor.name)),
-                )
+            chain = act.api.fact.fact_chain(
+                client.fact("classifiedAs")
+                .source("content", "*")
+                .destination("tool", tool),
+                client.fact("observedIn")
+                .source("content", "*")
+                .destination("incident", "*"),
+                client.fact("attributedTo")
+                .source("incident", "*")
+                .destination("threatActor", actor.name),
+            )
 
-                for fact in chain:
-                    handle_fact(fact, output_format=output_format)
-            except ValidationError as e:
-                error(e)
+            for fact in chain:
+                handle_fact(fact, output_format=output_format)
 
         for technique in actor.techniques:
             chain = act.api.fact.fact_chain(
@@ -204,7 +200,7 @@ def add_groups(
                 .destination("incident", "*"),
                 client.fact("attributedTo")
                 .source("incident", "*")
-                .destination("threatActor", format_threat_actor(actor.name)),
+                .destination("threatActor", actor.name),
             )
 
             for fact in chain:
@@ -235,11 +231,7 @@ def add_software(
             notify.append(software)
             continue
 
-        try:
-            tool_name = format_tool(software.name)
-        except ValidationError as e:
-            error(e)
-            continue
+        tool_name = software.name
 
         # Tool category
         handle_fact(
@@ -248,11 +240,7 @@ def add_software(
         )
 
         for alias in software.alias:
-            try:
-                alias_name = format_tool(alias)
-            except ValidationError as e:
-                error(e)
-                continue
+            alias_name = alias
 
             if tool_name != alias_name:
                 # Tool category (alias)
@@ -268,16 +256,12 @@ def add_software(
                 )
 
         for technique in software.techniques:
-            try:
-                handle_fact(
-                    client.fact("implements")
-                    .source("tool", format_tool(software.name))
-                    .destination("technique", technique.id),
-                    output_format=output_format,
-                )
-            except ValidationError as e:
-                error(e)
-                continue
+            handle_fact(
+                client.fact("implements")
+                .source("tool", software.name)
+                .destination("technique", technique.id),
+                output_format=output_format,
+            )
 
     return notify
 

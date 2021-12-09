@@ -15,7 +15,6 @@ from typing import Text, List
 from itertools import combinations
 from logging import error, warning
 
-from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import worker
 from act.api.helpers import handle_fact
 from act.api.libs import cli
@@ -46,20 +45,12 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
     ta_aliases = {}
 
     for actor in ta_cards:
-        try:
-            ta_name = format_threat_actor(actor["names"][0]["name"])
-        except ValidationError as e:
-            error(str(e))
-            continue
+            ta_name = actor["names"][0]["name"]
 
         ta_aliases[ta_name] = []
 
         for alias in actor["names"][1:]:
-            try:
-                alias_name = format_threat_actor(alias["name"])
-            except ValidationError as e:
-                error(str(e))
-                continue
+            alias_name = alias["name"]
 
             # names might be identical after format/normalization
             if ta_name == alias_name:
@@ -91,20 +82,16 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
             for operation in actor["operations"]:
                 if len(operation["activity"].split("\n")[0].split()) < 4:
                     for ta in actor["actor"].split(","):
-                        try:
-                            chain = act.api.fact.fact_chain(
-                                client.fact("attributedTo")
-                                .source("incident", "*")
-                                .destination(
-                                    "campaign", operation["activity"].split("\n")[0]
-                                ),
-                                client.fact("attributedTo")
-                                .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta)),
-                            )
-                        except ValidationError as e:
-                            error(str(e))
-                            continue
+                        chain = act.api.fact.fact_chain(
+                            client.fact("attributedTo")
+                            .source("incident", "*")
+                            .destination(
+                                "campaign", operation["activity"].split("\n")[0]
+                            ),
+                            client.fact("attributedTo")
+                            .source("incident", "*")
+                            .destination("threatActor", ta),
+                        )
 
                         for fact in chain:
                             try:
@@ -125,18 +112,14 @@ def add_countries(
         if "country" in actor:
             for country in actor["country"]:
                 if country.lower() in countries:
-                    try:
-                        chain = act.api.fact.fact_chain(
-                            client.fact("locatedIn")
-                            .source("organization", "*")
-                            .destination("country", country),
-                            client.fact("attributedTo")
-                            .source("threatActor", format_threat_actor(actor["actor"]))
-                            .destination("organization", "*"),
-                        )
-                    except ValidationError as e:
-                        error(str(e))
-                        continue
+                    chain = act.api.fact.fact_chain(
+                        client.fact("locatedIn")
+                        .source("organization", "*")
+                        .destination("country", country),
+                        client.fact("attributedTo")
+                        .source("threatActor", actor["actor"])
+                        .destination("organization", "*"),
+                    )
 
                     for fact in chain:
                         handle_fact(fact, output_format=output_format)
@@ -145,21 +128,17 @@ def add_countries(
             for country in actor["observed-countries"]:
                 if country.lower() in countries:
                     for ta in actor["actor"].split(","):
-                        try:
-                            chain = act.api.fact.fact_chain(
-                                client.fact("locatedIn")
-                                .source("organization", "*")
-                                .destination("country", country),
-                                client.fact("targets")
-                                .source("incident", "*")
-                                .destination("organization", "*"),
-                                client.fact("attributedTo")
-                                .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta)),
-                            )
-                        except ValidationError as e:
-                            error(str(e))
-                            continue
+                        chain = act.api.fact.fact_chain(
+                            client.fact("locatedIn")
+                            .source("organization", "*")
+                            .destination("country", country),
+                            client.fact("targets")
+                            .source("incident", "*")
+                            .destination("organization", "*"),
+                            client.fact("attributedTo")
+                            .source("incident", "*")
+                            .destination("threatActor", ta),
+                        )
 
                         for fact in chain:
                             handle_fact(fact, output_format=output_format)
@@ -176,21 +155,17 @@ def add_sectors(
             for sector in actor["observed-sectors"]:
                 if sector.lower() in vocab["definitions"]["industry-sector-ov"]["enum"]:
                     for ta in actor["actor"].split(","):
-                        try:
-                            chain = act.api.fact.fact_chain(
-                                client.fact("memberOf")
-                                .source("organization", "*")
-                                .destination("sector", sector.lower()),
-                                client.fact("targets")
-                                .source("incident", "*")
-                                .destination("organization", "*"),
-                                client.fact("attributedTo")
-                                .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta)),
-                            )
-                        except ValidationError as e:
-                            error(str(e))
-                            continue
+                        chain = act.api.fact.fact_chain(
+                            client.fact("memberOf")
+                            .source("organization", "*")
+                            .destination("sector", sector.lower()),
+                            client.fact("targets")
+                            .source("incident", "*")
+                            .destination("organization", "*"),
+                            client.fact("attributedTo")
+                            .source("incident", "*")
+                            .destination("threatActor", ta),
+                        )
 
                         for fact in chain:
                             handle_fact(fact, output_format=output_format)
@@ -208,21 +183,17 @@ def add_tools(
             for tool in actor["tools"]:
                 if tool in tool_vocab:
                     for ta in actor["actor"].split(","):
-                        try:
-                            chain = act.api.fact.fact_chain(
-                                client.fact("classifiedAs")
-                                .source("content", "*")
-                                .destination("tool", format_tool(tool)),
-                                client.fact("observedIn")
-                                .source("content", "*")
-                                .destination("incident", "*"),
-                                client.fact("attributedTo")
-                                .source("incident", "*")
-                                .destination("threatActor", format_threat_actor(ta)),
-                            )
-                        except ValidationError as e:
-                            error(str(e))
-                            continue
+                        chain = act.api.fact.fact_chain(
+                            client.fact("classifiedAs")
+                            .source("content", "*")
+                            .destination("tool", tool),
+                            client.fact("observedIn")
+                            .source("content", "*")
+                            .destination("incident", "*"),
+                            client.fact("attributedTo")
+                            .source("incident", "*")
+                            .destination("threatActor", ta),
+                        )
 
                         for fact in chain:
                             try:
@@ -235,12 +206,6 @@ def add_tools(
             [tool["name"].strip() for tool in values["names"]] + [values["tool"]]
         )
         for tool1, tool2 in combinations(aliases, 2):
-            try:
-                tool1 = format_tool(tool1)
-                tool2 = format_tool(tool2)
-            except ValidationError as e:
-                error(str(e))
-                continue
 
             if tool1 == tool2:
                 continue

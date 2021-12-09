@@ -129,7 +129,7 @@ def handle_argus_event_tactic(
 ) -> None:
     """Handle MITRE ATT&CK tactic in events"""
 
-    for tactic in properties["mitreAttack.tactic"].split("\n"):
+    for tactic in properties["mitreAttack.tacticId"].split("\n"):
         chain = act.api.fact.fact_chain(
             actapi.fact("observedIn")
             .source("technique", "*")
@@ -339,7 +339,7 @@ def handle_argus_event(
         handle_argus_event_technique(
             actapi, properties, case_id, output_format, observationTime
         )
-    elif properties["mitreAttack.tactic"]:
+    elif properties["mitreAttack.tacticId"]:
         # If we have tactic (but not technique) we must go through placeholder technique
         handle_argus_event_tactic(
             actapi, properties, case_id, output_format, observationTime

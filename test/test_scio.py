@@ -2,6 +2,9 @@
 import json
 
 import act.api
+from act.types.format import object_format
+from act.types.types import object_validates
+
 from act.workers import scio
 
 
@@ -10,7 +13,14 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
     with open("test/scio-doc.json") as scio_doc:
         doc = json.loads(scio_doc.read())
 
-    api = act.api.Act("", None, "error")
+    api = act.api.Act(
+        "",
+        None,
+        "error",
+        strict_validator=True,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
     act.api.helpers.handle_fact.cache_clear()
 
     scio.add_to_act(api, doc, output_format="str")
@@ -72,4 +82,7 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
     ]
 
     for fact_assertion in fact_assertions:
+        if not str(fact_assertion) in facts:
+            print(f"{fact_assertion} is missing")
+
         assert str(fact_assertion) in facts

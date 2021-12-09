@@ -34,7 +34,6 @@ import requests
 import act.api
 from act.api.helpers import handle_fact
 from act.api.libs import cli
-from act.types.format import ValidationError, format_threat_actor, format_tool
 from act.workers.libs import urlcache, worker
 
 VERSION = "0.1"
@@ -182,16 +181,13 @@ def handle_threat_actor(
         ]
 
         for ta in threat_actors:
-            try:
-                handle_fact(
-                    config["actapi"]
-                    .fact("attributedTo")
-                    .source("incident", incident_id)
-                    .destination("threatActor", format_threat_actor(ta)),
-                    output_format=config["output_format"],
-                )
-            except ValidationError as e:
-                error(str(e))
+            handle_fact(
+                config["actapi"]
+                .fact("attributedTo")
+                .source("incident", incident_id)
+                .destination("threatActor", ta),
+                output_format=config["output_format"],
+            )
 
 
 def handle_tool(
@@ -210,20 +206,16 @@ def handle_tool(
     ]
 
     for tool in tools:
-        try:
-            chain = act.api.fact.fact_chain(
-                config["actapi"]
-                .fact("classifiedAs")
-                .source("content", "*")
-                .destination("tool", format_tool(tool)),
-                config["actapi"]
-                .fact("observedIn")
-                .source("content", "*")
-                .destination("incident", incident_id),
-            )
-        except ValidationError as e:
-            error(str(e))
-            continue
+        chain = act.api.fact.fact_chain(
+            config["actapi"]
+            .fact("classifiedAs")
+            .source("content", "*")
+            .destination("tool", tool),
+            config["actapi"]
+            .fact("observedIn")
+            .source("content", "*")
+            .destination("incident", incident_id),
+        )
 
         for fact in chain:
             handle_fact(fact, output_format=config["output_format"])

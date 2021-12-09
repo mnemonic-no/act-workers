@@ -4,6 +4,8 @@ import json
 import act.api
 
 from act.workers.libs import argus
+from act.types.format import object_format
+from act.types.types import object_validates
 
 
 def test_refang() -> None:
@@ -22,13 +24,19 @@ def test_refang() -> None:
 
 # pylint: disable=too-many-locals
 
-
 def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
     """Test for argus case facts, by comparing to captue of stdout"""
     with open("test/data/argus-event.json") as argus_event:
         event = json.loads(argus_event.read())
 
-    api = act.api.Act("", None, "error")
+    api = act.api.Act(
+        "",
+        None,
+        "error",
+        strict_validator=True,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
     act.api.helpers.handle_fact.cache_clear()
 
     argus.handle_argus_event(
@@ -76,7 +84,7 @@ def test_argus_case_facts(capsys, caplog) -> None:  # type: ignore
         .destination("incident", case_id),
         api.fact("implements")
         .source("technique", "*")
-        .destination("tactic", "Discovery"),
+        .destination("tactic", "TA0007"),
     )
 
     sha256 = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
