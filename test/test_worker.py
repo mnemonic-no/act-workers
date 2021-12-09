@@ -13,18 +13,6 @@ from act.types.types import object_validates
 from act.workers.libs import worker
 
 
-def get_api(strict_validator=False) -> act.api.Act:
-
-    print(strict_validator)
-    return act.api.Act(
-        "",
-        None,
-        strict_validator=strict_validator,
-        object_formatter=object_format,
-        object_validator=object_validates,
-    )
-
-
 def test_args_origin_name(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
     """test argument origin-name"""
 
@@ -64,23 +52,69 @@ def test_args_origin_id(monkeypatch: _pytest.monkeypatch.MonkeyPatch) -> None:
 
 
 def test_validator_no_strict(caplog) -> None:
-    api = get_api(strict_validator=False)
+    api = act.api.Act(
+        "",
+        None,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
 
     # Should return None if fact does not validate
-    assert (
-        handle_fact(
-            api.fact("mentions")
-            .source("report", "xyz")
-            .destination("uri", "X7f://cve-2014-0224")
-        )
-        == None
+    fact = handle_fact(
+        api.fact("mentions")
+        .source("report", "xyz")
+        .destination("uri", "X7f://cve-2014-0224")
     )
+
+    assert fact is None
 
     assert "Destination object does not validate:" in caplog.text
 
 
+def test_validate_same_object() -> None:
+    api = act.api.Act(
+        "",
+        None,
+        strict_validator=True,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
+
+    act.api.helpers.handle_fact.cache_clear()
+
+    with pytest.raises(ValidationError, match=r"Source object can not be equal to.*"):
+        handle_fact(
+            api.fact("mentions").source("report", "xyz").destination("report", "xyz")
+        )
+
+
+def test_validator_no_validator(caplog) -> None:
+    api = act.api.Act("", None)
+    act.api.helpers.handle_fact.cache_clear()
+
+    # Should return None if fact does not validate
+    fact = handle_fact(
+        api.fact("mentions")
+        .source("report", "xyz")
+        .destination("uri", "X7f://cve-2014-0224")
+    )
+
+    # No validator is specified so the above should return a fact
+    assert fact is not None
+
+    # Should not log errors
+    assert caplog.text == ""
+
+
 def test_validator_strict() -> None:
-    api = get_api(strict_validator=True)
+    api = act.api.Act(
+        "",
+        None,
+        strict_validator=True,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
+    act.api.helpers.handle_fact.cache_clear()
 
     with pytest.raises(
         ValidationError, match=r"Destination object does not validate.*"
@@ -94,8 +128,13 @@ def test_validator_strict() -> None:
 
 
 def test_format() -> None:
-
-    api = get_api()
+    api = act.api.Act(
+        "",
+        None,
+        object_formatter=object_format,
+        object_validator=object_validates,
+    )
+    act.api.helpers.handle_fact.cache_clear()
 
     ta_alias = handle_fact(
         api.fact("alias")
