@@ -123,7 +123,7 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS asn (
         ip string unique,
-        asn int,
+        asn string,
         prefix string,
         asname string,
         cn string,
