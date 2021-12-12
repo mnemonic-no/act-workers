@@ -125,8 +125,6 @@ def add_indicators_to_act(
                 .destination("uri", email_uri),
                 output_format,
             )
-        except act.api.base.ValidationError as err:
-            warning(f"Fact from {email_uri} failes du to URI validation {err}")
         except act.api.schema.MissingField:
             warning(f"Unable to create facts from uri: {email_uri}")
 
@@ -134,8 +132,6 @@ def add_indicators_to_act(
     for uri in set(indicators.get("uri", [])):
         try:
             handle_uri(actapi, uri, output_format=output_format)
-        except act.api.base.ValidationError as err:
-            warning(f"Fact from {uri} failes du to URI validation {err}")
         except act.api.schema.MissingField:
             warning(f"Unable to create facts from uri: {uri}")
 
