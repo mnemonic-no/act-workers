@@ -44,6 +44,7 @@ setup(
             "act-veris = act.workers.veris:main_log_error",
             "act-vt = act.workers.vt:main_log_error",
             "act-worker-config = act.workers.worker_config:main",
+            "act-shadowserver-enrich = act.workers.shadowserver_enrich:main_log_error",
         ]
     },
     # Include ini-file(s) from act/workers/etc
