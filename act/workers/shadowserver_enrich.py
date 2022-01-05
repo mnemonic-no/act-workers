@@ -158,6 +158,9 @@ def handle_domain(
         logging.error(f"Error handling: {ioc}. Error: {response['error']}")
         sys.exit(1)
 
+    if isinstance(results["family"], str):
+        results["family"] = [results["family"]]
+
     for tool_name in results["family"]:
         for sample in results["samples"]:
 
@@ -192,33 +195,34 @@ def run():
             "You must specify --apikey and --secret on command line or in config file"
         )
 
-    in_data = sys.stdin.read().strip()
-
     proxies = (
         {"http": args.proxy_string, "https": args.proxy_string}
         if args.proxy_string
         else None
     )
 
-    if args.hexdigest or HASH_RE.search(in_data):
-        handle_hexdigest(
-            actapi,
-            in_data,
-            args.apikey,
-            args.secret,
-            proxies,
-            output_format=args.output_format,
-        )
+    for in_data in sys.stdin:
+        in_data = in_data.strip()
 
-    elif args.domain:
-        handle_domain(
-            actapi,
-            in_data,
-            args.apikey,
-            args.secret,
-            proxies,
-            output_format=args.output_format,
-        )
+        if args.hexdigest or HASH_RE.search(in_data):
+            handle_hexdigest(
+                actapi,
+                in_data,
+                args.apikey,
+                args.secret,
+                proxies,
+                output_format=args.output_format,
+            )
+
+        elif args.domain:
+            handle_domain(
+                actapi,
+                in_data,
+                args.apikey,
+                args.secret,
+                proxies,
+                output_format=args.output_format,
+            )
 
 
 def main_log_error() -> None:
