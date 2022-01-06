@@ -35,9 +35,8 @@ import caep
 import RashlyOutlaid.api as shadowserver
 from act.api.helpers import handle_fact
 from act.api.libs import cli
-from RashlyOutlaid.libwhois import QueryError
-
 from act.workers.libs import worker
+from RashlyOutlaid.libwhois import QueryError
 
 CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
 ISO_3166_FILE = (
@@ -122,13 +121,13 @@ def get_db_cache(cache_dir: str) -> sqlite3.Connection:
     cursor = conn.cursor()
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS asn (
-        ip string unique,
-        asn string,
-        prefix string,
-        asname string,
-        cn string,
-        isp string,
-        peers string,
+        ip TEXT unique,
+        asn TEXT,
+        prefix TEXT,
+        asname TEXT,
+        cn TEXT,
+        isp TEXT,
+        peers TEXT,
         added int)
     """
     )
