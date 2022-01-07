@@ -11,7 +11,7 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.0.11",
+    version="2.0.12",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -61,7 +61,7 @@ setup(
         "caep",
         "pid",
         "requests",
-        "RashlyOutlaid>=0.18",
+        "RashlyOutlaid>=0.19",
         "virustotal-api",
         "dateparser",
         "pyattck>=4.0.0",
