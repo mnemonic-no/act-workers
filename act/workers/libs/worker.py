@@ -80,14 +80,16 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     return parser
 
 
-def init_act(args: argparse.Namespace) -> act.api.Act:
+def init_act(
+    args: argparse.Namespace, no_format: bool = False, no_validate: bool = False
+) -> act.api.Act:
 
     """Initialize act api from arguments"""
 
     api = act.api.libs.cli.init_act(
         args,
-        object_formatter=object_format,
-        object_validator=object_validates,
+        object_formatter=None if no_format else object_format,
+        object_validator=None if no_validate else object_validates,
     )
 
     # This check is done here to make sure logging is set up

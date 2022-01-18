@@ -9,8 +9,7 @@ import sys
 import time
 import traceback
 from logging import error, warning
-from typing import Iterable
-from typing import Text
+from typing import Iterable, Text
 
 import act.api
 from act.api.libs import cli
@@ -30,6 +29,18 @@ def parseargs() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--no-exit-on-error", action="store_true", help="Log errors and continue"
+    )
+
+    parser.add_argument(
+        "--no-format",
+        action="store_true",
+        help="Do not format facts with default formatter",
+    )
+
+    parser.add_argument(
+        "--no-validate",
+        action="store_true",
+        help="Do not validate facts with default types",
     )
 
     return parser
@@ -141,7 +152,9 @@ def main_log_error() -> None:
         # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
         # (or replace .config with $XDG_CONFIG_DIR if set)
         args = cli.handle_args(parseargs())
-        actapi = worker.init_act(args)
+        actapi = worker.init_act(
+            args, no_format=args.no_format, no_validate=args.no_validate
+        )
 
         uploader(
             actapi,
