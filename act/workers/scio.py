@@ -232,7 +232,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     report_mentions_fact(
         actapi,
         "sector",
-        set(doc.get("sectors", {}).get("sectors", [])),
+        set(doc.get("sectors", [])),
         report_id,
         output_format,
     )
