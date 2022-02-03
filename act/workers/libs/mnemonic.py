@@ -16,6 +16,11 @@ STATUS_CODE_TEMPLATES = {
             "{message}".format(**msg)
         ),
     },
+    412: {
+        "This query is not allowed": lambda msg: worker.NotAllowed(
+            "{message}".format(**msg)
+        ),
+    },
     503: {
         "service.timeout": lambda msg: worker.ServiceTimeout(
             "{message} ({field}={parameter})".format(**msg)
