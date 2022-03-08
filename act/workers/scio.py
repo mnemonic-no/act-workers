@@ -45,6 +45,13 @@ ACT_FN_MAP: Dict[Text, Callable] = {"vulnerability": lambda x: x.lower()}
 def parseargs() -> argparse.ArgumentParser:
     """Parse arguments"""
     parser = worker.parseargs("Get SCIO reports and IOCs from stdin")
+
+    parser.add_argument(
+        "--tlp-access-mode",
+        action="store_true",
+        help="Set access-mode=Public for documents with TLP white/green, otherwize use RoleBased",
+    )
+
     return parser
 
 
@@ -241,17 +248,24 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 def main() -> None:
     """main function"""
 
-    # Look for default ini file in "/etc/actworkers.ini"
-    # and ~/config/actworkers/actworkers.ini
+    # Look for default ini file in "/etc/act.ini"
+    # and ~/config/act/act.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = cli.handle_args(parseargs())
 
     actapi = worker.init_act(args)
 
+    doc = get_scio_report()
+
+    if args.tlp_access_mode:
+        actapi.config.access_mode = (
+            "Public" if doc.get("tlp") in ("GREEN", "WHITE") else "RoleBased"
+        )
+
     # Add IOCs from reports to the ACT platform
     add_to_act(
         actapi,
-        get_scio_report(),
+        doc,
         args.output_format,
     )
 
