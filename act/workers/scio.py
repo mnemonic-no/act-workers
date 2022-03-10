@@ -47,9 +47,10 @@ def parseargs() -> argparse.ArgumentParser:
     parser = worker.parseargs("Get SCIO reports and IOCs from stdin")
 
     parser.add_argument(
-        "--tlp-access-mode",
+        "--no-tlp-access-mode",
         action="store_true",
-        help="Set access-mode=Public for documents with TLP white/green, otherwize use RoleBased",
+        help="Do not set access mode from TLP on document. If not set, facts will "
+        + "have access-mode=Public for tlp=WHITE/GREEN otherwize access-mode=RoleBased",
     )
 
     return parser
@@ -257,7 +258,7 @@ def main() -> None:
 
     doc = get_scio_report()
 
-    if args.tlp_access_mode:
+    if not args.no_tlp_access_mode:
         actapi.config.access_mode = (
             "Public" if doc.get("tlp") in ("GREEN", "WHITE") else "RoleBased"
         )
