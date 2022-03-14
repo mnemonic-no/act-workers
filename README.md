@@ -55,6 +55,8 @@ The access mode can be explicit set with `--access-mode`, e.g. like this, to set
 --access-mode Public
 ```
 
+There are also some workers, e.g. `act-scio` that will set access-mode based on the input document (TLP green/white -> access-mode=Public), unless you explicit configures it to not do so.
+
 # Organization
 
 All workers support the optional arguments `--organization` If they are not specified, facts will be added with the organization of the origin or the user performing the upload to the platform (if not set by the origin.
