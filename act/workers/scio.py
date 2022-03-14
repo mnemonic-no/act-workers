@@ -50,7 +50,7 @@ def parseargs() -> argparse.ArgumentParser:
         "--no-tlp-access-mode",
         action="store_true",
         help="Do not set access mode from TLP on document. If not set, facts will "
-        + "have access-mode=Public for tlp=WHITE/GREEN otherwize access-mode=RoleBased",
+        + "have access-mode=Public for tlp=WHITE/GREEN otherwise access-mode=RoleBased",
     )
 
     return parser
