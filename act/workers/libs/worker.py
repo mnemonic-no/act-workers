@@ -17,6 +17,13 @@ from act.types.format import object_format
 from act.types.types import object_validates
 
 
+class NotAllowed(Exception):
+    """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
+
+
 class FetchError(Exception):
     """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
 

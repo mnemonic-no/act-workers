@@ -93,6 +93,9 @@ def pdns_query(
             limit=limit,
         )
 
+    except worker.NotAllowed:
+        warning(f"Query not allowed: {query}")
+
     except worker.ResourceLimitExceeded as err:
         error("Resource limits exceeded ({0.__class__.__name__})".format(err))
 
