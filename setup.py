@@ -62,6 +62,8 @@ setup(
         "caep",
         "pid",
         "requests",
+        "stix2",
+        "stix2-patterns",
         "RashlyOutlaid>=0.19",
         "virustotal-api",
         "dateparser",

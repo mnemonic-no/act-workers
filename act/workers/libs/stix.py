@@ -1,10 +1,22 @@
-import re
 from typing import Set, Text, Tuple
 
 import stix2
+from stix2patterns.v20.pattern import Pattern
 
 
-class PatternNotSupported(Exception):
+class SingleStixPatternEqualError(Exception):
+    pass
+
+
+class NotEqualOperator(SingleStixPatternEqualError):
+    pass
+
+
+class MultipleComparisons(SingleStixPatternEqualError):
+    pass
+
+
+class TypesNotString(SingleStixPatternEqualError):
     pass
 
 
@@ -20,7 +32,7 @@ def expand_techniques(attack_pattern: stix2.v20.AttackPattern) -> Set[Text]:
     }
 
 
-def parse_single_stix_pattern(pattern: Text) -> Tuple[Text, Text]:
+def single_stix_equal_pattern(pattern: Text) -> Tuple[Text, Text]:
 
     """
     Extract type/value from Stix Indicator patterns like this:
@@ -30,21 +42,25 @@ def parse_single_stix_pattern(pattern: Text) -> Tuple[Text, Text]:
 
     """
 
-    parser = re.search(
-        r"""
-    ^\[                         # Opening bracket
-        (?P<type>[^\s]+)
-        \s
-        =
-        \s
-    '(?P<value>([^'\\]|\\.)*)'  # Match all characters EXCEPT escaped single quote
-    \]$                         # Closing bracket
-    """,
-        pattern,
-        re.VERBOSE,
-    )
+    pattern_data = Pattern(pattern).inspect()
+    comparisons = pattern_data.comparisons
 
-    if not parser:
-        raise PatternNotSupported(f"Unable to parse as single pattern: {pattern}")
+    if len(comparisons) > 1:
+        raise MultipleComparisons
 
-    return parser.group("type").replace("'", ""), parser.group("value")
+    main_type = list(comparisons.keys())[0]
+
+    if len(comparisons[main_type]) > 1:
+        raise MultipleComparisons
+
+    (sub_type, oper, value) = comparisons[main_type][0]
+
+    if oper != "=":
+        raise NotEqualOperator
+
+    if not all([isinstance(t, str) for t in sub_type]):
+        raise TypesNotString
+
+    pattern_type = f"{main_type}:{'.'.join(sub_type)}"
+
+    return pattern_type, value.strip("'")

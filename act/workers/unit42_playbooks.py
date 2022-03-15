@@ -33,8 +33,9 @@ from stix2.v20.sro import Relationship
 
 import act
 from act.workers.libs import worker
-from act.workers.libs.stix import (PatternNotSupported, expand_techniques,
-                                   parse_single_stix_pattern)
+from act.workers.libs.stix import (SingleStixPatternEqualError,
+                                   expand_techniques,
+                                   single_stix_equal_pattern)
 
 StixObject = Union[
     stix2.v20.sdo.AttackPattern,
@@ -90,8 +91,8 @@ def handle_indicator(
     output_format: Text,
 ) -> None:
     try:
-        pattern_type, pattern_value = parse_single_stix_pattern(source.pattern)
-    except PatternNotSupported:
+        pattern_type, pattern_value = single_stix_equal_pattern(source.pattern)
+    except (StingleStixPatternEqualError):
         debug("Unsupported indicator pattern: %s", source.pattern)
         return
 
