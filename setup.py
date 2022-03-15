@@ -11,7 +11,7 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.0.19",
+    version="2.0.20",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -42,6 +42,7 @@ setup(
             "act-tool-alias = act.workers.tool_alias:main_log_error",
             "act-uploader = act.workers.generic_uploader:main_log_error",
             "act-url-shorter-unpack = act.workers.url_shorter_unpack:main_log_error",
+            "act-unit42-playbooks = act.workers.unit42_playbooks:main_log_error",
             "act-veris = act.workers.veris:main_log_error",
             "act-vt = act.workers.vt:main_log_error",
             "act-worker-config = act.workers.worker_config:main",
