@@ -11,7 +11,7 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.0.19",
+    version="2.0.20",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -57,7 +57,7 @@ setup(
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=[
         "act-api>=2.0.5,<3.0.0",
-        "act-types>=2.0.2,<3.0.0",
+        "act-types>=2.0.5,<3.0.0",
         "caep",
         "pid",
         "requests",

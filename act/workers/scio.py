@@ -245,6 +245,33 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         output_format,
     )
 
+    # Tactic
+    report_mentions_fact(
+        actapi,
+        "tactic",
+        set(doc.get("mitre_attack", {}).get("Tactics", [])),
+        report_id,
+        output_format,
+    )
+
+    # Technique
+    report_mentions_fact(
+        actapi,
+        "technique",
+        set(doc.get("mitre_attack", {}).get("Techniques", [])),
+        report_id,
+        output_format,
+    )
+
+    # SubTechniques
+    report_mentions_fact(
+        actapi,
+        "technique",
+        set(doc.get("mitre_attack", {}).get("SubTechniques", [])),
+        report_id,
+        output_format,
+    )
+
 
 def main() -> None:
     """main function"""

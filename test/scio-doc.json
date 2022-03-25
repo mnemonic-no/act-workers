@@ -42799,6 +42799,24 @@
       "Brazil"
     ]
   },
+  "mitre_attack": {
+    "Groups": [],
+    "Tactics": [
+      "TA0003",
+      "TA0004",
+      "TA0005"
+    ],
+    "Techniques": [
+      "T1055",
+      "T1083",
+      "T1057"
+    ],
+    "SubTechniques": [
+      "T1547.001",
+      "T1070.004",
+      "T1555.003"
+    ]
+  },
   "sectors": {
     "sectors": [
         "finance"
