@@ -79,6 +79,15 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
         api.fact("mentions")
         .source("report", report_id)
         .destination("vulnerability", "ms16-034"),
+        api.fact("mentions")
+        .source("report", report_id)
+        .destination("technique", "T1055"),
+        api.fact("mentions")
+        .source("report", report_id)
+        .destination("technique", "T1547.001"),
+        api.fact("mentions")
+        .source("report", report_id)
+        .destination("tactic", "TA0003"),
     ]
 
     for fact_assertion in fact_assertions:
