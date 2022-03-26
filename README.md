@@ -163,6 +163,19 @@ In repository, run:
 ```bash
 pip3 install --user -e .
 ```
+
+## Tests
+
+To run tests, you need `pyteest` and `pytest-mock-server`:
+
+```bash
+pip install pytest-mock-server
+```
+
+```bash
+pytestpytest
+```
+
 # search
 A worker to run graph queries is also included. A sample search config is inscluded in `etc/searc_jobs.ini`:
 

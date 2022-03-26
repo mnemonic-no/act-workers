@@ -1,14 +1,16 @@
 """Common worker library"""
 
 import argparse
+import io
 import json
 import smtplib
 import socket
 import sys
 import urllib.parse
+import zipfile
 from email.mime.text import MIMEText
 from logging import warning
-from typing import Any, Optional
+from typing import IO, Any, Iterator, Optional, Tuple
 
 import act.api
 import requests
@@ -108,7 +110,11 @@ def init_act(
 
 
 def fetch(
-    url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False
+    url: str,
+    proxy_string: Optional[str],
+    timeout: int = 60,
+    verify_https: bool = False,
+    bytes: bool = False,
 ) -> Any:
     """Fetch remote URL and return content
     url (string):                    File or URL to fetch
@@ -129,7 +135,10 @@ def fetch(
 
     # No scheme - assume this is a file
     if not parsed.scheme:
-        return open(url).read()
+        if bytes:
+            return open(url, "rb").read()
+        else:
+            return open(url).read()
 
     if not parsed.scheme.lower() in ("http", "https"):
         raise UnsupportedScheme(f"Unsupported scheme in {url}")
@@ -152,7 +161,10 @@ def fetch(
         errmsg = "status_code: {0.status_code}: {0.content}"
         raise FetchError(errmsg.format(req))
 
-    return req.text
+    if bytes:
+        return req.content
+    else:
+        return req.text
 
 
 def fetch_json(
@@ -168,6 +180,20 @@ def fetch_json(
         return json.loads(content)
     except json.decoder.JSONDecodeError as e:
         raise FetchError(f"Cannot parse as json {e}, {content} {url}")
+
+
+def zip_files(
+    url: str, proxy_string: Optional[str], timeout: int = 60, verify_https: bool = False
+) -> Iterator[Tuple[str, IO[bytes]]]:
+    """
+    Open ZIP file (from disk or URL) and extract its contents in memory
+    yields (filename, file-like object) pairs
+    """
+    content = fetch(url, proxy_string, timeout, verify_https, bytes=True)
+    with zipfile.ZipFile(io.BytesIO(content)) as zip:
+        for zipinfo in zip.infolist():
+            with zip.open(zipinfo) as zf:
+                yield zipinfo.filename, zf
 
 
 def sendmail(
