@@ -19,9 +19,9 @@ from act.workers.libs import worker
 # This is only for typing
 # We can not import these matrices, because then they be loaded
 # by pyattack and it fails if you need proxy
-AttckMatrice = Union["Enterprise", "PreAttck", "MobileAttck"]
+AttckMatrice = Union["Enterprise", "ICS", "MobileAttck"]
 
-MITRE_TYPES = ["enterprise", "preattack", "mobile"]
+MITRE_TYPES = ["enterprise", "ics", "mobile"]
 
 DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
 
@@ -158,7 +158,8 @@ def add_groups(
 
     notify: List = []
 
-    for actor in matrice.actors:
+    # ICS does not have actors
+    for actor in getattr(matrice, "actors", []):
         if deprecated_or_revoked(actor):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(actor)
@@ -178,6 +179,10 @@ def add_groups(
 
         for tool in actor.known_tools:
 
+            if not tool.strip():
+                # Skip empty tools found in ATT&CK
+                continue
+
             handle_facts(
                 act.api.fact.fact_chain(
                     client.fact("classifiedAs")
@@ -189,7 +194,9 @@ def add_groups(
                     client.fact("attributedTo")
                     .source("incident", "*")
                     .destination("threatActor", actor.name),
-                ) , output_format=output_format)
+                ),
+                output_format=output_format,
+            )
 
         for technique in actor.techniques:
             handle_facts(
@@ -200,7 +207,9 @@ def add_groups(
                     client.fact("attributedTo")
                     .source("incident", "*")
                     .destination("threatActor", actor.name),
-                ), output_format=output_format)
+                ),
+                output_format=output_format,
+            )
 
     return notify
 
