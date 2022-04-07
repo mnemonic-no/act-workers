@@ -29,6 +29,14 @@ FQDN = "fqdn"
 def parseargs() -> argparse.ArgumentParser:
     """Parse arguments"""
     parser = worker.parseargs("PDNS enrichment")
+
+    parser.add_argument(
+        "--no-tlp-access-mode",
+        action="store_true",
+        help="Do not set access mode from TLP on document. If not set, facts will "
+        + "have access-mode=Public for tlp=white/green otherwise access-mode=RoleBased",
+    )
+
     parser.add_argument(
         "--pdns-baseurl",
         dest="pdns_baseurl",
@@ -130,6 +138,7 @@ def process(
     output_format: Text = "json",
     batch_size: int = 1000,
     limit: int = 0,
+    no_tlp_access_mode: bool = False,
 ) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
@@ -151,9 +160,14 @@ def process(
         ):
             rrtype = row["rrtype"]
 
-            access_mode = (
-                "Public" if row.get("tlp") in ("green", "white") else "RoleBased"
-            )
+            if no_tlp_access_mode:
+                # Use Default Access Mode
+                access_mode = api.config.access_mode
+            else:
+                # Set Access Mode based on TLP
+                access_mode = (
+                    "Public" if row.get("tlp") in ("green", "white") else "RoleBased"
+                )
 
             i += 1
             if limit == i:
@@ -213,6 +227,7 @@ def main() -> None:
         args.output_format,
         args.pdns_batch_size,
         args.limit,
+        args.no_tlp_access_mode,
     )
 
 
