@@ -151,18 +151,24 @@ def process(
         ):
             rrtype = row["rrtype"]
 
+            access_mode = (
+                "Public" if row.get("tlp") in ("green", "white") else "RoleBased"
+            )
+
             i += 1
             if limit == i:
                 if kind(query) in (IPv4, IPv6):
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo").source(
-                            *act.api.helpers.ip_obj(row["answer"])
-                        ),
+                        api.fact(
+                            "excessive", "resolvesTo", access_mode=access_mode
+                        ).source(*act.api.helpers.ip_obj(row["answer"])),
                         output_format=output_format,
                     )
                 else:
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo").source("fqdn", query),
+                        api.fact(
+                            "excessive", "resolvesTo", access_mode=access_mode
+                        ).source("fqdn", query),
                         output_format=output_format,
                     )
 
@@ -172,7 +178,7 @@ def process(
 
             if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
-                    api.fact("resolvesTo")
+                    api.fact("resolvesTo", access_mode=access_mode)
                     .source("fqdn", row["query"])
                     .destination(*act.api.helpers.ip_obj(row["answer"])),
                     output_format=output_format,
@@ -180,7 +186,7 @@ def process(
 
             elif rrtype == "cname":
                 act.api.helpers.handle_fact(
-                    api.fact("resolvesTo")
+                    api.fact("resolvesTo", access_mode=access_mode)
                     .source("fqdn", row["query"])
                     .destination("fqdn", row["answer"]),
                     output_format=output_format,
