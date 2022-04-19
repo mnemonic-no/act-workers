@@ -74,7 +74,8 @@ def download_feed(
     if response.status_code == 525:
         # This is a known error that is observed from from time to time towards the hybrid analsysi API
         warning(
-            "hybrid_analysis_feed.download_feed() could not download public feed, got 525"
+            f"hybrid_analysis_feed.download_feed() could not download public feed, "
+            f"error calling {url}: Status = {response.status_code}"
         )
 
         return {"data": []}
