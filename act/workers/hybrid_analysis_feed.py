@@ -24,13 +24,13 @@ import sys
 import traceback
 import warnings
 from functools import partialmethod
-from logging import error, info
+from logging import error, info, warning
 from typing import Any, Dict, Generator, List, Optional, Text
 
-import requests
-
 import act.api
+import requests
 from act.api.libs import cli
+
 from act.workers.libs import worker
 
 
@@ -71,7 +71,15 @@ def download_feed(
         headers = {"User-Agent": user_agent}
         response = requests.get(url, proxies=proxies, headers=headers)
 
-    if response.status_code != 200:
+    if response.status_code == 525:
+        # This is a known error that is observed from from time to time towards the hybrid analsysi API
+        warning(
+            "hybrid_analysis_feed.download_feed() could not download public feed, got 525"
+        )
+
+        return {"data": []}
+
+    elif response.status_code != 200:
         raise CommunicationError(
             f"hybrid_analysis_feed.download_feed() could not download public feed, "
             f"error calling {url}: Status = {response.status_code}"
