@@ -6,7 +6,7 @@ import json
 import re
 import time
 import uuid
-from logging import error, warning
+from logging import warning
 from typing import Callable, Dict, Optional, Text, Tuple
 
 
@@ -166,10 +166,7 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
             self.act_type: Optional[Text] = None
             self.value: Optional[Text] = None
 
-            try:
-                self.act_type, self.value = mapper_fn(attributedict["value"])
-            except ValidationError as e:
-                error(str(e))
+            self.act_type, self.value = mapper_fn(attributedict["value"])
 
             if (
                 "RelatedAttribute" in attributedict
