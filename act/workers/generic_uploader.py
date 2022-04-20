@@ -94,25 +94,22 @@ def uploader(
         try:
 
             # Retry as long as we get ServiceTimeout (max_retries times)
-            retry = 0
-            while retry < max_retries:
+            for retry in range(max_retries):
                 try:
                     fact_copy = act.api.helpers.handle_fact(fact)
                     break
                 except act.api.base.ServiceTimeout:
-                    if retry >= max_retries:
-                        error(
-                            "ServiceTimeout while storing objects and max retries reached, will exit"
-                        )
-                        sys.exit(2)
-                    else:
-                        warning(
-                            "ServiceTimeout while storing objects (%s/%s), will retry",
-                            retry,
-                            max_retries,
-                        )
-                        retry += 1
+                    warning(
+                        "ServiceTimeout while storing objects (%s/%s)",
+                        retry,
+                        max_retries,
+                    )
+                    if retry < max_retries:
                         time.sleep(retry * 3)
+            else:
+                error("Max retries reached, exit")
+                sys.exit(2)
+
         except act.api.base.ValidationError as err:
             warning("ValidationError while storing objects: %s" % err)
             continue
