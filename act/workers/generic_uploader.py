@@ -61,6 +61,7 @@ def uploader(
     origins = set()
     facts = {}
     metafacts = set()
+    max_retries = 10
 
     for line in iterator:
         try:
@@ -91,7 +92,24 @@ def uploader(
         # The returned fact will be populated with a fact id
         # and default values from the platform
         try:
-            fact_copy = act.api.helpers.handle_fact(fact)
+
+            # Retry as long as we get ServiceTimeout (max_retries times)
+            for retry in range(max_retries):
+                try:
+                    fact_copy = act.api.helpers.handle_fact(fact)
+                    break
+                except act.api.base.ServiceTimeout:
+                    warning(
+                        "ServiceTimeout while storing objects (%s/%s)",
+                        retry,
+                        max_retries,
+                    )
+                    if retry < max_retries:
+                        time.sleep(retry * 3)
+            else:
+                error("Max retries reached, exit")
+                sys.exit(2)
+
         except act.api.base.ValidationError as err:
             warning("ValidationError while storing objects: %s" % err)
             continue
