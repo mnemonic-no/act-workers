@@ -111,11 +111,12 @@ def pdns_query(
         urllib3.exceptions.ReadTimeoutError,
         requests.exceptions.ReadTimeout,
         socket.timeout,
+        worker.ServiceTimeout,
     ) as err:
         warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def kind(s: Text):
+def kind(s: Text) -> Text:
     try:
         ipaddress.IPv4Address(s)
         return IPv4
