@@ -18,16 +18,16 @@ PERFORMANCE OF THIS SOFTWARE.
 """
 
 
-from logging import error
-
 import sys
 import traceback
-import act
-import act.api
-from act.workers.libs import worker
-from act.api.libs import cli
+from logging import error
 from typing import Text
 
+import act.api
+from act.api.libs import cli
+
+import act
+from act.workers.libs import worker
 
 WORKER_NAME = "TODO"
 

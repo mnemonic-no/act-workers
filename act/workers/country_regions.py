@@ -18,8 +18,9 @@ from typing import Dict, List, Text
 
 import act.api
 from act.api.helpers import handle_fact
-from act.workers.libs import worker
 from act.api.libs import cli
+
+from act.workers.libs import worker
 
 
 def parseargs() -> argparse.ArgumentParser:

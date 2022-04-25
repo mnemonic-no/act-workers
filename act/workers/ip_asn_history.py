@@ -18,17 +18,17 @@ PERFORMANCE OF THIS SOFTWARE.
 """
 
 
-from logging import error
-
 import sys
 import traceback
-import act
+from logging import error
+from typing import List, Optional, Text, Tuple
+
 import act.api
 import requests
-from act.workers.libs import worker
-from typing import Text, Optional, List, Tuple
 from act.api.libs import cli
 
+import act
+from act.workers.libs import worker
 
 WORKER_NAME = "ip-asn-history"
 

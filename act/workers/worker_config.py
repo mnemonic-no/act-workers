@@ -7,9 +7,8 @@ import sys
 from typing import List, Text
 
 import caep
-from pkg_resources import resource_string
-
 from act.api.libs import cli
+from pkg_resources import resource_string
 
 
 def string_list(data: Text) -> List[Text]:

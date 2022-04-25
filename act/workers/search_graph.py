@@ -13,11 +13,11 @@ import sys
 from logging import error, info, warning
 from typing import Any, Dict, Text
 
-import dateparser
-
 import act.api
-from act.workers.libs import worker
+import dateparser
 from act.api.libs import cli
+
+from act.workers.libs import worker
 
 # Inspect object search function to get list of valid arguments and their defaults
 VALID_SEARCH_OPTIONS: Dict[str, Any] = {

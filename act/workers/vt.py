@@ -36,14 +36,14 @@ import urllib.parse
 import warnings
 from functools import partialmethod
 from logging import error, info, warning
-from typing import Generator, List, Optional, Text, Tuple, Set
-
-import requests
+from typing import Generator, List, Optional, Set, Text, Tuple
 
 import act.api
+import requests
 from act.api.libs import cli
-from act.workers.libs import worker
 from virus_total_apis import PublicApi as VirusTotalApi
+
+from act.workers.libs import worker
 
 ADWARE_OVERRIDES = ["opencandy", "monetize", "adload", "somoto"]
 

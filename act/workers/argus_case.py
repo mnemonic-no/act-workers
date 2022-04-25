@@ -9,15 +9,15 @@ import sys
 import time
 import traceback
 from logging import debug, error, info, warning
-from typing import Any, Dict, Generator, Optional, Text, cast, List
+from typing import Any, Dict, Generator, List, Optional, Text, cast
 
+import act.api
 import caep
 import requests
 import urllib3
-
-import act.api
-from act.workers.libs import argus, mnemonic, worker
 from act.api.libs import cli
+
+from act.workers.libs import argus, mnemonic, worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

@@ -7,18 +7,17 @@ Thaicert worker for the ACT platform
 
 import argparse
 import traceback
-import act
-import act.api
-
 from collections import defaultdict
-from typing import Text, List
 from itertools import combinations
 from logging import error, warning
+from typing import List, Text
 
-from act.workers.libs import worker
+import act.api
 from act.api.helpers import handle_fact, handle_facts
 from act.api.libs import cli
 
+import act
+from act.workers.libs import worker
 
 WORKER_NAME = "thaicert"
 THAICERT_URL = "https://apt.thaicert.or.th/cgi-bin/getcard.cgi?g=all&o=j"
@@ -45,7 +44,7 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
     ta_aliases = {}
 
     for actor in ta_cards:
-            ta_name = actor["names"][0]["name"]
+        ta_name = actor["names"][0]["name"]
 
         ta_aliases[ta_name] = []
 
@@ -92,8 +91,9 @@ def process(client: act.api.Act, ta_cards: List, output_format: Text = "json") -
                                 client.fact("attributedTo")
                                 .source("incident", "*")
                                 .destination("threatActor", ta),
-                        ), 
-                        output_format=output_format)
+                            ),
+                            output_format=output_format,
+                        )
 
 
 def add_countries(
@@ -114,7 +114,9 @@ def add_countries(
                             client.fact("attributedTo")
                             .source("threatActor", actor["actor"])
                             .destination("organization", "*"),
-                    ), output_format=output_format)
+                        ),
+                        output_format=output_format,
+                    )
 
         if "observed-countries" in actor:
             for country in actor["observed-countries"]:
@@ -131,7 +133,9 @@ def add_countries(
                                 client.fact("attributedTo")
                                 .source("incident", "*")
                                 .destination("threatActor", ta),
-                        ), output_format=output_format)
+                            ),
+                            output_format=output_format,
+                        )
 
 
 def add_sectors(
@@ -156,7 +160,9 @@ def add_sectors(
                                 client.fact("attributedTo")
                                 .source("incident", "*")
                                 .destination("threatActor", ta),
-                        ), output_format=output_format)
+                            ),
+                            output_format=output_format,
+                        )
 
 
 def add_tools(
@@ -182,7 +188,9 @@ def add_tools(
                                 client.fact("attributedTo")
                                 .source("incident", "*")
                                 .destination("threatActor", ta),
-                        ), output_format=output_format)
+                            ),
+                            output_format=output_format,
+                        )
 
     for values in tools:
         aliases = set(
