@@ -11,13 +11,13 @@ import traceback
 from logging import error, info
 from typing import Dict, Generator, Optional, Text
 
+import act.api.helpers
 import caep
 import requests
+from act.api.libs import cli
 
 import act
-import act.api.helpers
 from act.workers.libs import misp, worker
-from act.api.libs import cli
 
 try:
     import urlparse

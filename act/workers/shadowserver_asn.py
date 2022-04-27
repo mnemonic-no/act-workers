@@ -205,7 +205,7 @@ def asn_query(
                     if retry >= 8:
                         raise
                     # Sleep 1, 2, 4, 8, ... 128 seconds
-                    time.sleep(2 ** retry)
+                    time.sleep(2**retry)
                     retry += 1
         except KeyError:
             error("Key error: {}: {}".format(ip, traceback.format_exc()))

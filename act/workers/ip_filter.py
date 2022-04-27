@@ -36,8 +36,9 @@ import sys
 import traceback
 from logging import debug, error
 
-from act.workers.libs import worker
 from act.api.libs import cli
+
+from act.workers.libs import worker
 
 
 def process() -> None:

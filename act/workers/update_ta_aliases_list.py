@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import os
-import argparse
-from act.workers.libs.ta_list_methods import (
-    get_all_ta_from_act,
-    get_all_alias_facts_from_act,
-    add_ta_to_map,
-    add_ta_alias_to_map,
-    create_config,
-)
+
+from act.api.libs import cli
 
 from act.workers.libs import worker
-from act.api.libs import cli
+from act.workers.libs.ta_list_methods import (
+    add_ta_alias_to_map,
+    add_ta_to_map,
+    create_config,
+    get_all_alias_facts_from_act,
+    get_all_ta_from_act,
+)
 
 
 def parseargs() -> argparse.ArgumentParser:
