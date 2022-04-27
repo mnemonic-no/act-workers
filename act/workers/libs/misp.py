@@ -1,6 +1,7 @@
 """Library for working with MISP export files"""
 
 import enum
+import hashlib
 import ipaddress
 import json
 import re
@@ -105,9 +106,13 @@ class Event:  # pylint: disable=R0902
             time.time()
         )  # reference time when the event was published on the instance.
 
+        self.sha256 = None
+
         if loads:
             data = json.loads(loads)
             event = data["Event"]
+
+            self.sha256 = hashlib.sha256(loads.encode("utf-8")).hexdigest()
             self._uuid = uuid.UUID(event["uuid"])
             self.published = event["published"]
             self.info = event["info"]

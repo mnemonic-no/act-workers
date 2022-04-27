@@ -149,14 +149,20 @@ def main() -> None:
                 )
 
                 n += 1
-
                 try:
-                    act.api.helpers.handle_fact(
-                        actapi.fact("externalLink")
-                        .source("uri", "{0}/{1}.json".format(line.strip(), event.uuid))
-                        .destination("report", str(event.uuid)),
-                        output_format=args.output_format,
-                    )
+
+                    if event.sha256:
+                        act.api.helpers.handle_facts(
+                            (
+                                actapi.fact("represents")
+                                .source("report", str(event.uuid))
+                                .destination("content", event.sha256),
+                                actapi.fact("at")
+                                .source("content", event.sha256)
+                                .destination("uri", f"{line.strip()}/{event.uuid}"),
+                            ),
+                            output_format=args.output_format,
+                        )
 
                     n += 1
                 except act.api.base.ResponseError as err:
