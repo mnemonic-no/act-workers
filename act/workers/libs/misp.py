@@ -162,26 +162,16 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
 
     def __init__(self, attributedict: Dict[Text, Text]):
 
-        try:
-            self._uuid = attributedict["uuid"]
-            self.id: Text = attributedict["uuid"]
-            mapper_fn = map_misp_to_act.get(
-                attributedict["type"], lambda x: (None, None)
-            )
-            self.act_type: Optional[Text] = None
-            self.value: Optional[Text] = None
+        self._uuid = attributedict["uuid"]
+        self.id: Text = attributedict["uuid"]
+        mapper_fn = map_misp_to_act.get(attributedict["type"], lambda x: (None, None))
+        self.act_type: Optional[Text] = None
+        self.value: Optional[Text] = None
 
-            self.act_type, self.value = mapper_fn(attributedict["value"])
+        self.act_type, self.value = mapper_fn(attributedict["value"])
 
-            if (
-                "RelatedAttribute" in attributedict
-                and attributedict["RelatedAttribute"]
-            ):
-                debug("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
-        except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
-            warning(attributedict)
-            warning(attributedict["value"][:100])
-            raise
+        if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
+            debug("Related atribute: %s", attributedict["RelatedAttribute"])
 
     def __str__(self) -> Text:
         return "{0} {1}:{2}".format(self.id, self.act_type, self.value)
