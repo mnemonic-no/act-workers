@@ -7,7 +7,7 @@ import json
 import re
 import time
 import uuid
-from logging import warning
+from logging import debug, warning
 from typing import Callable, Dict, Optional, Text, Tuple
 
 
@@ -177,10 +177,10 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
                 "RelatedAttribute" in attributedict
                 and attributedict["RelatedAttribute"]
             ):
-                print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
+                debug("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
         except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
-            print(attributedict)
-            print(attributedict["value"][:100])
+            warning(attributedict)
+            warning(attributedict["value"][:100])
             raise
 
     def __str__(self) -> Text:
