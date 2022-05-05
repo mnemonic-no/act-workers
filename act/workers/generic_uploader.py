@@ -119,6 +119,8 @@ def uploader(
             if not no_exit_on_error:
                 sys.exit(1)
 
+            continue
+
         # Add cache for facts to be used to populate id in meta facts
         if isinstance(fact, act.api.fact.Fact):
             facts[fact] = fact_copy.id
