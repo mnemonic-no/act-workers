@@ -6,12 +6,13 @@ import logging
 import re
 import sys
 import traceback
-from typing import Dict, Optional, Text, Tuple
+from typing import Dict, Text
 from urllib.parse import urljoin
 
 import act.api
 import requests
 from act.api.libs import cli
+from urllib3.exceptions import MaxRetryError
 
 from act.workers.libs import worker
 
@@ -58,9 +59,13 @@ def query_shadowserver(
     request_bytes = bytes(request_string, "latin-1")
     hmac_generator = hmac.new(secret_bytes, request_bytes, hashlib.sha256)
     hmac2 = hmac_generator.hexdigest()
-    response = requests.post(
-        url=url, json=request, proxies=proxies, headers={"HMAC2": hmac2}
-    )
+
+    try:
+        response = requests.post(
+            url=url, json=request, proxies=proxies, headers={"HMAC2": hmac2}
+        )
+    except MaxRetryError as err:
+        return dict(error=err)
 
     if response.status_code == requests.codes.ok:
         return dict(
@@ -113,7 +118,7 @@ def handle_hexdigest(
     try:
         results = response["results"]
     except KeyError:
-        logging.error(f"Error handling: {ioc}. Error: {response['error']}")
+        logging.warning(f"Error handling: {ioc}. Error: {response['error']}")
         sys.exit(1)
 
     for result in results:
@@ -164,7 +169,7 @@ def handle_domain(
     try:
         results = response["results"][ioc]
     except KeyError:
-        logging.error(f"Error handling: {ioc}. Error: {response['error']}")
+        logging.warning(f"Error handling: {ioc}. Error: {response['error']}")
         sys.exit(1)
 
     if not "family" in results:
@@ -199,7 +204,7 @@ def handle_domain(
                     name_extraction(actapi, result["signature"], content_id)
 
 
-def run():
+def run() -> None:
     args = cli.handle_args(parseargs())
     actapi = worker.init_act(args)
 
