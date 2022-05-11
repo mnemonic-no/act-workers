@@ -121,7 +121,8 @@ def uploader(
 
             continue
 
-        if not fact_copy:
+        # handle_fact() will return None if fact does not validate
+        if fact_copy is None:
             warning("No fact returned from platform for: %s" % data)
             continue
 
