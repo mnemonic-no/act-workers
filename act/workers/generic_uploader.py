@@ -121,6 +121,10 @@ def uploader(
 
             continue
 
+        if not fact_copy:
+            warning("No fact returned from platform for: %s" % data)
+            continue
+
         # Add cache for facts to be used to populate id in meta facts
         if isinstance(fact, act.api.fact.Fact):
             facts[fact] = fact_copy.id
