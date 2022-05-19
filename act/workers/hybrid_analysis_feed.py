@@ -376,11 +376,19 @@ def search_hash(
 
         response = requests.post(url, proxies=proxies, headers=headers, data=form_data)
 
+    if response.status_code == 525:
+        # This is a known error that is observed from from time to time towards the hybrid analsysi API
+        warning(
+            f"hybrid_analysis_feed.search_hash() could not search community API, "
+            f"error calling {url}: Status = {response.status_code}, response = {response.text}"
+        )
+
+        return []
+
     if response.status_code != 200:
-        print(response.text)
         raise CommunicationError(
             f"hybrid_analysis_feed.search_hash() could not search community API, "
-            f"error calling {url}: Status = {response.status_code}"
+            f"error calling {url}: Status = {response.status_code}, response = {response.text}"
         )
 
     try:
