@@ -134,7 +134,7 @@ def handle_argus_event_tactic(
             actapi.fact("observedIn")
             .source("technique", "*")
             .destination("incident", case_id),
-            actapi.fact("implements")
+            actapi.fact("accomplishes")
             .source("technique", "*")
             .destination("tactic", tactic.strip()),
         )
