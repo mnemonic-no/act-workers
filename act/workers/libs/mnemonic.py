@@ -1,16 +1,16 @@
 """ Common functions towards mnemonic API """
 
 from logging import debug
-from typing import Any, Dict, Generator, Optional, Text
+from typing import Any, Callable, Dict, Generator, Optional, Text, cast
 
 import requests
 
 from . import worker
 
-# Mapping of message templates provided in 402/503 errors from backend to
+# Mapping of messages and message templates provided in errors from backend to
 # Exceptions that will be raised
 
-STATUS_CODE_TEMPLATES = {
+STATUS_CODE_TEMPLATES: Dict[int, Dict[Text, Callable[[Dict[Text, Any]], Exception]]] = {
     402: {
         "resource.limit.exceeded": lambda msg: worker.ResourceLimitExceeded(
             "{message}".format(**msg)
@@ -29,7 +29,7 @@ STATUS_CODE_TEMPLATES = {
 }
 
 
-def status_code_handler(req: requests.models.Response, res: Dict) -> None:
+def status_code_handler(req: requests.models.Response, res: Dict[Text, Any]) -> None:
     """
 
     Status Code Handler for non-200 status codes
@@ -48,24 +48,30 @@ def status_code_handler(req: requests.models.Response, res: Dict) -> None:
     if req.status_code == 404:
         raise worker.NoResult
 
-    if req.status_code in (402, 503):
+    if req.status_code in STATUS_CODE_TEMPLATES:
         # Example output on Timeout:
         # {"responseCode":503,"limit":0,"offset":0,"count":0,"metaData":{},"messages":[{"message":null,"messageTemplate":null,"type":"ACTION_ERROR","field":null,"parameter":null,"timestamp":1606137003885},{"message":"Request timed out, service may be overloaded or unavailable","messageTemplate":"service.timeout","type":"ACTION_ERROR","field":null,"parameter":null,"timestamp":1606137003993}],"data":null,"size":0}
 
-        for msg in res["messages"]:
-            msg_template = msg.get("messageTemplate")
-            if msg_template in STATUS_CODE_TEMPLATES.get(req.status_code, {}):
-                raise STATUS_CODE_TEMPLATES[req.status_code][msg_template](msg)
+        for message in res["messages"]:
+            msg_template = message.get("messageTemplate")
+            msg = message.get("message")
+            match_error = cast(Dict[Text, Any], STATUS_CODE_TEMPLATES[req.status_code])
 
-    raise worker.FetchError("Unknown error: {}, {}".format(req, req.content))
+            # search for text both in message and messageTemplate
+            if msg_template in match_error:
+                raise STATUS_CODE_TEMPLATES[req.status_code][msg_template](message)
+            if msg in match_error:
+                raise STATUS_CODE_TEMPLATES[req.status_code][msg](message)
+
+    raise worker.FetchError(f"Unknown error: {req}, {req.text}")
 
 
 def batch_query(
     method: Text,
     url: Text,
-    headers: Optional[Dict] = None,
+    headers: Optional[Dict[Text, Any]] = None,
     timeout: int = 299,
-    json_params: Optional[Dict] = None,
+    json_params: Optional[Dict[Text, Any]] = None,
     proxy_string: Optional[Text] = None,
     batch_size: int = 1000,
     limit: int = 0,
@@ -80,7 +86,7 @@ def batch_query(
     if limit and batch_size > limit:
         batch_size = limit
 
-    options = {
+    options: Dict[Text, Any] = {
         "headers": headers,
         "verify": False,
         "timeout": timeout,
@@ -95,7 +101,7 @@ def batch_query(
             json_params["offset"] = offset
             json_params["limit"] = batch_size
         elif method == "GET":
-            options["params"]["offset"] = offset  # type: ignore
+            options["params"]["offset"] = offset
             options["params"]["limit"] = batch_size
 
         debug(
@@ -103,12 +109,12 @@ def batch_query(
                 url, json_params, options
             )
         )
-        req = requests.request(method, url, json=json_params, **options)  # type:ignore
+        req = requests.request(method, url, json=json_params, **options)
 
         try:
             res = req.json()
         except ValueError:
-            raise worker.FetchError("Illegal JSON, {}, {}".format(req, req.content))
+            raise worker.FetchError(f"Illegal JSON, {req}, {req.text}")
 
         if req.status_code != 200:
             status_code_handler(req, res)
@@ -116,7 +122,7 @@ def batch_query(
         data = res["data"]
         count = res.get("count", 0)
 
-        if type(data) != type([]):
+        if not isinstance(data, list):
             yield data
             break
 
@@ -137,9 +143,9 @@ def batch_query(
 def single_query(
     method: Text,
     url: Text,
-    headers: Optional[Dict] = None,
+    headers: Optional[Dict[Text, Any]] = None,
     timeout: int = 299,
-    json_params: Optional[Dict] = None,
+    json_params: Optional[Dict[Text, Any]] = None,
     proxy_string: Optional[Text] = None,
 ) -> Dict[Text, Any]:
     """Execute query for single result, returns result"""
