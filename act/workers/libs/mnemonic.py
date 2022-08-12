@@ -7,7 +7,7 @@ import requests
 
 from . import worker
 
-# Mapping of messages message templates provided in errors from backend to
+# Mapping of messages and message templates provided in errors from backend to
 # Exceptions that will be raised
 
 STATUS_CODE_TEMPLATES: Dict[int, Dict[Text, Callable[[Dict[Text, Any]], Exception]]] = {
