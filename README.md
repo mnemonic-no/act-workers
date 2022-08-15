@@ -299,7 +299,7 @@ technique <-[classifiedAs]- event[*] -[attributedTo]-> incident[*] -[attributedT
 Use if tool and threat actor is known, but incident, content and event is unknown.
 
 ```
-threatActor <-[attributedTod]- incident[*] <-[attributedTod]- event[*] <-[observedIn]- content[*] -[classifiedAs]-> tool
+threatActor <-[attributedTo]- incident[*] <-[observedIn]- content[*] -[classifiedAs]-> tool
 ```
 
 ## `sectors`
