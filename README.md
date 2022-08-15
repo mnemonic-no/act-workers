@@ -230,9 +230,9 @@ by adding the ```--act-baseurl``` option, the data will be stored to the platfor
 
 The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimental.l.
 
-# add-ta-helper
+# act-ta-helper
 
-You can use `add-ta-helper` to create facts, including placeholders, for typical scenarios where you have some
+You can use `act-ta-helper` to create facts, including placeholders, for typical scenarios where you have some
 information of TA activity, but not all.
 
 This worker should not be used if any of objects listed as placeholders below are known.
