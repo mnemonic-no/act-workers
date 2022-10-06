@@ -7,21 +7,29 @@ import os
 import sys
 import traceback
 from logging import error, info, warning
-from typing import Dict, List, Optional, Text, Union
+from typing import Any, Dict, List, Optional, Text, Union
 
 import act.api
+import attampck.data
 from act.api.helpers import Act, handle_fact, handle_facts
 from act.api.libs import cli
-from pyattck import Attck
+from attampck import matrices, stixmap
+from attampck.data import resolve_mitre_id
+from stix2.datastore.memory import MemoryStore
+from stix2.v21.sdo import AttackPattern, IntrusionSet, Malware, Tool
 
 from act.workers.libs import worker
 
-# This is only for typing
-# We can not import these matrices, because then they be loaded
-# by pyattack and it fails if you need proxy
-AttckMatrice = Union["Enterprise", "ICS", "MobileAttck"]
+Software = Union[Tool, Malware]
+Attack = Union[Software, AttackPattern, IntrusionSet, Malware, Tool]
 
-MITRE_TYPES = ["enterprise", "ics", "mobile"]
+
+MITRE_TYPES = [
+    matrices.ENTERPRISE,
+    matrices.ICS,
+    matrices.MOBILE,
+]
+
 
 DEFAULT_NOTIFY_CACHE = os.path.join(os.environ["HOME"], "act-mitre-attack-notify.cache")
 
@@ -51,7 +59,7 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument(
         "--type",
         choices=list(MITRE_TYPES),
-        help="Specify a single type to download (enterprise, mobile or pre). Default is to fetch all",
+        help="Specify a single type to download. Default is to fetch all",
     )
     parser.add_argument(
         "--notifycache",
@@ -63,7 +71,20 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def deprecated_or_revoked(obj):
+class MemoryStoreNotFound(Exception):
+    pass
+
+
+def memorystore(attack: attampck.data.Attampck, matrice: matrices) -> MemoryStore:
+    mem = getattr(attack, f"{matrice}_memorystore")
+
+    if not mem:
+        raise MemoryStoreNotFound(f"Memorystore not found: {matrice}_memorystore")
+
+    return mem
+
+
+def deprecated_or_revoked(obj: Any) -> Optional[bool]:
     """
     Return true if object has a truthy "revoked" or "deprecated" attribute,
     otherwise False
@@ -73,10 +94,11 @@ def deprecated_or_revoked(obj):
 
 def handle_techniques(
     client: Act,
-    technique: "AttckTechnique",
-    main_technique: Optional["AttckTechnique"],
+    technique: AttackPattern,
+    main_technique: Optional[AttackPattern],
+    tactic_id_map: Dict[Text, Text],
     output_format: Text = "json",
-) -> List:
+) -> List[AttackPattern]:
 
     """
     Args:
@@ -86,6 +108,8 @@ def handle_techniques(
     output_format (str):   Fact output if sent to stdout (text | json)
     """
 
+    technique_id = resolve_mitre_id(technique)
+
     if deprecated_or_revoked(technique):
         # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
         return [technique]
@@ -93,79 +117,126 @@ def handle_techniques(
     if main_technique:
         handle_fact(
             client.fact("subTechniqueOf")
-            .source("technique", technique.id)
-            .destination("technique", main_technique.id),
+            .source("technique", technique_id)
+            .destination("technique", resolve_mitre_id(main_technique)),
             output_format=output_format,
         )
 
     handle_fact(
-        client.fact("name", technique.name).source("technique", technique.id),
+        client.fact("name", technique.name).source("technique", technique_id),
         output_format=output_format,
     )
 
     # Mitre ATT&CK Tactics are implemented in STIX as kill chain phases with kill_chain_name "mitre-attack"
-    for tactic in technique.tactics:
-        handle_fact(
-            client.fact("accomplishes")
-            .source("technique", technique.id)
-            .destination("tactic", tactic.id),
-            output_format=output_format,
-        )
+    for phase in technique.kill_chain_phases:
+
+        if phase.kill_chain_name != "mitre-attack":
+            continue
+
+        tactic_id = tactic_id_map[phase.phase_name]
 
         handle_fact(
-            client.fact("name", tactic.name).source("tactic", tactic.id),
+            client.fact("accomplishes")
+            .source("technique", technique_id)
+            .destination("tactic", tactic_id),
             output_format=output_format,
         )
 
     return []
 
 
+def add_tactics(
+    client: Act,
+    attack: attampck.data.Attampck,
+    matrice: matrices,
+    output_format: Text = "json",
+) -> Dict[Text, Text]:
+    """
+        extract objects/facts related to ATT&CK tactics and return map of shortname -> id for tactics
+
+    Args:
+        attack (matrices):       Attack matrice
+        output_format (Text):    "json" or "str" output format
+
+    """
+
+    shortname_id_map: Dict[Text, Text] = {}
+
+    for tactic in attack.iterate(matrice, stixmap.TACTIC):
+        tactic_id = resolve_mitre_id(tactic)
+
+        shortname_id_map[tactic.x_mitre_shortname] = tactic_id
+
+        handle_fact(
+            client.fact("name", tactic.name).source("tactic", tactic_id),
+            output_format=output_format,
+        )
+
+    return shortname_id_map
+
+
 def add_techniques(
-    client: Act, matrice: AttckMatrice, output_format: Text = "json"
-) -> List:
+    client: Act,
+    attack: attampck.data.Attampck,
+    matrice: matrices,
+    tactic_id_map: Dict[Text, Text],
+    output_format: Text = "json",
+) -> List[AttackPattern]:
     """
         extract objects/facts related to ATT&CK techniques
 
     Args:
-        attack (AttckMatrice):       Attack matrice
-        output_format (Text):        "json" or "str" output format
+        attack (matrices):       Attack matrice
+        output_format (Text):    "json" or "str" output format
 
     """
 
     notify = []
 
-    for technique in matrice.techniques:
-        notify += handle_techniques(client, technique, None, output_format)
+    for technique in attack.iterate(matrice, stixmap.TECHNIQUE):
 
-        for subtechnique in getattr(technique, "subtechniques", []):
-            # Pre Attack does not have sub techniques
-            notify += handle_techniques(client, subtechnique, technique, output_format)
+        # Subtechniques are added below
+        if getattr(technique, "x_mitre_is_subtechnique", False):
+            continue
+
+        notify += handle_techniques(
+            client, technique, None, tactic_id_map, output_format
+        )
+
+        for subtechnique in attack.get_subtechniques(technique.id):
+            notify += handle_techniques(
+                client, subtechnique, technique, tactic_id_map, output_format
+            )
 
     return notify
 
 
 def add_groups(
-    client: Act, matrice: AttckMatrice, output_format: Text = "json"
-) -> List:
+    client: Act,
+    attack: attampck.data.Attampck,
+    matrice: matrices,
+    output_format: Text = "json",
+) -> List[IntrusionSet]:
     """
         extract objects/facts related to ATT&CK Threat Actors
 
     Args:
-        attack (AttckMatrice):       Attack matrice
-        output_format (Text):        "json" or "str" output format
+        attack (matrices):       Attack matrice
+        output_format (Text):    "json" or "str" output format
 
     """
 
-    notify: List = []
+    notify: List[IntrusionSet] = []
 
     # ICS does not have actors
-    for actor in getattr(matrice, "actors", []):
+    for actor in attack.iterate(matrice, stixmap.GROUP):
+
         if deprecated_or_revoked(actor):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
             notify.append(actor)
             continue
 
-        for alias in actor.alias:
+        for alias in actor.aliases:
             if actor.name != alias:
                 handle_fact(
                     client.fact("alias").bidirectional(
@@ -177,101 +248,118 @@ def add_groups(
                     output_format=output_format,
                 )
 
-        for tool in actor.known_tools:
+        for uses in memorystore(attack, matrice).related_to(
+            actor, relationship_type="uses"
+        ):
 
-            if not tool.strip():
-                # Skip empty tools found in ATT&CK
-                continue
+            if uses.type in ("malware", "tool"):
+                tool_name = uses.name.strip()
 
-            handle_facts(
-                act.api.fact.fact_chain(
-                    client.fact("classifiedAs")
-                    .source("content", "*")
-                    .destination("tool", tool),
-                    client.fact("observedIn")
-                    .source("content", "*")
-                    .destination("incident", "*"),
-                    client.fact("attributedTo")
-                    .source("incident", "*")
-                    .destination("threatActor", actor.name),
-                ),
-                output_format=output_format,
-            )
+                if not tool_name:
+                    # Skip empty tools found in ATT&CK
+                    continue
 
-        for technique in actor.techniques:
-            handle_facts(
-                act.api.fact.fact_chain(
-                    client.fact("observedIn")
-                    .source("technique", technique.id)
-                    .destination("incident", "*"),
-                    client.fact("attributedTo")
-                    .source("incident", "*")
-                    .destination("threatActor", actor.name),
-                ),
-                output_format=output_format,
-            )
+                handle_facts(
+                    act.api.fact.fact_chain(
+                        client.fact("classifiedAs")
+                        .source("content", "*")
+                        .destination("tool", tool_name),
+                        client.fact("observedIn")
+                        .source("content", "*")
+                        .destination("incident", "*"),
+                        client.fact("attributedTo")
+                        .source("incident", "*")
+                        .destination("threatActor", actor.name),
+                    ),
+                    output_format=output_format,
+                )
+
+            elif uses.type == "attack-pattern":
+                handle_facts(
+                    act.api.fact.fact_chain(
+                        client.fact("observedIn")
+                        .source("technique", resolve_mitre_id(uses))
+                        .destination("incident", "*"),
+                        client.fact("attributedTo")
+                        .source("incident", "*")
+                        .destination("threatActor", actor.name),
+                    ),
+                    output_format=output_format,
+                )
 
     return notify
 
 
 def add_software(
-    client: Act, matrice: AttckMatrice, output_format: Text = "json"
-) -> List:
+    client: Act,
+    attack: attampck.data.Attampck,
+    matrice: matrices,
+    output_format: Text = "json",
+) -> List[Software]:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
 
     Args:
-        attack (AttckMatrice):       Attack matrice
-        output_format (Text):        "json" or "str" output format
+        attack (matrices):       Attack matrice
+        output_format (Text):    "json" or "str" output format
 
     """
 
-    notify: List = []
+    notify: List[Software] = []
 
-    # Enterprise matrice has malwares and tools, but preattack has none of them
-    for software in getattr(matrice, "malwares", []) + getattr(matrice, "tools", []):
-        if deprecated_or_revoked(software):
-            # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
-            notify.append(software)
-            continue
+    for stix_type in (stixmap.TOOL, stixmap.MALWARE):
+        # Enterprise matrice has malwares and tools, but preattack has none of them
+        for software in attack.iterate(matrice, stix_type):
 
-        tool_name = software.name
+            if deprecated_or_revoked(software):
+                # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
+                notify.append(software)
+                continue
 
-        # Tool category
-        handle_fact(
-            client.fact("category", software.type).source("tool", tool_name),
-            output_format=output_format,
-        )
+            tool_name = software.name
 
-        for alias in software.alias:
-            alias_name = alias
-
-            if tool_name != alias_name:
-                # Tool category (alias)
-                handle_fact(
-                    client.fact("category", software.type).source("tool", alias_name),
-                    output_format=output_format,
-                )
-                handle_fact(
-                    client.fact("alias").bidirectional(
-                        "tool", tool_name, "tool", alias_name
-                    ),
-                    output_format=output_format,
-                )
-
-        for technique in software.techniques:
+            # Tool category
             handle_fact(
-                client.fact("implements")
-                .source("tool", software.name)
-                .destination("technique", technique.id),
+                client.fact("category", software.type).source("tool", tool_name),
                 output_format=output_format,
             )
+
+            for alias in getattr(software, "x_mitre_aliases", []):
+                alias_name = alias
+
+                if tool_name != alias_name:
+                    # Tool category (alias)
+                    handle_fact(
+                        client.fact("category", software.type).source(
+                            "tool", alias_name
+                        ),
+                        output_format=output_format,
+                    )
+                    handle_fact(
+                        client.fact("alias").bidirectional(
+                            "tool", tool_name, "tool", alias_name
+                        ),
+                        output_format=output_format,
+                    )
+
+            for technique in memorystore(attack, matrice).related_to(
+                software, relationship_type="uses"
+            ):
+                if technique.type != "attack-pattern":
+                    continue
+
+                handle_fact(
+                    client.fact("implements")
+                    .source("tool", software.name)
+                    .destination("technique", resolve_mitre_id(technique)),
+                    output_format=output_format,
+                )
 
     return notify
 
 
-def notify_cache(filename: str) -> Dict:
+def notify_cache(filename: str) -> Dict[Text, bool]:
     """
     Read notify cache from filename
     Args:
@@ -309,11 +397,11 @@ def add_to_cache(filename: str, entry: str) -> None:
 
 
 def send_notification(
-    notify: List,
+    notify: List[Attack],
     smtphost: Text,
     sender: Text,
     recipient: Text,
-    model: Text,
+    matrice: Text,
 ) -> List[Text]:
     """
     Process revoked objects
@@ -339,15 +427,17 @@ def send_notification(
         )
         return []
 
-    body = model + "\n\n"
-    warning("[{}]".format(model))
+    body = matrice + "\n\n"
+    warning("[{}]".format(matrice))
 
     for obj in notify:
         if getattr(obj, "revoked", None):
-            text = "revoked: {}:{}".format(obj.id, obj.name)
+            text = "revoked: {}:{}:{}".format(obj.id, resolve_mitre_id(obj), obj.name)
 
         elif getattr(obj, "deprecated", None):
-            text = "deprecated: {}:{}".format(obj.id, obj.name)
+            text = "deprecated: {}:{}:{}".format(
+                obj.id, resolve_mitre_id(obj), obj.name
+            )
 
         else:
             raise NotificationError(
@@ -386,29 +476,32 @@ def main() -> None:
         else None
     )
 
-    attack = Attck(proxies=proxies)
+    attack = attampck.data.Attampck(proxies=proxies)
 
-    types = [args.type] if args.type else MITRE_TYPES
+    types = (
+        [getattr(attampck.matrices, args.type.upper())] if args.type else MITRE_TYPES
+    )
 
-    for mitre_type in types:
-        if mitre_type not in MITRE_TYPES:
+    for matrice in types:
+        if not matrice:
             error(
                 "Unknown mitre type: {}. Valid types: {}".format(
-                    mitre_type, ",".join(MITRE_TYPES)
+                    matrice, ",".join(attampck.matrices)
                 )
             )
             sys.exit(2)
 
         cache = notify_cache(args.notifycache)
 
-        model = getattr(attack, mitre_type)
-
-        techniques_notify = add_techniques(actapi, model, args.output_format)
-        groups_notify = add_groups(actapi, model, args.output_format)
-        software_notify = add_software(actapi, model, args.output_format)
+        tactic_id_map = add_tactics(actapi, attack, matrice, args.output_format)
+        techniques_notify = add_techniques(
+            actapi, attack, matrice, tactic_id_map, args.output_format
+        )
+        groups_notify = add_groups(actapi, attack, matrice, args.output_format)
+        software_notify = add_software(actapi, attack, matrice, args.output_format)
 
         # filter revoked objects from those allready notified
-        notify = [
+        notify: Attack = [
             notify
             for notify in techniques_notify + groups_notify + software_notify
             if notify.id not in cache
@@ -416,7 +509,11 @@ def main() -> None:
 
         if notify:
             notified = send_notification(
-                notify, args.smtphost, args.sender, args.recipient, mitre_type
+                notify,
+                args.smtphost,
+                args.sender,
+                args.recipient,
+                matrice,
             )
 
             for object_id in notified:
