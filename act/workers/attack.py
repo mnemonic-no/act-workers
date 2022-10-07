@@ -75,11 +75,11 @@ class MemoryStoreNotFound(Exception):
     pass
 
 
-def memorystore(attack: attampck.data.Attampck, matrice: matrices) -> MemoryStore:
-    mem = getattr(attack, f"{matrice}_memorystore")
+def memorystore(attack: attampck.data.Attampck, matrix: matrices) -> MemoryStore:
+    mem = getattr(attack, f"{matrix}_memorystore")
 
     if not mem:
-        raise MemoryStoreNotFound(f"Memorystore not found: {matrice}_memorystore")
+        raise MemoryStoreNotFound(f"Memorystore not found: {matrix}_memorystore")
 
     return mem
 
@@ -148,7 +148,7 @@ def handle_techniques(
 def add_tactics(
     client: Act,
     attack: attampck.data.Attampck,
-    matrice: matrices,
+    matrix: matrices,
     output_format: Text = "json",
 ) -> Dict[Text, Text]:
     """
@@ -162,7 +162,7 @@ def add_tactics(
 
     shortname_id_map: Dict[Text, Text] = {}
 
-    for tactic in attack.iterate(matrice, stixmap.TACTIC):
+    for tactic in attack.iterate(matrix, stixmap.TACTIC):
         tactic_id = resolve_mitre_id(tactic)
 
         shortname_id_map[tactic.x_mitre_shortname] = tactic_id
@@ -178,7 +178,7 @@ def add_tactics(
 def add_techniques(
     client: Act,
     attack: attampck.data.Attampck,
-    matrice: matrices,
+    matrix: matrices,
     tactic_id_map: Dict[Text, Text],
     output_format: Text = "json",
 ) -> List[AttackPattern]:
@@ -193,7 +193,7 @@ def add_techniques(
 
     notify = []
 
-    for technique in attack.iterate(matrice, stixmap.TECHNIQUE):
+    for technique in attack.iterate(matrix, stixmap.TECHNIQUE):
 
         # Subtechniques are added below
         if getattr(technique, "x_mitre_is_subtechnique", False):
@@ -214,7 +214,7 @@ def add_techniques(
 def add_groups(
     client: Act,
     attack: attampck.data.Attampck,
-    matrice: matrices,
+    matrix: matrices,
     output_format: Text = "json",
 ) -> List[IntrusionSet]:
     """
@@ -229,7 +229,7 @@ def add_groups(
     notify: List[IntrusionSet] = []
 
     # ICS does not have actors
-    for actor in attack.iterate(matrice, stixmap.GROUP):
+    for actor in attack.iterate(matrix, stixmap.GROUP):
 
         if deprecated_or_revoked(actor):
             # Object is revoked, add to notification list but do not add to facts that should be added to the platform
@@ -248,7 +248,7 @@ def add_groups(
                     output_format=output_format,
                 )
 
-        for uses in memorystore(attack, matrice).related_to(
+        for uses in memorystore(attack, matrix).related_to(
             actor, relationship_type="uses"
         ):
 
@@ -293,7 +293,7 @@ def add_groups(
 def add_software(
     client: Act,
     attack: attampck.data.Attampck,
-    matrice: matrices,
+    matrix: matrices,
     output_format: Text = "json",
 ) -> List[Software]:
     """
@@ -309,8 +309,8 @@ def add_software(
     notify: List[Software] = []
 
     for stix_type in (stixmap.TOOL, stixmap.MALWARE):
-        # Enterprise matrice has malwares and tools, but preattack has none of them
-        for software in attack.iterate(matrice, stix_type):
+        # Enterprise matrix has malwares and tools, but preattack has none of them
+        for software in attack.iterate(matrix, stix_type):
 
             if deprecated_or_revoked(software):
                 # Object is revoked/deprecated, add to notification list but do not add to facts that should be added to the platform
@@ -343,7 +343,7 @@ def add_software(
                         output_format=output_format,
                     )
 
-            for technique in memorystore(attack, matrice).related_to(
+            for technique in memorystore(attack, matrix).related_to(
                 software, relationship_type="uses"
             ):
                 if technique.type != "attack-pattern":
@@ -375,9 +375,7 @@ def notify_cache(filename: str) -> Dict[Text, bool]:
                 if line:
                     cache[line.strip()] = True
     except FileNotFoundError:
-        warning(
-            "Cache file {} not found, will be created if necessary".format(filename)
-        )
+        warning("Cache file %s not found, will be created if necessary", filename)
 
     return cache
 
@@ -401,7 +399,7 @@ def send_notification(
     smtphost: Text,
     sender: Text,
     recipient: Text,
-    matrice: Text,
+    matrix: Text,
 ) -> List[Text]:
     """
     Process revoked objects
@@ -427,17 +425,16 @@ def send_notification(
         )
         return []
 
-    body = matrice + "\n\n"
-    warning("[{}]".format(matrice))
+    body = matrix + "\n\n"
+    warning("[%s]", matrix)
 
     for obj in notify:
+        obj_description = f"{obj.id}:{resolve_mitre_id(obj)}:{obj.name}"
         if getattr(obj, "revoked", None):
-            text = "revoked: {}:{}:{}".format(obj.id, resolve_mitre_id(obj), obj.name)
+            text = f"revoked: {obj_description}"
 
         elif getattr(obj, "deprecated", None):
-            text = "deprecated: {}:{}:{}".format(
-                obj.id, resolve_mitre_id(obj), obj.name
-            )
+            text = f"deprecated: {obj_description}"
 
         else:
             raise NotificationError(
@@ -482,23 +479,23 @@ def main() -> None:
         [getattr(attampck.matrices, args.type.upper())] if args.type else MITRE_TYPES
     )
 
-    for matrice in types:
-        if not matrice:
+    for matrix in types:
+        if not matrix:
             error(
                 "Unknown mitre type: {}. Valid types: {}".format(
-                    matrice, ",".join(attampck.matrices)
+                    matrix, ",".join(attampck.matrices)
                 )
             )
             sys.exit(2)
 
         cache = notify_cache(args.notifycache)
 
-        tactic_id_map = add_tactics(actapi, attack, matrice, args.output_format)
+        tactic_id_map = add_tactics(actapi, attack, matrix, args.output_format)
         techniques_notify = add_techniques(
-            actapi, attack, matrice, tactic_id_map, args.output_format
+            actapi, attack, matrix, tactic_id_map, args.output_format
         )
-        groups_notify = add_groups(actapi, attack, matrice, args.output_format)
-        software_notify = add_software(actapi, attack, matrice, args.output_format)
+        groups_notify = add_groups(actapi, attack, matrix, args.output_format)
+        software_notify = add_software(actapi, attack, matrix, args.output_format)
 
         # filter revoked objects from those allready notified
         notify: Attack = [
@@ -513,7 +510,7 @@ def main() -> None:
                 args.smtphost,
                 args.sender,
                 args.recipient,
-                matrice,
+                matrix,
             )
 
             for object_id in notified:
