@@ -15,7 +15,6 @@ from act.api.helpers import Act, handle_fact, handle_facts
 from act.api.libs import cli
 from attampck import matrices, stixmap
 from attampck.data import resolve_mitre_id
-from stix2.datastore.memory import MemoryStore
 from stix2.v21.sdo import AttackPattern, IntrusionSet, Malware, Tool
 
 from act.workers.libs import worker
@@ -69,19 +68,6 @@ def parseargs() -> argparse.ArgumentParser:
     )
 
     return parser
-
-
-class MemoryStoreNotFound(Exception):
-    pass
-
-
-def memorystore(attack: attampck.data.Attampck, matrix: matrices) -> MemoryStore:
-    mem = getattr(attack, f"{matrix}_memorystore")
-
-    if not mem:
-        raise MemoryStoreNotFound(f"Memorystore not found: {matrix}_memorystore")
-
-    return mem
 
 
 def deprecated_or_revoked(obj: Any) -> Optional[bool]:
@@ -248,7 +234,7 @@ def add_groups(
                     output_format=output_format,
                 )
 
-        for uses in memorystore(attack, matrix).related_to(
+        for uses in attack.get_stix2_memorystore(matrix).related_to(
             actor, relationship_type="uses"
         ):
 
@@ -343,7 +329,7 @@ def add_software(
                         output_format=output_format,
                     )
 
-            for technique in memorystore(attack, matrix).related_to(
+            for technique in attack.get_stix2_memorystore(matrix).related_to(
                 software, relationship_type="uses"
             ):
                 if technique.type != "attack-pattern":
@@ -438,7 +424,7 @@ def send_notification(
 
         else:
             raise NotificationError(
-                "object is not deprecated or revoked: {}:{}".format(obj.id, obj.name)
+                f"object is not deprecated or revoked: {obj.id}:{obj.name}"
             )
 
         notified.append(obj.id)
@@ -453,7 +439,7 @@ def send_notification(
         "Revoked/deprecated objects from MITRE/ATT&CK",
         body,
     )
-    info("Email sent to {}".format(recipient))
+    info("Email sent to %s", recipient)
 
     return notified
 
@@ -482,9 +468,9 @@ def main() -> None:
     for matrix in types:
         if not matrix:
             error(
-                "Unknown mitre type: {}. Valid types: {}".format(
-                    matrix, ",".join(attampck.matrices)
-                )
+                "Unknown mitre type: %s. Valid types: %s",
+                matrix,
+                ",".join(attampck.matrices),
             )
             sys.exit(2)
 
@@ -523,7 +509,7 @@ def main_log_error() -> None:
     try:
         main()
     except Exception:
-        error("Unhandled exception: {}".format(traceback.format_exc()))
+        error("Unhandled exception: %s", traceback.format_exc())
         raise
 
 
