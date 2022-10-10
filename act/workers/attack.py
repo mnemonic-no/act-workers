@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import traceback
+from collections import defaultdict
 from logging import error, info, warning
 from typing import Any, Dict, List, Optional, Text, Union
 
@@ -15,7 +16,8 @@ from act.api.helpers import Act, handle_fact, handle_facts
 from act.api.libs import cli
 from attampck import matrices, stixmap
 from attampck.data import resolve_mitre_id
-from stix2.v21.sdo import AttackPattern, IntrusionSet, Malware, Tool
+from stix2 import (AttackPattern, Filter, IntrusionSet, Malware, Relationship,
+                   Tool)
 
 from act.workers.libs import worker
 
@@ -201,6 +203,7 @@ def add_groups(
     client: Act,
     attack: attampck.data.Attampck,
     matrix: matrices,
+    uses: Dict[Text, List[Relationship]],
     output_format: Text = "json",
 ) -> List[IntrusionSet]:
     """
@@ -234,12 +237,10 @@ def add_groups(
                     output_format=output_format,
                 )
 
-        for uses in attack.get_stix2_memorystore(matrix).related_to(
-            actor, relationship_type="uses"
-        ):
+        for target in uses.get(actor.id, []):
 
-            if uses.type in ("malware", "tool"):
-                tool_name = uses.name.strip()
+            if target.type in ("malware", "tool"):
+                tool_name = target.name.strip()
 
                 if not tool_name:
                     # Skip empty tools found in ATT&CK
@@ -260,11 +261,11 @@ def add_groups(
                     output_format=output_format,
                 )
 
-            elif uses.type == "attack-pattern":
+            elif target.type == "attack-pattern":
                 handle_facts(
                     act.api.fact.fact_chain(
                         client.fact("observedIn")
-                        .source("technique", resolve_mitre_id(uses))
+                        .source("technique", resolve_mitre_id(target))
                         .destination("incident", "*"),
                         client.fact("attributedTo")
                         .source("incident", "*")
@@ -280,14 +281,14 @@ def add_software(
     client: Act,
     attack: attampck.data.Attampck,
     matrix: matrices,
+    uses: Dict[Text, List[Relationship]],
     output_format: Text = "json",
 ) -> List[Software]:
     """
         extract objects/facts related to ATT&CK Software
         Insert to ACT if client.baseurl is set, if not, print to stdout
 
-    Args:
-        attack (matrices):       Attack matrice
+    Args: attack (matrices):       Attack matrice
         output_format (Text):    "json" or "str" output format
 
     """
@@ -329,16 +330,14 @@ def add_software(
                         output_format=output_format,
                     )
 
-            for technique in attack.get_stix2_memorystore(matrix).related_to(
-                software, relationship_type="uses"
-            ):
-                if technique.type != "attack-pattern":
+            for target in uses.get(software.id, []):
+                if target.type != "attack-pattern":
                     continue
 
                 handle_fact(
                     client.fact("implements")
                     .source("tool", software.name)
-                    .destination("technique", resolve_mitre_id(technique)),
+                    .destination("technique", resolve_mitre_id(target)),
                     output_format=output_format,
                 )
 
@@ -476,12 +475,23 @@ def main() -> None:
 
         cache = notify_cache(args.notifycache)
 
+        uses = defaultdict(list)
+
+        for rel in attack.get_stix2_memorystore(matrix).query(
+            [
+                Filter("type", "=", "relationship"),
+                Filter("relationship_type", "=", "uses"),
+            ]
+        ):
+            uses[rel.source_ref].append(attack.get(rel.target_ref))
+
         tactic_id_map = add_tactics(actapi, attack, matrix, args.output_format)
         techniques_notify = add_techniques(
             actapi, attack, matrix, tactic_id_map, args.output_format
         )
-        groups_notify = add_groups(actapi, attack, matrix, args.output_format)
-        software_notify = add_software(actapi, attack, matrix, args.output_format)
+
+        groups_notify = add_groups(actapi, attack, matrix, uses, args.output_format)
+        software_notify = add_software(actapi, attack, matrix, uses, args.output_format)
 
         # filter revoked objects from those allready notified
         notify: Attack = [
