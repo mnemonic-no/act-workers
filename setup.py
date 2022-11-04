@@ -11,14 +11,14 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.1.3",
+    version="2.1.4",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
     description="ACT workers",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license="MIT",
+    license="ISC",
     keywords="ACT, mnemonic",
     entry_points={
         "console_scripts": [

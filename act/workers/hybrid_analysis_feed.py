@@ -281,6 +281,9 @@ def handle_process_list(
 
         path = proc["normalizedpath"] if "normalizedpath" in proc else proc["name"]
 
+        if not path.strip():
+            continue
+
         chain.append(
             actapi.fact("executes").source("content", content).destination("uri", "*")
         )
