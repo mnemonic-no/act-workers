@@ -18,7 +18,7 @@ setup(
     description="ACT workers",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license="MIT",
+    license="ISC",
     keywords="ACT, mnemonic",
     entry_points={
         "console_scripts": [
