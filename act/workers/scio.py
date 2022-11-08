@@ -53,6 +53,12 @@ def parseargs() -> argparse.ArgumentParser:
         + "have access-mode=Public for tlp=WHITE/GREEN otherwise access-mode=RoleBased",
     )
 
+    parser.add_argument(
+        "--no-organization-from-owner",
+        action="store_true",
+        help="Do not apply organization from owner",
+    )
+
     return parser
 
 
@@ -289,6 +295,12 @@ def main() -> None:
         actapi.config.access_mode = (
             "Public" if doc.get("tlp") in ("GREEN", "WHITE") else "RoleBased"
         )
+
+    if not args.no_organization_from_owner:
+        owner = doc.get("owner")
+
+        if owner:
+            actapi.config.organization = owner
 
     # Add IOCs from reports to the ACT platform
     add_to_act(
