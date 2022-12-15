@@ -71,8 +71,8 @@ def download_feed(
         headers = {"User-Agent": user_agent}
         response = requests.get(url, proxies=proxies, headers=headers)
 
-    if response.status_code == 525:
-        # This is a known error that is observed from from time to time towards the hybrid analsysi API
+    if response.status_code in (525, 500):
+        # These are known errors that is observed from from time to time towards the hybrid analysis API
         warning(
             f"hybrid_analysis_feed.download_feed() could not download public feed, "
             f"error calling {url}: Status = {response.status_code}"
