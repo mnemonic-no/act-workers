@@ -79,7 +79,6 @@ def batch_query(
     """Execute query until we have all results"""
 
     offset = 0
-    count = 0
 
     proxies = {"http": proxy_string, "https": proxy_string}
 
@@ -95,8 +94,13 @@ def batch_query(
     }
 
     while True:  # do - while offset < count
-        # ARGUS uses offset in body for POST requests and request parameters for GET requests
 
+        # If we have defined a limit, do not set batch size higher
+        # that neede to fetch remaining events (if this is higher that the specified batch_size)
+        if limit:
+            batch_size = min(batch_size, limit - offset)
+
+        # ARGUS uses offset in body for POST requests and request parameters for GET requests
         if method == "POST" and json_params:
             json_params["offset"] = offset
             json_params["limit"] = batch_size
@@ -120,7 +124,7 @@ def batch_query(
             status_code_handler(req, res)
 
         data = res["data"]
-        count = res.get("count", 0)
+        size = res["size"]
 
         if not isinstance(data, list):
             yield data
@@ -128,15 +132,14 @@ def batch_query(
 
         yield from data
 
-        debug("count={}".format(count))
-
         offset += len(data)
 
         # if we have defined a limit, stop processing on reaching limit
         if limit and offset >= limit:
             break
 
-        if offset >= count:
+        # No more items
+        if size == 0:
             break
 
 
