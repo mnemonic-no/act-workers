@@ -75,9 +75,6 @@ def event_case_query(
     proxy_string - proxy string for the request
     """
 
-    # Batch size
-    limit = 2000
-
     # Use start time 1w prior to lastUpdated timestamp
     # Events can have "old" startTimestamp if they are delayed into argus.
     # lastUpdateTimstamp = timestamp when event is added to Argus
@@ -90,7 +87,6 @@ def event_case_query(
             "startTimestamp": start_time,
             "sortBy": ["lastUpdated"],
             "includeFlags": ["NOTIFIED"],
-            "limit": limit,
             # Do not include events that are associated to incidents from streaming filter
             "excludeFlags": ["ASSOCIATED_TO_CASE_BY_FILTER"],
         }
