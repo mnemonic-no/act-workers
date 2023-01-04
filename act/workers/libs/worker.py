@@ -8,13 +8,15 @@ import sys
 import urllib.parse
 from email.mime.text import MIMEText
 from logging import warning
-from typing import Any, Optional
+from typing import Any, Optional, Type, TypeVar
 
 import act.api
 import requests
 import urllib3
+from act.api.libs.cli import FactConfig
 from act.types.format import object_format
 from act.types.types import object_validates
+from pydantic import Field
 
 
 class FetchError(Exception):
@@ -66,6 +68,16 @@ class AuthenticationError(Exception):
         Exception.__init__(self, *args)
 
 
+class WorkerConfig(FactConfig):
+    disabled: bool = Field(
+        default=False,
+        description="Worker is disabled (exit immediately)",
+    )
+
+
+WorkerConfigType = TypeVar("WorkerConfigType", bound=WorkerConfig)
+
+
 def parseargs(description: str) -> argparse.ArgumentParser:
     """Parse arguments"""
 
@@ -80,18 +92,18 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     return parser
 
 
-def init_act(args: argparse.Namespace) -> act.api.Act:
+def init_act(config: Type[WorkerConfigType]) -> act.api.Act:
 
     """Initialize act api from arguments"""
 
     api = act.api.libs.cli.init_act(
-        args,
+        config,
         object_formatter=object_format,
         object_validator=object_validates,
     )
 
     # This check is done here to make sure logging is set up
-    if args.disabled:
+    if config.disabled:
         warning("Worker is disabled")
         sys.exit(0)
 
