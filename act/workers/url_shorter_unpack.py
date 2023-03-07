@@ -18,20 +18,20 @@ PERFORMANCE OF THIS SOFTWARE.
 """
 
 
-from logging import error, warning
-
-import urllib3
-
-from act.api.libs import cli
-from act.workers.libs import worker
-from typing import Text, List, Dict
-from urllib.parse import urlparse
-import act
-import act.api
 import argparse
-import requests
 import sys
 import traceback
+from logging import error, warning
+from typing import Dict, List, Text
+from urllib.parse import urlparse
+
+import act.api
+import requests
+import urllib3
+from act.api.libs import cli
+
+import act
+from act.workers.libs import worker
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

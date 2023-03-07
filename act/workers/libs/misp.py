@@ -1,16 +1,14 @@
 """Library for working with MISP export files"""
 
 import enum
-import uuid
-import json
-import time
-import re
+import hashlib
 import ipaddress
-
-from logging import error
-
-from typing import Optional, Text, Tuple, Dict, Callable
-
+import json
+import re
+import time
+import uuid
+from logging import debug, warning
+from typing import Callable, Dict, Optional, Text, Tuple
 
 
 class ThreatLevelID(enum.Enum):
@@ -108,9 +106,13 @@ class Event:  # pylint: disable=R0902
             time.time()
         )  # reference time when the event was published on the instance.
 
+        self.sha256 = None
+
         if loads:
             data = json.loads(loads)
             event = data["Event"]
+
+            self.sha256 = hashlib.sha256(loads.encode("utf-8")).hexdigest()
             self._uuid = uuid.UUID(event["uuid"])
             self.published = event["published"]
             self.info = event["info"]
@@ -118,7 +120,11 @@ class Event:  # pylint: disable=R0902
             self.analysis = Analysis(int(event["analysis"]))
             self.date = event["date"]
             self.timestamp = event["timestamp"]
-            self.publish_timestamp = event["publish_timestamp"]
+
+            if "publish_timestamp" in event:
+                self.publish_timestamp = event["publish_timestamp"]
+            else:
+                warning("publish_timestamp missing in event %s", event)
             self.org_id = event.get("org_id", "N/A")
             self.orgc_id = event.get("orgc_id", "N/A")
             self.attribute_count = event.get("attribute_count", 0)
@@ -156,29 +162,16 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
 
     def __init__(self, attributedict: Dict[Text, Text]):
 
-        try:
-            self._uuid = attributedict["uuid"]
-            self.id: Text = attributedict["uuid"]
-            mapper_fn = map_misp_to_act.get(
-                attributedict["type"], lambda x: (None, None)
-            )
-            self.act_type: Optional[Text] = None
-            self.value: Optional[Text] = None
+        self._uuid = attributedict["uuid"]
+        self.id: Text = attributedict["uuid"]
+        mapper_fn = map_misp_to_act.get(attributedict["type"], lambda x: (None, None))
+        self.act_type: Optional[Text] = None
+        self.value: Optional[Text] = None
 
-            try:
-                self.act_type, self.value = mapper_fn(attributedict["value"])
-            except ValidationError as e:
-                error(str(e))
+        self.act_type, self.value = mapper_fn(attributedict["value"])
 
-            if (
-                "RelatedAttribute" in attributedict
-                and attributedict["RelatedAttribute"]
-            ):
-                print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
-        except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
-            print(attributedict)
-            print(attributedict["value"][:100])
-            raise
+        if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
+            debug("Related atribute: %s", attributedict["RelatedAttribute"])
 
     def __str__(self) -> Text:
         return "{0} {1}:{2}".format(self.id, self.act_type, self.value)

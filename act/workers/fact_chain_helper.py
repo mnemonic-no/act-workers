@@ -27,10 +27,11 @@ from typing import List, Optional, Set, Text, TextIO, Tuple
 
 import act.api
 from act.api.helpers import handle_fact
+from act.api.libs import cli
 from act.types import types
+
 from act.workers import worker_config
 from act.workers.libs import worker
-from act.api.libs import cli
 
 
 class Node:

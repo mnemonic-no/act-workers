@@ -29,6 +29,14 @@ FQDN = "fqdn"
 def parseargs() -> argparse.ArgumentParser:
     """Parse arguments"""
     parser = worker.parseargs("PDNS enrichment")
+
+    parser.add_argument(
+        "--no-tlp-access-mode",
+        action="store_true",
+        help="Do not set access mode from TLP on document. If not set, facts will "
+        + "have access-mode=Public for tlp=white/green otherwise access-mode=RoleBased",
+    )
+
     parser.add_argument(
         "--pdns-baseurl",
         dest="pdns_baseurl",
@@ -93,6 +101,9 @@ def pdns_query(
             limit=limit,
         )
 
+    except worker.NotAllowed:
+        warning(f"Query not allowed: {query}")
+
     except worker.ResourceLimitExceeded as err:
         error("Resource limits exceeded ({0.__class__.__name__})".format(err))
 
@@ -100,11 +111,12 @@ def pdns_query(
         urllib3.exceptions.ReadTimeoutError,
         requests.exceptions.ReadTimeout,
         socket.timeout,
+        worker.ServiceTimeout,
     ) as err:
         warning("Timeout ({0.__class__.__name__}), query: {1}".format(err, query))
 
 
-def kind(s: Text):
+def kind(s: Text) -> Text:
     try:
         ipaddress.IPv4Address(s)
         return IPv4
@@ -127,6 +139,7 @@ def process(
     output_format: Text = "json",
     batch_size: int = 1000,
     limit: int = 0,
+    no_tlp_access_mode: bool = False,
 ) -> None:
     """Read queries from stdin, resolve each one through passivedns
     printing generic_uploader data to stdout"""
@@ -148,18 +161,29 @@ def process(
         ):
             rrtype = row["rrtype"]
 
+            if no_tlp_access_mode:
+                # Use Default Access Mode
+                access_mode = api.config.access_mode
+            else:
+                # Set Access Mode based on TLP
+                access_mode = (
+                    "Public" if row.get("tlp") in ("green", "white") else "RoleBased"
+                )
+
             i += 1
             if limit == i:
                 if kind(query) in (IPv4, IPv6):
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo").source(
-                            *act.api.helpers.ip_obj(row["answer"])
-                        ),
+                        api.fact(
+                            "excessive", "resolvesTo", access_mode=access_mode
+                        ).source(*act.api.helpers.ip_obj(row["answer"])),
                         output_format=output_format,
                     )
                 else:
                     act.api.helpers.handle_fact(
-                        api.fact("excessive", "resolvesTo").source("fqdn", query),
+                        api.fact(
+                            "excessive", "resolvesTo", access_mode=access_mode
+                        ).source("fqdn", query),
                         output_format=output_format,
                     )
 
@@ -169,7 +193,7 @@ def process(
 
             if rrtype in ("a", "aaaa"):
                 act.api.helpers.handle_fact(
-                    api.fact("resolvesTo")
+                    api.fact("resolvesTo", access_mode=access_mode)
                     .source("fqdn", row["query"])
                     .destination(*act.api.helpers.ip_obj(row["answer"])),
                     output_format=output_format,
@@ -177,7 +201,7 @@ def process(
 
             elif rrtype == "cname":
                 act.api.helpers.handle_fact(
-                    api.fact("resolvesTo")
+                    api.fact("resolvesTo", access_mode=access_mode)
                     .source("fqdn", row["query"])
                     .destination("fqdn", row["answer"]),
                     output_format=output_format,
@@ -204,6 +228,7 @@ def main() -> None:
         args.output_format,
         args.pdns_batch_size,
         args.limit,
+        args.no_tlp_access_mode,
     )
 
 

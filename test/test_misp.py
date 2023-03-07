@@ -1,8 +1,10 @@
-import pytest
-from act.workers.libs import misp
-from act.workers import misp_feeds
 import json
 import uuid
+
+import pytest
+
+from act.workers import misp_feeds
+from act.workers.libs import misp
 
 
 @pytest.mark.server(
@@ -51,6 +53,9 @@ def test_load_event() -> None:
     assert (
         a.info
         == 'M2M -  Dridex 2017-11-14 : botnet 7200 : "Invoice No.\n 123456" - "Invoice-123456-06.doc"'
+    )
+    assert (
+        a.sha256 == "c06ffa7a7a0da5c61a38916c11a2f4bb3e74ac18d3e24e727cef78e2d2b2e781"
     )
     assert a.uuid == uuid.UUID("5a0f0fb1-0b54-4ace-bb7b-429f950d210f")
     assert a.date == "2017-11-17"

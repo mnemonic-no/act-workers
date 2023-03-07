@@ -55,6 +55,8 @@ The access mode can be explicit set with `--access-mode`, e.g. like this, to set
 --access-mode Public
 ```
 
+There are also some workers, e.g. `act-scio` and `act-mnemoninc-pdns` that will set access-mode based on the input document (TLP green/white -> access-mode=Public), unless you explicit configures it to not do so.
+
 # Organization
 
 All workers support the optional arguments `--organization` If they are not specified, facts will be added with the organization of the origin or the user performing the upload to the platform (if not set by the origin.
@@ -228,9 +230,9 @@ by adding the ```--act-baseurl``` option, the data will be stored to the platfor
 
 The tool works by finding the shortest path though the datamodel. The options --avoid and --include will modify the cost of traversing certain nodes or edges. This tool is considered experimental.l.
 
-# add-ta-helper
+# act-ta-helper
 
-You can use `add-ta-helper` to create facts, including placeholders, for typical scenarios where you have some
+You can use `act-ta-helper` to create facts, including placeholders, for typical scenarios where you have some
 information of TA activity, but not all.
 
 This worker should not be used if any of objects listed as placeholders below are known.
@@ -297,7 +299,7 @@ technique <-[classifiedAs]- event[*] -[attributedTo]-> incident[*] -[attributedT
 Use if tool and threat actor is known, but incident, content and event is unknown.
 
 ```
-threatActor <-[attributedTod]- incident[*] <-[attributedTod]- event[*] <-[observedIn]- content[*] -[classifiedAs]-> tool
+threatActor <-[attributedTo]- incident[*] <-[observedIn]- content[*] -[classifiedAs]-> tool
 ```
 
 ## `sectors`

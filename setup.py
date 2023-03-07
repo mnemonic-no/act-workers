@@ -11,14 +11,14 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.0.12",
+    version="2.1.8",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
     description="ACT workers",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license="MIT",
+    license="ISC",
     keywords="ACT, mnemonic",
     entry_points={
         "console_scripts": [
@@ -56,15 +56,15 @@ setup(
     namespace_packages=["act"],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=[
-        "act-api>=2.2.0,<3.0.0",
-        "act-types>=2.0.2,<3.0.0",
+        "act-api>=2.1.3,<3.0.0",
+        "act-types>=2.1.0,<2.2.0",
         "caep",
         "pid",
         "requests",
         "RashlyOutlaid>=0.19",
         "virustotal-api",
         "dateparser",
-        "pyattck>=4.0.0",
+        "pyattck>=5.2.0",
     ],
     python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4",
     classifiers=[

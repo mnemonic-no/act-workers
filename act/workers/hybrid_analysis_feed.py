@@ -24,13 +24,13 @@ import sys
 import traceback
 import warnings
 from functools import partialmethod
-from logging import error, info
+from logging import error, info, warning
 from typing import Any, Dict, Generator, List, Optional, Text
 
-import requests
-
 import act.api
+import requests
 from act.api.libs import cli
+
 from act.workers.libs import worker
 
 
@@ -71,7 +71,16 @@ def download_feed(
         headers = {"User-Agent": user_agent}
         response = requests.get(url, proxies=proxies, headers=headers)
 
-    if response.status_code != 200:
+    if response.status_code in (525, 500):
+        # These are known errors that is observed from from time to time towards the hybrid analysis API
+        warning(
+            f"hybrid_analysis_feed.download_feed() could not download public feed, "
+            f"error calling {url}: Status = {response.status_code}"
+        )
+
+        return {"data": []}
+
+    elif response.status_code != 200:
         raise CommunicationError(
             f"hybrid_analysis_feed.download_feed() could not download public feed, "
             f"error calling {url}: Status = {response.status_code}"
@@ -272,6 +281,9 @@ def handle_process_list(
 
         path = proc["normalizedpath"] if "normalizedpath" in proc else proc["name"]
 
+        if not path.strip():
+            continue
+
         chain.append(
             actapi.fact("executes").source("content", content).destination("uri", "*")
         )
@@ -367,11 +379,19 @@ def search_hash(
 
         response = requests.post(url, proxies=proxies, headers=headers, data=form_data)
 
+    if response.status_code == 525:
+        # This is a known error that is observed from from time to time towards the hybrid analsysi API
+        warning(
+            f"hybrid_analysis_feed.search_hash() could not search community API, "
+            f"error calling {url}: Status = {response.status_code}, response = {response.text}"
+        )
+
+        return []
+
     if response.status_code != 200:
-        print(response.text)
         raise CommunicationError(
             f"hybrid_analysis_feed.search_hash() could not search community API, "
-            f"error calling {url}: Status = {response.status_code}"
+            f"error calling {url}: Status = {response.status_code}, response = {response.text}"
         )
 
     try:

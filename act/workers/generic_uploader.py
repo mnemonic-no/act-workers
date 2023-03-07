@@ -9,8 +9,7 @@ import sys
 import time
 import traceback
 from logging import error, warning
-from typing import Iterable
-from typing import Text
+from typing import Iterable, Text
 
 import act.api
 from act.api.libs import cli
@@ -32,6 +31,18 @@ def parseargs() -> argparse.ArgumentParser:
         "--no-exit-on-error", action="store_true", help="Log errors and continue"
     )
 
+    parser.add_argument(
+        "--no-format",
+        action="store_true",
+        help="Do not format facts with default formatter",
+    )
+
+    parser.add_argument(
+        "--no-validate",
+        action="store_true",
+        help="Do not validate facts with default types",
+    )
+
     return parser
 
 
@@ -50,6 +61,7 @@ def uploader(
     origins = set()
     facts = {}
     metafacts = set()
+    max_retries = 10
 
     for line in iterator:
         try:
@@ -80,7 +92,24 @@ def uploader(
         # The returned fact will be populated with a fact id
         # and default values from the platform
         try:
-            fact_copy = act.api.helpers.handle_fact(fact)
+
+            # Retry as long as we get ServiceTimeout (max_retries times)
+            for retry in range(max_retries):
+                try:
+                    fact_copy = act.api.helpers.handle_fact(fact)
+                    break
+                except act.api.base.ServiceTimeout:
+                    warning(
+                        "ServiceTimeout while storing objects (%s/%s)",
+                        retry,
+                        max_retries,
+                    )
+                    if retry < max_retries:
+                        time.sleep(retry * 3)
+            else:
+                error("Max retries reached, exit")
+                sys.exit(2)
+
         except act.api.base.ValidationError as err:
             warning("ValidationError while storing objects: %s" % err)
             continue
@@ -89,6 +118,13 @@ def uploader(
 
             if not no_exit_on_error:
                 sys.exit(1)
+
+            continue
+
+        # handle_fact() will return None if fact does not validate
+        if fact_copy is None:
+            warning("No fact returned from platform for: %s" % data)
+            continue
 
         # Add cache for facts to be used to populate id in meta facts
         if isinstance(fact, act.api.fact.Fact):
@@ -141,7 +177,9 @@ def main_log_error() -> None:
         # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
         # (or replace .config with $XDG_CONFIG_DIR if set)
         args = cli.handle_args(parseargs())
-        actapi = worker.init_act(args)
+        actapi = worker.init_act(
+            args, no_format=args.no_format, no_validate=args.no_validate
+        )
 
         uploader(
             actapi,

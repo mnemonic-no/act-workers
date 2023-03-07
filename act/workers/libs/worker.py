@@ -8,7 +8,7 @@ import sys
 import urllib.parse
 from email.mime.text import MIMEText
 from logging import warning
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar, Union
 
 import act.api
 import requests
@@ -17,6 +17,13 @@ from act.api.libs.cli import FactConfig
 from act.types.format import object_format
 from act.types.types import object_validates
 from pydantic import Field
+
+
+class NotAllowed(Exception):
+    """UnsupportedScheme is used when parsing URLs that does not contain a supported scheme"""
+
+    def __init__(self, *args: Any) -> None:
+        Exception.__init__(self, *args)
 
 
 class FetchError(Exception):
@@ -92,18 +99,21 @@ def parseargs(description: str) -> argparse.ArgumentParser:
     return parser
 
 
-def init_act(config: Type[WorkerConfigType]) -> act.api.Act:
-
-    """Initialize act api from arguments"""
+def init_act(
+    args: Union[argparse.Namespace, Type[WorkerConfigType]],
+    no_format: bool = False,
+    no_validate: bool = False,
+) -> act.api.Act:
+    """Initialize act api from argparse namespace (legacy)"""
 
     api = act.api.libs.cli.init_act(
-        config,
-        object_formatter=object_format,
-        object_validator=object_validates,
+        args,
+        object_formatter=None if no_format else object_format,
+        object_validator=None if no_validate else object_validates,
     )
 
     # This check is done here to make sure logging is set up
-    if config.disabled:
+    if args.disabled:
         warning("Worker is disabled")
         sys.exit(0)
 

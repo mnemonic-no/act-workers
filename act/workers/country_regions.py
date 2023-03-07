@@ -25,7 +25,7 @@ from act.workers.libs import worker
 class Config(worker.WorkerConfig):
     country_region_url: str = Field(
         default="https://raw.githubusercontent.com"
-        + "/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
+        "/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
         description="Country region URL in json format",
     )
 

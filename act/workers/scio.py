@@ -45,6 +45,20 @@ ACT_FN_MAP: Dict[Text, Callable] = {"vulnerability": lambda x: x.lower()}
 def parseargs() -> argparse.ArgumentParser:
     """Parse arguments"""
     parser = worker.parseargs("Get SCIO reports and IOCs from stdin")
+
+    parser.add_argument(
+        "--no-tlp-access-mode",
+        action="store_true",
+        help="Do not set access mode from TLP on document. If not set, facts will "
+        + "have access-mode=Public for tlp=WHITE/GREEN otherwise access-mode=RoleBased",
+    )
+
+    parser.add_argument(
+        "--no-organization-from-owner",
+        action="store_true",
+        help="Do not apply organization from owner",
+    )
+
     return parser
 
 
@@ -237,21 +251,61 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
         output_format,
     )
 
+    # Tactic
+    report_mentions_fact(
+        actapi,
+        "tactic",
+        set(doc.get("mitre_attack", {}).get("Tactics", [])),
+        report_id,
+        output_format,
+    )
+
+    # Technique
+    report_mentions_fact(
+        actapi,
+        "technique",
+        set(doc.get("mitre_attack", {}).get("Techniques", [])),
+        report_id,
+        output_format,
+    )
+
+    # SubTechniques
+    report_mentions_fact(
+        actapi,
+        "technique",
+        set(doc.get("mitre_attack", {}).get("SubTechniques", [])),
+        report_id,
+        output_format,
+    )
+
 
 def main() -> None:
     """main function"""
 
-    # Look for default ini file in "/etc/actworkers.ini"
-    # and ~/config/actworkers/actworkers.ini
+    # Look for default ini file in "/etc/act.ini"
+    # and ~/config/act/act.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = cli.handle_args(parseargs())
 
     actapi = worker.init_act(args)
 
+    doc = get_scio_report()
+
+    if not args.no_tlp_access_mode:
+        actapi.config.access_mode = (
+            "Public" if doc.get("tlp") in ("GREEN", "WHITE") else "RoleBased"
+        )
+
+    if not args.no_organization_from_owner:
+        owner = doc.get("owner")
+
+        if owner:
+            actapi.config.organization = owner
+
     # Add IOCs from reports to the ACT platform
     add_to_act(
         actapi,
-        get_scio_report(),
+        doc,
         args.output_format,
     )
 

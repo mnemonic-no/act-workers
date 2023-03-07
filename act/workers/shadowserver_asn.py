@@ -35,8 +35,9 @@ import caep
 import RashlyOutlaid.api as shadowserver
 from act.api.helpers import handle_fact
 from act.api.libs import cli
-from act.workers.libs import worker
 from RashlyOutlaid.libwhois import QueryError
+
+from act.workers.libs import worker
 
 CACHE_DIR = caep.get_cache_dir("shadowserver-asn-worker", create=True)
 ISO_3166_FILE = (
@@ -200,15 +201,12 @@ def asn_query(
                     else:
                         asn_records = shadowserver.peer([ip])
                     success = True
-                except (socket.gaierror, ConnectionResetError):
+                except (socket.gaierror, ConnectionResetError, QueryError):
                     if retry >= 8:
                         raise
                     # Sleep 1, 2, 4, 8, ... 128 seconds
-                    time.sleep(2 ** retry)
+                    time.sleep(2**retry)
                     retry += 1
-        except QueryError:
-            error("Query error: {}".format(traceback.format_exc()))
-            continue
         except KeyError:
             error("Key error: {}: {}".format(ip, traceback.format_exc()))
             continue

@@ -29,11 +29,11 @@ import zipfile
 from logging import error, warning
 from typing import Any, Dict, Optional, Text, Union, cast
 
-import requests
-
 import act.api
+import requests
 from act.api.helpers import handle_fact, handle_facts
 from act.api.libs import cli
+
 from act.workers.libs import urlcache, worker
 
 VERSION = "0.1"
@@ -216,8 +216,8 @@ def handle_tool(
                 .fact("observedIn")
                 .source("content", "*")
                 .destination("incident", incident_id),
-            ), 
-            output_format=config["output_format"]
+            ),
+            output_format=config["output_format"],
         )
 
 

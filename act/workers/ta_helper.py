@@ -16,11 +16,11 @@ from typing import Dict, List, Text
 
 import act.api
 from act.api.helpers import Act, handle_facts
+from act.api.libs import cli
 from pyattck import Attck
 
 from act.workers import worker_config
 from act.workers.libs import worker
-from act.api.libs import cli
 
 
 class VocabularyException(Exception):
@@ -225,8 +225,9 @@ def add_ta_techniques(
                 client.fact("observedIn")
                 .source("technique", technique)
                 .destination("incident", "*"),
-            ), 
-            output_format=output_format)
+            ),
+            output_format=output_format,
+        )
 
 
 def add_ta_tools(
@@ -246,8 +247,9 @@ def add_ta_tools(
                 client.fact("attributedTo")
                 .source("incident", "*")
                 .destination("threatActor", threat_actor),
-            ), 
-            output_format=output_format)
+            ),
+            output_format=output_format,
+        )
 
 
 def add_ta_sectors(
@@ -266,8 +268,9 @@ def add_ta_sectors(
                 client.fact("attributedTo")
                 .source("incident", "*")
                 .destination("threatActor", threat_actor),
-            ), 
-            output_format=output_format)
+            ),
+            output_format=output_format,
+        )
 
 
 def add_ta_target_country(
@@ -286,7 +289,9 @@ def add_ta_target_country(
                 client.fact("attributedTo")
                 .source("incident", "*")
                 .destination("threatActor", threat_actor),
-        ), output_format=output_format)
+            ),
+            output_format=output_format,
+        )
 
 
 def add_ta_located_in(
@@ -301,7 +306,9 @@ def add_ta_located_in(
             client.fact("attributedTo")
             .source("threatActor", threat_actor)
             .destination("organization", "*"),
-        ), output_format=output_format)
+        ),
+        output_format=output_format,
+    )
 
 
 def add_ta_campaign(
@@ -316,7 +323,9 @@ def add_ta_campaign(
             client.fact("attributedTo")
             .source("incident", "*")
             .destination("threatActor", threat_actor),
-        ), output_format=output_format)
+        ),
+        output_format=output_format,
+    )
 
 
 def main() -> None:
