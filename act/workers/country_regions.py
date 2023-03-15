@@ -10,8 +10,6 @@ If not, print facts to stdout.
 """
 
 
-import argparse
-import os
 import traceback
 from logging import error, warning
 from typing import Dict, List, Text
@@ -19,21 +17,17 @@ from typing import Dict, List, Text
 import act.api
 from act.api.helpers import handle_fact
 from act.api.libs import cli
+from pydantic import Field
 
 from act.workers.libs import worker
 
 
-def parseargs() -> argparse.ArgumentParser:
-    """Parse arguments"""
-    parser = worker.parseargs("Country/region enrichment")
-    parser.add_argument(
-        "--country-region-url",
-        dest="country_region_url",
-        default="https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
-        help="Country region URL in json format",
+class Config(worker.WorkerConfig):
+    country_region_url: str = Field(
+        default="https://raw.githubusercontent.com"
+        "/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.json",
+        description="Country region URL in json format",
     )
-
-    return parser
 
 
 def process(
@@ -76,7 +70,8 @@ def main_log_error() -> None:
     "Main function. Log all exceptions to error"
     # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
-    args = cli.handle_args(parseargs())
+    # args = cli.handle_args(parseargs())
+    args: Config = cli.load_config(Config, "Country/region enrichment")
 
     actapi = worker.init_act(args)
 

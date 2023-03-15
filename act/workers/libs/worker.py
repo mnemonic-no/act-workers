@@ -8,13 +8,15 @@ import sys
 import urllib.parse
 from email.mime.text import MIMEText
 from logging import warning
-from typing import Any, Optional
+from typing import Any, Optional, Type, TypeVar, Union
 
 import act.api
 import requests
 import urllib3
+from act.api.libs.cli import FactConfig
 from act.types.format import object_format
 from act.types.types import object_validates
+from pydantic import Field
 
 
 class NotAllowed(Exception):
@@ -73,6 +75,16 @@ class AuthenticationError(Exception):
         Exception.__init__(self, *args)
 
 
+class WorkerConfig(FactConfig):
+    disabled: bool = Field(
+        default=False,
+        description="Worker is disabled (exit immediately)",
+    )
+
+
+WorkerConfigType = TypeVar("WorkerConfigType", bound=WorkerConfig)
+
+
 def parseargs(description: str) -> argparse.ArgumentParser:
     """Parse arguments"""
 
@@ -88,10 +100,11 @@ def parseargs(description: str) -> argparse.ArgumentParser:
 
 
 def init_act(
-    args: argparse.Namespace, no_format: bool = False, no_validate: bool = False
+    args: Union[argparse.Namespace, Type[WorkerConfigType]],
+    no_format: bool = False,
+    no_validate: bool = False,
 ) -> act.api.Act:
-
-    """Initialize act api from arguments"""
+    """Initialize act api from argparse namespace (legacy)"""
 
     api = act.api.libs.cli.init_act(
         args,
