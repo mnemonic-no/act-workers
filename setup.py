@@ -56,7 +56,7 @@ setup(
     namespace_packages=["act"],
     url="https://github.com/mnemonic-no/act-workers",
     install_requires=[
-        "act-api>=2.1.3,<3.0.0",
+        "act-api>=2.1.3,<2.2.0",
         "act-types>=2.1.0,<2.2.0",
         "caep",
         "pid",
