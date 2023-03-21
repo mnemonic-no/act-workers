@@ -14,13 +14,11 @@ import traceback
 from logging import error
 from typing import Dict, List, Text
 
-import act.api
-from act.api.helpers import Act, handle_facts
 from act.api.libs import cli
 from pyattck import Attck
 
 from act.workers import worker_config
-from act.workers.libs import worker
+from act.workers.libs import fact_chain, worker
 
 
 class VocabularyException(Exception):
@@ -211,123 +209,6 @@ def sector_lookup(args: argparse.Namespace, sector: Text) -> Text:
         )
 
 
-def add_ta_techniques(
-    client: Act, output_format: Text, threat_actor: Text, techniques: List[Text]
-) -> None:
-    """Threat Actor Techniques"""
-
-    for technique in techniques:
-        handle_facts(
-            act.api.fact.fact_chain(
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", threat_actor),
-                client.fact("observedIn")
-                .source("technique", technique)
-                .destination("incident", "*"),
-            ),
-            output_format=output_format,
-        )
-
-
-def add_ta_tools(
-    client: Act, output_format: Text, threat_actor: Text, tools: List[Text]
-) -> None:
-    """Threat Actor Tools"""
-
-    for tool in tools:
-        handle_facts(
-            act.api.fact.fact_chain(
-                client.fact("classifiedAs")
-                .source("content", "*")
-                .destination("tool", tool),
-                client.fact("observedIn")
-                .source("content", "*")
-                .destination("incident", "*"),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", threat_actor),
-            ),
-            output_format=output_format,
-        )
-
-
-def add_ta_sectors(
-    client: Act, output_format: Text, threat_actor: Text, sectors: List[Text]
-) -> None:
-    """Threat Actor Sectors"""
-    for sector in sectors:
-        handle_facts(
-            act.api.fact.fact_chain(
-                client.fact("targets")
-                .source("incident", "*")
-                .destination("organization", "*"),
-                client.fact("memberOf")
-                .source("organization", "*")
-                .destination("sector", sector),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", threat_actor),
-            ),
-            output_format=output_format,
-        )
-
-
-def add_ta_target_country(
-    client: Act, output_format: Text, threat_actor: Text, target_countries: List[Text]
-) -> None:
-    """Threat actor target countries"""
-    for target_country in target_countries:
-        handle_facts(
-            act.api.fact.fact_chain(
-                client.fact("targets")
-                .source("incident", "*")
-                .destination("organization", "*"),
-                client.fact("locatedIn")
-                .source("organization", "*")
-                .destination("country", target_country),
-                client.fact("attributedTo")
-                .source("incident", "*")
-                .destination("threatActor", threat_actor),
-            ),
-            output_format=output_format,
-        )
-
-
-def add_ta_located_in(
-    client: Act, output_format: Text, threat_actor: Text, located_in: Text
-) -> None:
-    """Threat actor located in"""
-    handle_facts(
-        act.api.fact.fact_chain(
-            client.fact("locatedIn")
-            .source("organization", "*")
-            .destination("country", located_in),
-            client.fact("attributedTo")
-            .source("threatActor", threat_actor)
-            .destination("organization", "*"),
-        ),
-        output_format=output_format,
-    )
-
-
-def add_ta_campaign(
-    client: Act, output_format: Text, threat_actor: Text, campaign: Text
-) -> None:
-    """Threat Actor Campaign"""
-    handle_facts(
-        act.api.fact.fact_chain(
-            client.fact("attributedTo")
-            .source("incident", "*")
-            .destination("campaign", campaign),
-            client.fact("attributedTo")
-            .source("incident", "*")
-            .destination("threatActor", threat_actor),
-        ),
-        output_format=output_format,
-    )
-
-
 def main() -> None:
     """Main function"""
 
@@ -376,24 +257,30 @@ def main() -> None:
         sys.exit(1)
 
     if args.target_countries:
-        add_ta_target_country(
+        fact_chain.handle_ta_target_country(
             actapi, args.output_format, args.ta, args.target_countries
         )
 
     if args.campaign:
-        add_ta_campaign(actapi, args.output_format, args.ta, args.campaign)
+        fact_chain.handle_ta_campaign(
+            actapi, args.output_format, args.ta, args.campaign
+        )
 
     if args.tools:
-        add_ta_tools(actapi, args.output_format, args.ta, args.tools)
+        fact_chain.handle_ta_tools(actapi, args.output_format, args.ta, args.tools)
 
     if args.techniques:
-        add_ta_techniques(actapi, args.output_format, args.ta, args.techniques)
+        fact_chain.handle_ta_techniques(
+            actapi, args.output_format, args.ta, args.techniques
+        )
 
     if args.sectors:
-        add_ta_sectors(actapi, args.output_format, args.ta, args.sectors)
+        fact_chain.handle_ta_sectors(actapi, args.output_format, args.ta, args.sectors)
 
     if args.ta_located_in:
-        add_ta_located_in(actapi, args.output_format, args.ta, args.ta_located_in)
+        fact_chain.handle_ta_located_in(
+            actapi, args.output_format, args.ta, args.ta_located_in
+        )
 
 
 def main_log_error() -> None:
