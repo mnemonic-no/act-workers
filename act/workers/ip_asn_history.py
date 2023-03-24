@@ -20,7 +20,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 import sys
 import traceback
-from logging import error
+from logging import error, warning
 from typing import List, Optional, Text, Tuple
 
 import act.api
@@ -43,7 +43,15 @@ def lookup_ip(ip: Text, proxy: Optional[Text] = None) -> List[Tuple[Text, Text]]
         proxies=proxies,
     )
 
-    data = r.json()
+    try:
+        data = r.json()
+    except requests.exceptions.JSONDecodeError as err:
+        warning("Unable to parse as json: %s: %s", r.text, err)
+        return []
+
+    if "response" not in data:
+        warning("Response not found in data: %s", str(data))
+        return []
 
     return [(x["asn"], x["prefix"]) for x in data["response"].values()]
 
