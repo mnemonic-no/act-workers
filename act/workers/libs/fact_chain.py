@@ -119,3 +119,16 @@ def handle_ta_campaign(
         ),
         output_format=output_format,
     )
+
+
+def handle_ta_uri(client: Act, output_format: str, threat_actor: str, uri: str) -> None:
+    """(uri) -> (incident:placeholder) -> (threatActor)"""
+    handle_facts(
+        act.api.fact.fact_chain(
+            client.fact("accomplishes").source("uri", uri).destination("incident", "*"),
+            client.fact("attributedTo")
+            .source("incident", "*")
+            .destination("threatActor", threat_actor),
+        ),
+        output_format=output_format,
+    )
