@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from datetime import datetime
 from logging import debug, warning
-from typing import Iterator, List, Set
+from typing import Any, Dict, Iterator, List, Set
 
 from falconpy import Intel
 from pydantic import BaseModel, Field, validator
@@ -18,10 +18,20 @@ KILL_CHAIN_TYPE = Literal[
 ]
 
 
+class APIError(BaseModel):
+    code: str
+    message: str
+
+
 class CrowdStrikeAPIError(Exception):
     """Exception class used to report errors from the API"""
 
-    ...
+    def __init__(self, response: Dict[str, Any]):
+
+        self.errors = [APIError(**error) for error in response["body"]["errors"]]
+
+    def __str__(self) -> str:
+        return ", ".join(f"{error.code}: {error.message}" for error in self.errors)
 
 
 class Label(BaseModel):
@@ -119,7 +129,7 @@ def get_actors(falcon: Intel) -> Iterator[Actor]:
         for resource in response["body"]["resources"]:
             yield Actor(**resource)
     else:
-        raise CrowdStrikeAPIError(response["body"]["errors"])
+        raise CrowdStrikeAPIError(response)
 
 
 def get_latest_indicators(
@@ -169,4 +179,4 @@ def get_latest_indicators(
                     return
 
         else:
-            raise CrowdStrikeAPIError(response["body"]["errors"])
+            raise CrowdStrikeAPIError(response)
