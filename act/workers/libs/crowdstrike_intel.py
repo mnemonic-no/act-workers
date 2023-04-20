@@ -27,7 +27,6 @@ class CrowdStrikeAPIError(Exception):
     """Exception class used to report errors from the API"""
 
     def __init__(self, response: Dict[str, Any]):
-
         self.errors = [APIError(**error) for error in response["body"]["errors"]]
 
     def __str__(self) -> str:
@@ -117,6 +116,49 @@ class Actor(BaseModel):
     def to_list(cls, value: str) -> List[str]:
         """known_as is a comma separated list, convert to list of strings"""
         return [v.strip() for v in value.split(",") if v.strip()]
+
+    # Replace None values with empty list
+    @validator("capabilities", pre=True)
+    def empty_capabilities(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("motivations", pre=True)
+    def empty_motivations(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("objectives", pre=True)
+    def empty_objectives(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("origins", pre=True)
+    def empty_origins(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("target_countries", pre=True)
+    def empty_target_countries(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("target_industries", pre=True)
+    def empty_target_industries(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
+
+    @validator("target_regions", pre=True)
+    def empty_target_regions(cls, v: Any) -> Any:
+        if not v:
+            return []
+        return v
 
 
 def get_actors(falcon: Intel) -> Iterator[Actor]:
