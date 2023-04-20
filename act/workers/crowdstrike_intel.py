@@ -262,7 +262,6 @@ def process_indicators(actapi: act.api.Act, args: Config, falcon: Intel) -> None
     for indicator in crowdstrike_intel.get_latest_indicators(
         falcon, get_last_indicator()
     ):
-
         handle_indicator(actapi, indicator, args.output_format)
 
         indicator_marker = indicator.marker
@@ -284,9 +283,9 @@ def handle_actor(
     # Alias facts
     for alias in actor.known_as:
         handle_fact(
-            actapi.fact("alias")
-            .source("threatActor", actor.name)
-            .destination("threatActor", alias)
+            actapi.fact("alias").bidirectional(
+                "threatActor", actor.name, "threatActor", alias
+            )
         )
 
     for country in actor.target_countries:
