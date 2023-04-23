@@ -11,7 +11,7 @@ with open(path.join(this_directory, "README.md"), "rb") as f:
 
 setup(
     name="act-workers",
-    version="2.1.10",
+    version="2.1.11",
     author="mnemonic AS",
     zip_safe=True,
     author_email="opensource@mnemonic.no",
@@ -25,6 +25,7 @@ setup(
             "act-argus-case = act.workers.argus_case:main_log_error",
             "act-attack = act.workers.attack:main_log_error",
             "act-country-regions = act.workers.country_regions:main_log_error",
+            "act-crowdstrike-intel = act.workers.crowdstrike_intel:main_log_error",
             "act-fact-chain-helper = act.workers.fact_chain_helper:main_log_error",
             "act-feed = act.workers.act_feed:main_log_error",
             "act-hybrid-analysis-feed = act.workers.hybrid_analysis_feed:main_log_error",
@@ -59,7 +60,8 @@ setup(
     install_requires=[
         "act-api>=2.1.3,<2.2.0",
         "act-types>=2.1.0,<2.2.0",
-        "caep",
+        "caep>=0.1.5",
+        "crowdstrike-falconpy",
         "pid",
         "requests",
         "RashlyOutlaid>=0.19",
