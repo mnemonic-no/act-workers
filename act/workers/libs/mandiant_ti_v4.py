@@ -29,14 +29,13 @@ class Connection:
         application_name: Optional[str] = None,
         proxy_string: Optional[str] = None,
     ) -> None:
-
         self.url = url
+        self.proxy_string = proxy_string
 
         if not application_name:
             application_name = APP
         self.application_name = application_name
         self.access_token = self.get_token(key_id, secret_key)
-        self.proxy_string = proxy_string
 
         # The rate limits in the API is dynamic, but we set a safe
         # value that should cover all types as
@@ -54,6 +53,8 @@ class Connection:
         base64_auth_token_bytes = base64.b64encode(auth_token_bytes)
         base64_auth_token = base64_auth_token_bytes.decode("ascii")
 
+        proxies = {"https": self.proxy_string} if self.proxy_string else None
+
         params = {"grant_type": "client_credentials", "scope": ""}
 
         headers = {
@@ -65,6 +66,7 @@ class Connection:
 
         access_token = requests.post(
             url=urlparse.urljoin(self.url, "token"),
+            proxies=proxies,
             headers=headers,
             data=params,
         )
