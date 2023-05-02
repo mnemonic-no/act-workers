@@ -35,7 +35,7 @@ def test_scio2_facts(capsys) -> None:  # type: ignore
     uri = doc["indicators"]["uri"][0]  # "http://www.us-cert.gov/tlp."
 
     fact_assertions = [
-        api.fact("name", "TA18-149A.stix.xml").source("report", report_id),
+        api.fact("name", "Test Report title").source("report", report_id),
         api.fact("mentions")
         .source("report", report_id)
         .destination("ipv4", "187.127.112.60"),

@@ -187,7 +187,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 
     report_id: Text = doc["hexdigest"]
     filename: Text = os.path.basename(doc.get("filename", "NN"))
-    title: Text = doc.get("title", filename)
+    title: Text = doc.get("metadata", {}).get("dc:title", filename)
 
     indicators: Dict = doc.get("indicators", {})
     vulnerabilities: Dict = doc.get("vulnerabilities", {})
